@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Support\Carreras;
+use App\Support\CedulaEcuador;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class PerfilUpdateRequest extends FormRequest
 {
@@ -15,8 +17,10 @@ class PerfilUpdateRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $cedula = CedulaEcuador::normalizeDigits((string) $this->input('cedula', ''));
+
         $this->merge([
-            'cedula' => preg_replace('/\D+/', '', (string) $this->input('cedula', '')) ?? '',
+            'cedula' => $cedula,
             'celular' => preg_replace('/\D+/', '', (string) $this->input('celular', '')) ?? '',
         ]);
     }
@@ -30,7 +34,7 @@ class PerfilUpdateRequest extends FormRequest
             'cedula' => [
                 'required',
                 'string',
-                'regex:/^\d{10,13}$/',
+                'regex:/^\d{10}$/',
                 Rule::unique('users', 'cedula')->ignore($this->user()->id),
             ],
             'carrera' => ['required', 'string', Rule::in($carreras)],
@@ -38,12 +42,31 @@ class PerfilUpdateRequest extends FormRequest
         ];
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $cedula = (string) $this->input('cedula', '');
+            if ($cedula === '' || strlen($cedula) !== 10) {
+                return;
+            }
+
+            $user = $this->user();
+            if ($user && trim((string) $user->cedula) !== '' && $user->cedula === $cedula) {
+                return;
+            }
+
+            if (! CedulaEcuador::isValid($cedula)) {
+                $validator->errors()->add('cedula', 'La cédula no es válida. Verifica que sea tu número de identidad ecuatoriano.');
+            }
+        });
+    }
+
     /** @return array<string, string> */
     public function messages(): array
     {
         return [
             'cedula.required' => 'Indica tu cédula de identidad.',
-            'cedula.regex' => 'La cédula debe tener entre 10 y 13 dígitos.',
+            'cedula.regex' => 'La cédula ecuatoriana debe tener exactamente 10 dígitos.',
             'cedula.unique' => 'Esa cédula ya está registrada en otra cuenta.',
             'carrera.required' => 'Selecciona tu carrera.',
             'carrera.in' => 'Selecciona una carrera válida.',

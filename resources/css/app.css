@@ -261,12 +261,13 @@ a:hover {
 }
 
 .topbar__account-id {
-  font-size: 0.74rem;
+  font-size: clamp(0.65rem, 1.8vw, 0.74rem);
   color: rgba(255, 255, 255, 0.78);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: min(46vw, 22rem);
+  font-variant-numeric: tabular-nums;
 }
 
 .topbar__actions {
@@ -999,9 +1000,11 @@ html.sidebar-open {
 
 .profile-identity__meta {
   margin: 0.45rem 0 0;
-  font-size: 0.9rem;
+  font-size: clamp(0.78rem, 2.4vw, 0.9rem);
   font-weight: 600;
   color: #64748b;
+  word-break: break-all;
+  max-width: 100%;
 }
 
 .profile-identity__body {

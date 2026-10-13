@@ -99,6 +99,10 @@ class SolicitudController extends Controller
             return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::totalLimitMessage());
         }
 
+        if (\App\Support\SolicitudAdjuntoLimits::exceedsFileCount(0, $request)) {
+            return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::fileCountMessage());
+        }
+
         $validated = $request->validate([
             'tipo' => 'required|string',
             'fecha_inicio' => 'nullable|date',
@@ -386,11 +390,16 @@ class SolicitudController extends Controller
             ? route('solicitudes.oficio-descargar', $solicitud)
             : $oficioPreviewUrl;
 
+        $mostrarOficioInstitucional = $solicitud->estado === SolicitudEstado::Aprobada
+            || $solicitud->creado_por === $user->id
+            || ($esStaff && $solicitud->estado !== SolicitudEstado::EnBorrador);
+
         return view('solicitudes.show', [
             'solicitud' => $solicitud,
             'timeline' => SolicitudTimeline::for($solicitud),
             'documentos' => $documentos->all(),
             'esStaff' => $esStaff,
+            'mostrarOficioInstitucional' => $mostrarOficioInstitucional,
             'puedeActuarSecretaria' => $user->can('revisar', $solicitud) && $solicitud->creado_por !== $user->id,
             'puedeActuarDecano' => $user->can('aprobar', $solicitud) && $solicitud->creado_por !== $user->id,
             'oficioUsaPlantillaDocx' => $oficioUsaPlantillaDocx,
@@ -432,6 +441,7 @@ class SolicitudController extends Controller
         return view('solicitudes.edit', [
             'solicitud' => $solicitud,
             'tipos' => SolicitudTipo::cases(),
+            'anexos' => SolicitudAdjuntos::anexosActuales($solicitud),
         ]);
     }
 
@@ -447,6 +457,12 @@ class SolicitudController extends Controller
             return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::totalLimitMessage());
         }
 
+        $anexosActuales = SolicitudAdjuntos::anexosActuales($solicitud);
+        $restantesTrasEliminar = count($anexosActuales) - count($request->input('eliminar_anexos', []));
+        if (\App\Support\SolicitudAdjuntoLimits::exceedsFileCount(max(0, $restantesTrasEliminar), $request)) {
+            return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::fileCountMessage());
+        }
+
         $validated = $request->validate([
             'tipo' => 'required|string',
             'fecha_inicio' => 'required|date',
@@ -457,46 +473,27 @@ class SolicitudController extends Controller
             'eliminar_anexos.*' => 'nullable|string',
         ]);
 
+        if ($validated['tipo'] !== $solicitud->tipo->value) {
+            return back()->withInput()->with('error', 'No puedes cambiar el tipo de solicitud. Crea un trámite nuevo si te equivocaste.');
+        }
+
         $old = $solicitud->toArray();
         $detalle = $solicitud->detalle ?? [];
-        $anexos = $detalle['anexos'] ?? [];
+        $anexos = SolicitudAdjuntos::aplicarCambiosAdjuntos($solicitud, $request, $anexosActuales);
+        $legacy = SolicitudAdjuntos::sincronizarCamposLegacy($anexos);
 
-        if ($solicitud->justificativo_path && ! $anexos) {
-            $anexos = [['path' => $solicitud->justificativo_path, 'nombre' => $solicitud->justificativo_nombre]];
-        }
-
-        foreach ($request->input('eliminar_anexos', []) as $path) {
-            $anexos = array_values(array_filter($anexos, fn ($a) => ($a['path'] ?? '') !== $path));
-            Storage::disk('public')->delete($path);
-        }
-
-        if ($request->hasFile('justificativo')) {
-            if ($solicitud->justificativo_path) {
-                Storage::disk('public')->delete($solicitud->justificativo_path);
-            }
-            $file = $request->file('justificativo');
-            $anexos[] = ['path' => $file->store('justificativos', 'public'), 'nombre' => $file->getClientOriginalName()];
-        }
-
-        foreach ($request->file('anexos', []) as $file) {
-            if (! $file) {
-                continue;
-            }
-            $anexos[] = ['path' => $file->store('justificativos', 'public'), 'nombre' => $file->getClientOriginalName()];
-        }
-
-        $detalle['anexos'] = $anexos;
-        $detalle['anexo_path'] = $anexos[0]['path'] ?? null;
-        $detalle['anexo_nombre'] = $anexos[0]['nombre'] ?? null;
+        $detalle['anexos'] = $legacy['detalle_anexos'];
+        $detalle['anexo_path'] = $legacy['justificativo_path'];
+        $detalle['anexo_nombre'] = $legacy['justificativo_nombre'];
 
         $data = [
-            'tipo' => $validated['tipo'],
+            'tipo' => $solicitud->tipo->value,
             'fecha_inicio' => $validated['fecha_inicio'],
             'fecha_fin' => $validated['fecha_fin'],
             'motivo' => $validated['motivo'],
             'detalle' => $detalle,
-            'justificativo_path' => $anexos[0]['path'] ?? null,
-            'justificativo_nombre' => $anexos[0]['nombre'] ?? null,
+            'justificativo_path' => $legacy['justificativo_path'],
+            'justificativo_nombre' => $legacy['justificativo_nombre'],
         ];
 
         if ($solicitud->estado === SolicitudEstado::EnBorrador && ! $request->boolean('borrador')) {
@@ -527,6 +524,6 @@ class SolicitudController extends Controller
         $this->audit->log('DELETE', $solicitud, $old);
 
         return redirect()->route('solicitudes.index')
-            ->with('success', 'Borrador eliminado.');
+            ->with('success', 'Solicitud eliminada.');
     }
 }

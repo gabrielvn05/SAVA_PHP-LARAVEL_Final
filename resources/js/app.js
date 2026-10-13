@@ -215,8 +215,8 @@ function initWizard() {
             el.hidden = true;
         });
         const map = {
-            enfermedad: ['inasistencia', 'enfermedad', 'motivo', 'observaciones'],
-            calamidad_domestica: ['inasistencia', 'calamidad', 'motivo', 'observaciones'],
+            enfermedad: ['inasistencia', 'enfermedad', 'motivo'],
+            calamidad_domestica: ['inasistencia', 'calamidad', 'motivo'],
             viaje: ['viaje', 'observaciones'],
             falta_marcado: ['falta', 'falta-motivo', 'observaciones'],
             permiso: ['permiso', 'permiso-motivo', 'observaciones'],
@@ -305,11 +305,30 @@ function initWizard() {
 
     function syncInstitucionNombre() {
         const wrap = document.querySelector('.wizard-field--institucion-nombre');
-        if (!wrap || !instTipo) return;
-        const show = !document.querySelector('.wizard-field--enfermedad')?.hidden
-            && instTipo.value
-            && instTipo.value !== 'IESS';
-        wrap.hidden = !show;
+        const hintId = 'institucion-medica-aviso';
+        let hint = document.getElementById(hintId);
+        if (!instTipo) return;
+
+        const enfermedadVisible = !document.querySelector('.wizard-field--enfermedad')?.hidden;
+        const showNombre = enfermedadVisible && instTipo.value && instTipo.value !== 'IESS';
+        if (wrap) {
+            wrap.hidden = !showNombre;
+        }
+
+        if (enfermedadVisible && instTipo.value && instTipo.value !== 'IESS') {
+            if (!hint) {
+                hint = document.createElement('p');
+                hint.id = hintId;
+                hint.className = 'field-hint';
+                hint.style.margin = '0.35rem 0 0';
+                hint.style.color = 'var(--color-warning, #b45309)';
+                instTipo.closest('div')?.appendChild(hint);
+            }
+            hint.hidden = false;
+            hint.textContent = 'Recuerda adjuntar el certificado médico avalado por el IESS cuando corresponda.';
+        } else if (hint) {
+            hint.hidden = true;
+        }
     }
 
     function selectTipo(tipo, card) {

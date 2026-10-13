@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureProfileComplete;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\PreventSensitivePageCache;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'password.changed' => EnsurePasswordChanged::class,
         ]);
         $middleware->append(SecurityHeaders::class);
+        $middleware->append(PreventSensitivePageCache::class);
         $middleware->appendToGroup('web', EnsurePasswordChanged::class);
         $middleware->appendToGroup('web', EnsureProfileComplete::class);
     })

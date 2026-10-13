@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\AppRole;
 use App\Enums\CapabilityType;
 use App\Enums\SolicitudEstado;
+use App\Services\OficioPdfService;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Services\AppNotificationService;
@@ -23,6 +24,7 @@ class SolicitudProcesoController extends Controller
         private readonly AuditService $audit,
         private readonly SolicitudNotificacionService $notificaciones,
         private readonly AppNotificationService $appNotifications,
+        private readonly OficioPdfService $oficioPdf,
     ) {
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
@@ -112,22 +114,34 @@ class SolicitudProcesoController extends Controller
         }
 
         $old = $solicitud->toArray();
+        $revisor = auth()->user();
+        $revisorFirmaComoDecano = $revisor->hasCapability(CapabilityType::AprobarSolicitudes);
         $nuevoEstado = $this->workflow->estadoTrasRevisionSecretaria(
             $solicitud->creador->rol,
             $aprobado,
+            $aprobado && $revisorFirmaComoDecano,
         );
+
+        $firmaFinal = $nuevoEstado === SolicitudEstado::Aprobada;
+        $observacionesDecano = $solicitud->observaciones_decano;
+        if ($firmaFinal) {
+            $observacionesDecano = $revisorFirmaComoDecano && $solicitud->creador->rol !== AppRole::Decano
+                ? ($validated['observaciones_secretaria'] ?? null)
+                : ($validated['observaciones_secretaria'] ?? null);
+        }
 
         $solicitud->update([
             'estado' => $nuevoEstado,
             'revisado_por' => auth()->id(),
             'observaciones_secretaria' => $validated['observaciones_secretaria'] ?? null,
-            'firmado_por' => $nuevoEstado === SolicitudEstado::Aprobada ? auth()->id() : null,
-            'fecha_firma' => $nuevoEstado === SolicitudEstado::Aprobada ? now() : null,
-            'observaciones_decano' => $nuevoEstado === SolicitudEstado::Aprobada
-                && $solicitud->creador->rol === AppRole::Decano
-                    ? ($validated['observaciones_secretaria'] ?? null)
-                    : $solicitud->observaciones_decano,
+            'firmado_por' => $firmaFinal ? auth()->id() : null,
+            'fecha_firma' => $firmaFinal ? now() : null,
+            'observaciones_decano' => $observacionesDecano,
         ]);
+
+        if ($firmaFinal) {
+            $this->oficioPdf->invalidarCache($solicitud);
+        }
 
         $this->audit->log('UPDATE', $solicitud, $old);
         $this->appNotifications->onSolicitudRevisadaSecretaria(
@@ -175,6 +189,10 @@ class SolicitudProcesoController extends Controller
             'observaciones_decano' => $validated['observaciones_decano'] ?? null,
             'fecha_firma' => now(),
         ]);
+
+        if ($aprobado) {
+            $this->oficioPdf->invalidarCache($solicitud);
+        }
 
         $this->audit->log('UPDATE', $solicitud, $old);
         $this->appNotifications->onSolicitudResueltaDecano($solicitud->fresh(['creador']), $aprobado);

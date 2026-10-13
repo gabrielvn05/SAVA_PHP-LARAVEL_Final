@@ -433,11 +433,12 @@
             <div>
                 <label id="anexo-label">Adjuntar documento de respaldo</label>
                 <input type="file" name="justificativo" accept=".pdf,.png,.jpg,.jpeg">
-                <p class="field-hint">PDF, PNG o JPG. Peso total máximo de todos los archivos: 20 MB.</p>
+                <p class="field-hint">PDF, PNG o JPG. Hasta 10 archivos y 10 MB de peso total entre todos.</p>
             </div>
             <div>
                 <label>Anexos adicionales</label>
                 <input type="file" name="anexos[]" multiple accept=".pdf,.png,.jpg,.jpeg">
+                <p class="field-hint">Puedes seleccionar varios archivos a la vez (máximo 10 en total).</p>
             </div>
 
             <div class="row" style="justify-content: space-between;">

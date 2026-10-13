@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\SolicitudEstado;
 use App\Models\Solicitud;
+use App\Models\User;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
@@ -51,7 +53,7 @@ class OficioPdfService
             return file_get_contents($cachePath) ?: null;
         }
 
-        $docx = $this->docx->generar($solicitud);
+        $docx = $this->docx->generar($solicitud, $this->decanoParaOficio($solicitud));
         $pdf = $this->convertirDocx($docx);
         if ($pdf === null) {
             return null;
@@ -76,6 +78,17 @@ class OficioPdfService
     private function cachePath(Solicitud $solicitud): string
     {
         return storage_path('app/oficios/pdf/'.$solicitud->id.'.'.self::PLANTILLA_VERSION.'.pdf');
+    }
+
+    private function decanoParaOficio(Solicitud $solicitud): ?User
+    {
+        if ($solicitud->estado !== SolicitudEstado::Aprobada) {
+            return null;
+        }
+
+        $solicitud->loadMissing('firmante');
+
+        return $solicitud->firmante;
     }
 
     private function cacheValido(string $path, Solicitud $solicitud): bool

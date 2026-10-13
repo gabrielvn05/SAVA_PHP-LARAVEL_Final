@@ -115,6 +115,9 @@ class OficioDocxService
         $reemplazar = array_map(fn (string $v): string => $this->xmlEscape($v), array_values($valores));
 
         $xml = str_replace($buscar, $reemplazar, $xml);
+        $xml = preg_replace('/<w:color w:val="[^"]*"\/>/u', '', $xml) ?? $xml;
+        $xml = preg_replace('/<w:highlight w:val="[^"]*"\/>/u', '', $xml) ?? $xml;
+        $xml = preg_replace('/<w:shd\b[^>]*\/>/u', '', $xml) ?? $xml;
 
         return $this->normalizarTablaFirma($xml);
     }

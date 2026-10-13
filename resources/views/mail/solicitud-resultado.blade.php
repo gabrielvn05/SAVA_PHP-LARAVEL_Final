@@ -29,8 +29,12 @@
             </p>
         @endif
         <p style="margin:16px 0 0">
-            Puedes consultar el detalle en<br>
-            <a href="{{ $detalleUrl }}">{{ $detalleUrl }}</a>
+            @if($aprobada)
+                El oficio firmado va adjunto en PDF. También puedes ver el trámite en SAVA:
+            @else
+                Puedes consultar el detalle en SAVA:
+            @endif
+            <a href="{{ url($detalleUrl) }}">Abrir solicitud</a>
         </p>
         <p style="margin:18px 0 0;color:#5c6b7f;font-size:13px">
             Este mensaje es informativo. Si no reconoces esta solicitud, contacta a Secretaría de la facultad.

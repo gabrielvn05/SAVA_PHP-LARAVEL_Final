@@ -7,13 +7,16 @@ use App\Enums\SolicitudEstado;
 
 class SolicitudWorkflowService
 {
-    public function estadoTrasRevisionSecretaria(AppRole $creadorRol, bool $aprobado): SolicitudEstado
-    {
+    public function estadoTrasRevisionSecretaria(
+        AppRole $creadorRol,
+        bool $aprobado,
+        bool $revisorFirmaComoDecano = false,
+    ): SolicitudEstado {
         if (! $aprobado) {
             return SolicitudEstado::Rechazada;
         }
 
-        if ($creadorRol === AppRole::Decano) {
+        if ($creadorRol === AppRole::Decano || $revisorFirmaComoDecano) {
             return SolicitudEstado::Aprobada;
         }
 
@@ -29,6 +32,10 @@ class SolicitudWorkflowService
     {
         if ($this->solicitudCreadaPorDecano($creadorRol)) {
             return SolicitudEstado::Aprobada;
+        }
+
+        if ($creadorRol === AppRole::Secretaria) {
+            return SolicitudEstado::PendienteAprobacionDecano;
         }
 
         return SolicitudEstado::EnRevisionSecretaria;

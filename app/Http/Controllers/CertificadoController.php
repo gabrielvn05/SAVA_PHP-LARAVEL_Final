@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SolicitudEstado;
 use App\Models\Solicitud;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
@@ -63,7 +64,7 @@ class CertificadoController extends Controller
             abort(404);
         }
 
-        $binary = $this->docxService->generar($solicitud);
+        $binary = $this->docxService->generar($solicitud, $this->decanoFirmante($solicitud));
         $detalle = $solicitud->detalle ?? [];
         $nombre = ($detalle['codigo_tramite'] ?? 'oficio').'.docx';
 
@@ -82,7 +83,7 @@ class CertificadoController extends Controller
             abort(404);
         }
 
-        $binary = $this->docxService->generar($solicitud);
+        $binary = $this->docxService->generar($solicitud, $this->decanoFirmante($solicitud));
         $detalle = $solicitud->detalle ?? [];
         $nombre = ($detalle['codigo_tramite'] ?? 'oficio').'.docx';
 
@@ -91,5 +92,16 @@ class CertificadoController extends Controller
             'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
             'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
         ]);
+    }
+
+    private function decanoFirmante(Solicitud $solicitud): ?\App\Models\User
+    {
+        if ($solicitud->estado !== SolicitudEstado::Aprobada) {
+            return null;
+        }
+
+        $solicitud->loadMissing('firmante');
+
+        return $solicitud->firmante;
     }
 }

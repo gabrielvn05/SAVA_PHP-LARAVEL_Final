@@ -39,7 +39,7 @@ class AccountSwitchTest extends TestCase
         $this->get(route('solicitudes.proceso'))
             ->assertOk()
             ->assertSee('Proceso de aprobación')
-            ->assertSee('Secretaria Académica')
+            ->assertSee('SECRETARIA ACADÉMICA')
             ->assertDontSee($microsoft->email);
     }
 
@@ -54,7 +54,7 @@ class AccountSwitchTest extends TestCase
 
         $this->get(route('dashboard'))
             ->assertOk()
-            ->assertSee($secretaria->email)
+            ->assertSee('SECRETARIA ACADÉMICA')
             ->assertSee('Secretaría');
     }
 
@@ -80,8 +80,8 @@ class AccountSwitchTest extends TestCase
 
         $this->get(route('solicitudes.proceso'))
             ->assertOk()
-            ->assertSee('Decano Facultad')
-            ->assertSee($decano->email);
+            ->assertSee('DECANO FACULTAD')
+            ->assertSee($decano->cedula);
     }
 
     private function microsoftUser(): User

@@ -16,7 +16,7 @@
                 name="cedula"
                 class="{{ $inputClass }}"
                 inputmode="numeric"
-                maxlength="13"
+                maxlength="10"
                 required
                 autocomplete="off"
                 value="{{ old('cedula', $user->cedula) }}"

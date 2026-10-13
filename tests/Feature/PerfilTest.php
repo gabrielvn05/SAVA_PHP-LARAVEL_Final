@@ -41,14 +41,14 @@ class PerfilTest extends TestCase
 
         $this->actingAs($user)
             ->put(route('perfil.update'), [
-                'cedula' => '1312456789',
+                'cedula' => '1315591303',
                 'carrera' => 'software',
                 'celular' => '0991234567',
             ])
             ->assertRedirect(route('dashboard'));
 
         $user->refresh();
-        $this->assertSame('1312456789', $user->cedula);
+        $this->assertSame('1315591303', $user->cedula);
         $this->assertSame('software', $user->carrera);
         $this->assertSame('0991234567', $user->celular);
         $this->assertFalse($user->needsProfileCompletion());
@@ -58,7 +58,7 @@ class PerfilTest extends TestCase
     {
         $user = User::factory()->create([
             'rol' => AppRole::Docente,
-            'cedula' => '1312456789',
+            'cedula' => '1315591303',
             'carrera' => 'software',
             'celular' => '0991234567',
         ]);
@@ -72,14 +72,14 @@ class PerfilTest extends TestCase
 
         $this->actingAs($user)
             ->put(route('perfil.update'), [
-                'cedula' => '1312456789',
+                'cedula' => '1315591303',
                 'carrera' => 'biologia',
                 'celular' => '0987654321',
             ])
             ->assertRedirect(route('perfil.edit'));
 
         $user->refresh();
-        $this->assertSame('1312456789', $user->cedula);
+        $this->assertSame('1315591303', $user->cedula);
         $this->assertSame('biologia', $user->carrera);
         $this->assertSame('0987654321', $user->celular);
     }

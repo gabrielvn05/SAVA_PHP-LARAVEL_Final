@@ -96,13 +96,15 @@
 
     <article class="card stack solicitud-preview">
         <h2 class="solicitud-preview__title">Vista previa de la solicitud</h2>
-        <x-doc-viewer
-            title="Oficio institucional"
-            :file-name="($oficioVistaPdf ?? false) ? (($d['codigo_tramite'] ?? 'oficio').'.pdf') : (($d['codigo_tramite'] ?? 'oficio').'.docx')"
-            :src="$oficioPreviewUrl ?? route('solicitudes.preview-oficio', $solicitud)"
-            :download-href="$oficioDescargarUrl ?? route('solicitudes.preview-oficio', $solicitud)"
-            :kind="($oficioVistaPdf ?? false) ? 'pdf' : (($oficioUsaPlantillaDocx ?? false) ? 'docx' : 'html')"
-        />
+        @if($mostrarOficioInstitucional ?? true)
+            <x-doc-viewer
+                title="{{ $estado === \App\Enums\SolicitudEstado::Aprobada ? 'Oficio firmado' : 'Oficio institucional' }}"
+                :file-name="($oficioVistaPdf ?? false) ? (($d['codigo_tramite'] ?? 'oficio').'.pdf') : (($d['codigo_tramite'] ?? 'oficio').'.docx')"
+                :src="$oficioPreviewUrl ?? route('solicitudes.preview-oficio', $solicitud)"
+                :download-href="$oficioDescargarUrl ?? route('solicitudes.preview-oficio', $solicitud)"
+                :kind="($oficioVistaPdf ?? false) ? 'pdf' : (($oficioUsaPlantillaDocx ?? false) ? 'docx' : 'html')"
+            />
+        @endif
 
         @foreach($documentos as $documento)
             <x-doc-viewer
@@ -148,10 +150,10 @@
 
     @if($puedeActuarSecretaria || $puedeActuarDecano)
         @php
-            $accionUrl = $puedeActuarSecretaria
-                ? route('solicitudes.revisar', $solicitud)
-                : route('solicitudes.aprobar', $solicitud);
-            $campoObservacion = $puedeActuarSecretaria ? 'observaciones_secretaria' : 'observaciones_decano';
+            $accionUrl = $puedeActuarDecano
+                ? route('solicitudes.aprobar', $solicitud)
+                : route('solicitudes.revisar', $solicitud);
+            $campoObservacion = $puedeActuarDecano ? 'observaciones_decano' : 'observaciones_secretaria';
         @endphp
         <article class="card stack" data-proceso-acciones>
             <h2 class="solicitud-section-title">Acciones</h2>
@@ -196,9 +198,18 @@
     @endif
 
     @if(auth()->id() === $solicitud->creado_por)
-        @can('update', $solicitud)
-            <a href="{{ route('solicitudes.edit', $solicitud) }}" class="btn btn--primary">Editar solicitud</a>
-        @endcan
+        <div class="row" style="gap: 0.65rem; flex-wrap: wrap;">
+            @can('update', $solicitud)
+                <a href="{{ route('solicitudes.edit', $solicitud) }}" class="btn btn--primary">Editar solicitud</a>
+            @endcan
+            @can('delete', $solicitud)
+                <form method="POST" action="{{ route('solicitudes.destroy', $solicitud) }}" onsubmit="return confirm('¿Eliminar esta solicitud? Deberás crear un trámite nuevo si te equivocaste en los datos.');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn--danger">Borrar solicitud</button>
+                </form>
+            @endcan
+        </div>
     @endif
 </section>
 @endsection

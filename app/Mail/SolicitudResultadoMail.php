@@ -4,7 +4,9 @@ namespace App\Mail;
 
 use App\Enums\SolicitudEstado;
 use App\Models\Solicitud;
+use App\Services\OficioPdfService;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -44,8 +46,28 @@ class SolicitudResultadoMail extends Mailable
                 'periodo' => $solicitud->fecha_inicio->format('d/m/Y').' – '.$solicitud->fecha_fin->format('d/m/Y'),
                 'motivo' => $solicitud->motivo,
                 'observaciones' => $observaciones,
-                'detalleUrl' => route('solicitudes.show', $solicitud),
+                'detalleUrl' => route('solicitudes.show', $solicitud, absolute: false),
             ])->render(),
         );
+    }
+
+    /** @return list<Attachment> */
+    public function attachments(): array
+    {
+        if ($this->solicitud->estado !== SolicitudEstado::Aprobada) {
+            return [];
+        }
+
+        $pdf = app(OficioPdfService::class)->generar($this->solicitud);
+        if (! is_string($pdf) || $pdf === '') {
+            return [];
+        }
+
+        $detalle = $this->solicitud->detalle ?? [];
+        $nombre = ($detalle['codigo_tramite'] ?? 'oficio').'.pdf';
+
+        return [
+            Attachment::fromData(fn (): string => $pdf, $nombre)->withMime('application/pdf'),
+        ];
     }
 }
