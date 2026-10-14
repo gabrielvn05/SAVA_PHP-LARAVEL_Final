@@ -521,6 +521,13 @@ function initDocViewers() {
             window.open(src, '_blank', 'noopener,noreferrer')?.focus();
         });
     });
+
+    const pdfNodes = document.querySelectorAll('[data-pdf-viewer]');
+    if (pdfNodes.length > 0) {
+        import('./pdf-viewer.js')
+            .then((mod) => mod.initPdfViewers(pdfNodes))
+            .catch((error) => console.error(error));
+    }
 }
 
 registerPwa();

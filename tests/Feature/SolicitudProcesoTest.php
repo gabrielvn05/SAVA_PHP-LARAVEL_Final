@@ -25,6 +25,8 @@ class SolicitudProcesoTest extends TestCase
             ->get(route('solicitudes.proceso'))
             ->assertOk()
             ->assertSee('Proceso de aprobación')
+            ->assertSee('data-label="Solicitante"', false)
+            ->assertSee('data-label="Acciones"', false)
             ->assertSee('Ver detalles')
             ->assertSee('Motivo en revisión')
             ->assertSee('Motivo ya aprobado')

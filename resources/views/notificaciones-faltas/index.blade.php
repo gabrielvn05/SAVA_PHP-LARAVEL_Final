@@ -176,29 +176,29 @@
                         <tbody>
                             @foreach($notificaciones as $item)
                                 <tr>
-                                    <td><span class="text-code">{{ $item->codigo_oficio }}</span></td>
-                                    <td>
+                                    <td data-label="Código"><span class="text-code">{{ $item->codigo_oficio }}</span></td>
+                                    <td data-label="Colaborador">
                                         <span class="notif-th-person">{{ $item->destinatario?->nombreCompleto() }}</span>
                                         @if($item->destinatario?->cedula)
                                             <span class="field-hint notif-th-person__meta">{{ $item->destinatario->cedula }}</span>
                                         @endif
                                     </td>
-                                    <td>{{ $item->fecha_falta->format('d/m/Y') }}</td>
-                                    <td>{{ \App\Support\NotificacionFaltaMarcacion::label($item->tipo_marcacion) }}</td>
-                                    <td>
+                                    <td data-label="Fecha">{{ $item->fecha_falta->format('d/m/Y') }}</td>
+                                    <td data-label="Marcación">{{ \App\Support\NotificacionFaltaMarcacion::label($item->tipo_marcacion) }}</td>
+                                    <td data-label="Estado">
                                         @if($item->tiene_justificacion_aprobada)
                                             <span class="badge badge--success">Justificado</span>
                                         @else
                                             <span class="badge badge--warning">Pendiente</span>
                                         @endif
                                     </td>
-                                    <td>
+                                    <td data-label="Emisión">
                                         <span class="text-truncate">{{ $item->emitidoPor?->nombreCompleto() }}</span>
                                         @if($item->emitido_delegado)
                                             <span class="badge badge--muted badge--xs">Delegado</span>
                                         @endif
                                     </td>
-                                    <td>
+                                    <td data-label="Acciones">
                                         <div class="cell-actions cell-actions--inline">
                                             <a href="{{ route('notificaciones-faltas.show', $item) }}" class="btn btn--secondary btn--sm">Detalle</a>
                                         </div>

@@ -109,21 +109,21 @@
                             );
                         @endphp
                         <tr>
-                            <td>
+                            <td data-label="Nombre">
                                 <div class="user-table-identity">
                                     <span class="user-table-avatar" aria-hidden="true">{{ $iniciales }}</span>
                                     <span class="user-table-name">{{ $usuario->nombreCompleto() }}</span>
                                 </div>
                             </td>
-                            <td><span class="user-table-email">{{ $usuario->email }}</span></td>
-                            <td><span class="user-role-pill">{{ $usuario->rol->label() }}</span></td>
-                            <td>
+                            <td data-label="Correo"><span class="user-table-email">{{ $usuario->email }}</span></td>
+                            <td data-label="Rol"><span class="user-role-pill">{{ $usuario->rol->label() }}</span></td>
+                            <td data-label="Estado">
                                 <span class="badge {{ $usuario->activo ? 'badge--success' : 'badge--danger' }}">
                                     {{ $usuario->activo ? 'Activo' : 'Inactivo' }}
                                 </span>
                             </td>
                             @if($puedeCrear)
-                                <td class="data-table__cell--capabilities">
+                                <td class="data-table__cell--capabilities" data-label="Capacidades extra">
                                     @if($usuario->capabilities->isEmpty())
                                         <span class="field-hint" style="margin: 0;">—</span>
                                     @else
@@ -135,7 +135,7 @@
                                     @endif
                                 </td>
                             @endif
-                            <td class="data-table__cell--actions">
+                            <td class="data-table__cell--actions" data-label="Acciones">
                                 @php
                                     $tieneMenuRolEstado = $puedeEditar && ($rutas['rol'] ?? false) && ($rutas['estado'] ?? false);
                                     $tieneMenuLegacy = $puedeEditar && ($rutas['updateLegacy'] ?? false);

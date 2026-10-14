@@ -27,6 +27,8 @@ class SolicitudResultadoNotificationTest extends TestCase
             ->assertSee('Vista previa de la solicitud')
             ->assertSee('Oficio institucional')
             ->assertSee('doc-viewer', false)
+            ->assertSee('data-doc-viewer', false)
+            ->assertSee('Abrir en el visor del teléfono', false)
             ->assertSee(route('solicitudes.preview-oficio', $solicitud), false);
 
         $preview = $this->actingAs($user)

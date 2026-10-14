@@ -25,8 +25,19 @@
         </span>
     </div>
 
+    <article class="card stack solicitud-preview">
+        <h2 class="solicitud-preview__title">Vista previa del oficio</h2>
+        <x-doc-viewer
+            title="Oficio de notificación"
+            :file-name="$notificacion->codigo_oficio.'.docx'"
+            :src="route('notificaciones-faltas.preview', $notificacion)"
+            :download-href="route('notificaciones-faltas.descargar', $notificacion)"
+            kind="docx"
+        />
+    </article>
+
     <div class="row notif-th-show-actions">
-        <a href="{{ route('notificaciones-faltas.preview', $notificacion) }}" class="btn btn--primary" target="_blank" rel="noopener">Vista previa del oficio</a>
+        <a href="{{ route('notificaciones-faltas.preview', $notificacion) }}" class="btn btn--primary" target="_blank" rel="noopener">Abrir oficio</a>
         <a href="{{ route('notificaciones-faltas.descargar', $notificacion) }}" class="btn btn--secondary">Descargar Word (.docx)</a>
         <form method="POST" action="{{ route('notificaciones-faltas.reenviar-correo', $notificacion) }}">
             @csrf

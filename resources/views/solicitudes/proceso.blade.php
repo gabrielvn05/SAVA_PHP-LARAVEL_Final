@@ -87,15 +87,15 @@
                 <tbody>
                     @forelse($solicitudes as $solicitud)
                         <tr>
-                            <td><span class="text-truncate">{{ $solicitud->creador->nombreCompleto() }}</span></td>
-                            <td>{{ $solicitud->tipo->label() }}</td>
-                            <td>{{ $solicitud->fecha_inicio->format('Y-m-d') }} - {{ $solicitud->fecha_fin->format('Y-m-d') }}</td>
-                            <td><span class="badge {{ $solicitud->estado->badgeClass() }}">{{ $solicitud->estado->label() }}</span></td>
-                            <td><span class="text-truncate">{{ \App\Support\Carreras::label($solicitud->creador->carrera ?? '') }}</span></td>
-                            <td>{{ $solicitud->creador->rol->label() }}</td>
-                            <td><span class="text-truncate">{{ \Illuminate\Support\Str::limit($solicitud->motivo, 70) }}</span></td>
-                            <td><span class="text-truncate">{{ $solicitud->justificativo_nombre ?: '—' }}</span></td>
-                            <td>
+                            <td data-label="Solicitante">{{ $solicitud->creador->nombreCompleto() }}</td>
+                            <td data-label="Tipo">{{ $solicitud->tipo->label() }}</td>
+                            <td data-label="Periodo">{{ $solicitud->fecha_inicio->format('Y-m-d') }} - {{ $solicitud->fecha_fin->format('Y-m-d') }}</td>
+                            <td data-label="Estado"><span class="badge {{ $solicitud->estado->badgeClass() }}">{{ $solicitud->estado->label() }}</span></td>
+                            <td data-label="Carrera">{{ \App\Support\Carreras::label($solicitud->creador->carrera ?? '') }}</td>
+                            <td data-label="Rol">{{ $solicitud->creador->rol->label() }}</td>
+                            <td data-label="Motivo">{{ \Illuminate\Support\Str::limit($solicitud->motivo, 70) }}</td>
+                            <td data-label="Justificativo">{{ $solicitud->justificativo_nombre ?: '—' }}</td>
+                            <td data-label="Acciones">
                                 <div class="cell-actions">
                                     <a href="{{ route('solicitudes.show', $solicitud) }}" class="btn btn--secondary btn--sm">Ver detalles</a>
                                 </div>

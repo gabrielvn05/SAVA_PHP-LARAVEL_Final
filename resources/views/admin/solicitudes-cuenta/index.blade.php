@@ -27,13 +27,13 @@
                 <tbody>
                     @foreach($solicitudes as $solicitud)
                         <tr>
-                            <td>{{ $solicitud->email }}</td>
-                            <td>{{ $solicitud->nombres }} {{ $solicitud->apellidos }}</td>
-                            <td>{{ $solicitud->cedula }}</td>
-                            <td>{{ \App\Support\Carreras::label($solicitud->carrera) }}</td>
-                            <td>{{ $solicitud->rol_solicitado->label() }}</td>
-                            <td>{{ $solicitud->status->label() }}</td>
-                            <td>
+                            <td data-label="Correo">{{ $solicitud->email }}</td>
+                            <td data-label="Nombre">{{ $solicitud->nombres }} {{ $solicitud->apellidos }}</td>
+                            <td data-label="Cédula">{{ $solicitud->cedula }}</td>
+                            <td data-label="Carrera">{{ \App\Support\Carreras::label($solicitud->carrera) }}</td>
+                            <td data-label="Rol">{{ $solicitud->rol_solicitado->label() }}</td>
+                            <td data-label="Estado">{{ $solicitud->status->label() }}</td>
+                            <td data-label="Acciones">
                                 @if($solicitud->status === \App\Enums\AccountRequestStatus::Pendiente)
                                     @if($puedeAprobar)
                                         <form method="POST" action="{{ route('admin.solicitudes-cuenta.aprobar', $solicitud) }}" style="display:inline">

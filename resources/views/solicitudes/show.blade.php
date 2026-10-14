@@ -160,7 +160,7 @@
             @if($puedeActuarDecano)
                 <p class="field-hint" style="margin: 0;">Aprueba o rechaza con firma de Decano.</p>
             @endif
-            <div class="row" style="gap: 0.65rem; flex-wrap: wrap;">
+            <div class="proceso-actions">
                 <form method="POST" action="{{ $accionUrl }}" data-loading-label="Aprobando…">
                     @csrf
                     <input type="hidden" name="aprobado" value="1">

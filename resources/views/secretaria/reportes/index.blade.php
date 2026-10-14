@@ -63,11 +63,11 @@
                     <tbody>
                         @foreach($solicitudes as $solicitud)
                             <tr>
-                                <td>{{ $solicitud->detalle['codigo_tramite'] ?? '—' }}</td>
-                                <td>{{ $solicitud->creador?->nombreCompleto() }}</td>
-                                <td>{{ $solicitud->tipo->label() }}</td>
-                                <td><span class="badge {{ $solicitud->estado->badgeClass() }}">{{ $solicitud->estado->label() }}</span></td>
-                                <td>{{ $solicitud->fecha_inicio->format('d/m/Y') }} – {{ $solicitud->fecha_fin->format('d/m/Y') }}</td>
+                                <td data-label="Código">{{ $solicitud->detalle['codigo_tramite'] ?? '—' }}</td>
+                                <td data-label="Solicitante">{{ $solicitud->creador?->nombreCompleto() }}</td>
+                                <td data-label="Tipo">{{ $solicitud->tipo->label() }}</td>
+                                <td data-label="Estado"><span class="badge {{ $solicitud->estado->badgeClass() }}">{{ $solicitud->estado->label() }}</span></td>
+                                <td data-label="Periodo">{{ $solicitud->fecha_inicio->format('d/m/Y') }} – {{ $solicitud->fecha_fin->format('d/m/Y') }}</td>
                             </tr>
                         @endforeach
                     </tbody>

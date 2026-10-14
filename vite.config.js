@@ -8,6 +8,9 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    build: {
+        target: 'es2020',
+    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],
