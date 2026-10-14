@@ -58,6 +58,26 @@ class PasswordRecoveryTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_recovery_keeps_password_if_mail_fails(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'docente@uleam.edu.ec',
+            'password' => 'SavaTest2026!',
+            'force_password_change' => false,
+            'activo' => true,
+        ]);
+
+        Mail::shouldReceive('to')->once()->andThrow(new \RuntimeException('SMTP down'));
+
+        $this->post(route('recuperar-clave.store'), [
+            'email' => $user->email,
+        ])->assertRedirect(route('login'));
+
+        $user->refresh();
+        $this->assertTrue(Hash::check('SavaTest2026!', $user->password));
+        $this->assertFalse($user->force_password_change);
+    }
+
     public function test_recovery_ignores_microsoft_only_accounts(): void
     {
         Mail::fake();

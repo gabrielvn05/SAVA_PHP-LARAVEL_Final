@@ -49,6 +49,21 @@ class AccountRequestController extends Controller
 
         $tempPassword = TemporaryPasswordGenerator::generate();
         $email = strtolower($accountRequest->email);
+        $cedula = trim((string) $accountRequest->cedula);
+
+        if ($cedula !== '') {
+            $cedulaOcupada = User::query()
+                ->where('cedula', $cedula)
+                ->when(
+                    User::query()->where('email', $email)->value('id'),
+                    fn ($query, string $existingId) => $query->where('id', '!=', $existingId),
+                )
+                ->exists();
+
+            if ($cedulaOcupada) {
+                return back()->with('error', 'No se puede aprobar: esa cédula ya pertenece a otra cuenta.');
+            }
+        }
 
         try {
             DB::transaction(function () use ($accountRequest, $tempPassword, $email): void {

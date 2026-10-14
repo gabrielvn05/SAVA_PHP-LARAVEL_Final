@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\CedulaEcuador;
 use App\Support\NotificacionFaltaMarcacion;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
@@ -56,7 +57,11 @@ class NotificacionFaltaImportService
                 continue;
             }
 
-            [$cedula, $fecha, $tipo] = [$cols[0], $cols[1], Str::lower($cols[2])];
+            [$cedula, $fecha, $tipo] = [
+                CedulaEcuador::normalizeDigits($cols[0]),
+                $cols[1],
+                Str::lower($cols[2]),
+            ];
             $tipo = str_replace([' ', '-'], '_', $tipo);
             if ($tipo === 'entrada_y_salida') {
                 $tipo = 'entrada_salida';

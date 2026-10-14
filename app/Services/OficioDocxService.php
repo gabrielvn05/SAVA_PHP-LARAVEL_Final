@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Support\OficioSelloAutorizado;
 use Illuminate\Support\Facades\File;
 use ZipArchive;
 
@@ -47,19 +48,62 @@ class OficioDocxService
             throw new \RuntimeException('No se pudo abrir la plantilla.');
         }
 
+        $aplicarSello = $decano !== null && OficioSelloAutorizado::puedeAplicar();
+        $documentXml = null;
+        $documentRels = null;
+        $contentTypes = null;
+        $selloRelId = null;
+
         for ($i = 0; $i < $source->numFiles; $i++) {
             $name = $source->getNameIndex($i);
             $content = $source->getFromIndex($i);
-            if ($content === false) {
+            if ($content === false || ! is_string($name)) {
                 continue;
             }
 
-            if (is_string($name) && str_ends_with(strtolower($name), '.xml')) {
-                $xml = $this->rellenarXml($content, $valores, $correoDocente, $correoDecano);
-                $zip->addFromString($name, $xml);
+            if ($name === 'word/document.xml') {
+                $documentXml = $this->rellenarXml($content, $valores, $correoDocente, $correoDecano);
+                if (! $aplicarSello) {
+                    $zip->addFromString($name, $documentXml);
+                }
+
+                continue;
+            }
+
+            if ($aplicarSello && $name === 'word/_rels/document.xml.rels') {
+                $documentRels = $content;
+
+                continue;
+            }
+
+            if ($aplicarSello && $name === '[Content_Types].xml') {
+                $contentTypes = $content;
+
+                continue;
+            }
+
+            if (str_ends_with(strtolower($name), '.xml')) {
+                $zip->addFromString($name, $this->rellenarXml($content, $valores, $correoDocente, $correoDecano));
             } else {
                 $zip->addFromString($name, $content);
             }
+        }
+
+        if ($aplicarSello && is_string($documentXml) && is_string($documentRels) && is_string($contentTypes)) {
+            $selloRelId = OficioSelloAutorizado::siguienteRelId($documentRels);
+            $documentXml = OficioSelloAutorizado::aplicarDocumento($documentXml, $selloRelId);
+            $documentRels = OficioSelloAutorizado::agregarRelacionImagen($documentRels, $selloRelId);
+            $contentTypes = OficioSelloAutorizado::agregarContentTypeJpeg($contentTypes);
+
+            $zip->addFromString('word/document.xml', $documentXml);
+            $zip->addFromString('word/_rels/document.xml.rels', $documentRels);
+            $zip->addFromString('[Content_Types].xml', $contentTypes);
+            $zip->addFromString(
+                OficioSelloAutorizado::MEDIA_PATH,
+                (string) file_get_contents(OficioSelloAutorizado::assetPath()),
+            );
+        } elseif (is_string($documentXml)) {
+            $zip->addFromString('word/document.xml', $documentXml);
         }
 
         $source->close();

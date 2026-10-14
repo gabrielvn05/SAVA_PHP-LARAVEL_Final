@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AccountRequestStatus;
-use App\Enums\AppRole;
 use App\Models\AccountRequest;
 use App\Models\User;
 use App\Services\AccountRequestValidator;
 use App\Services\AppNotificationService;
+use App\Support\AssignableAppRoles;
 use App\Support\Carreras;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,13 +25,7 @@ class SolicitarCuentaController extends Controller
         return view('solicitar-cuenta.create', [
             'aviso' => $request->query('aviso'),
             'carreras' => Carreras::OPCIONES,
-            'roles' => [
-                AppRole::Docente,
-                AppRole::Administrativo,
-                AppRole::Mantenimiento,
-                AppRole::Secretaria,
-                AppRole::Decano,
-            ],
+            'roles' => AssignableAppRoles::forPublicRequest(),
         ]);
     }
 
@@ -49,11 +43,22 @@ class SolicitarCuentaController extends Controller
             return redirect()->route('solicitar-cuenta.create', ['aviso' => 'usuario_existe']);
         }
 
+        if (User::query()->where('cedula', $data['cedula'])->where('cedula', '!=', '')->exists()) {
+            return redirect()->route('solicitar-cuenta.create', ['aviso' => 'cedula_registrada']);
+        }
+
         if (AccountRequest::query()
             ->where('email', $data['email'])
             ->where('status', AccountRequestStatus::Pendiente)
             ->exists()) {
             return redirect()->route('solicitar-cuenta.create', ['aviso' => 'solicitud_pendiente']);
+        }
+
+        if (AccountRequest::query()
+            ->where('cedula', $data['cedula'])
+            ->where('status', AccountRequestStatus::Pendiente)
+            ->exists()) {
+            return redirect()->route('solicitar-cuenta.create', ['aviso' => 'cedula_en_solicitud']);
         }
 
         try {

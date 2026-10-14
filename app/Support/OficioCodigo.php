@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\SolicitudTipo;
+use App\Models\Solicitud;
 use App\Models\User;
 use Carbon\CarbonInterface;
 
@@ -17,7 +18,32 @@ class OficioCodigo
         $siglas = self::siglasTipo($tipo);
         $iniciales = self::inicialesSolicitante($solicitante);
 
-        return sprintf('%s-%s-%s-%s', self::PREFIJO, $ddmmaaaa, $siglas, $iniciales);
+        $base = sprintf('%s-%s-%s-%s', self::PREFIJO, $ddmmaaaa, $siglas, $iniciales);
+
+        return self::hacerUnico($base);
+    }
+
+    private static function hacerUnico(string $base): string
+    {
+        if (! self::codigoExiste($base)) {
+            return $base;
+        }
+
+        for ($n = 2; $n <= 99; $n++) {
+            $candidato = sprintf('%s-%02d', $base, $n);
+            if (! self::codigoExiste($candidato)) {
+                return $candidato;
+            }
+        }
+
+        return $base.'-'.strtoupper(bin2hex(random_bytes(2)));
+    }
+
+    private static function codigoExiste(string $codigo): bool
+    {
+        return Solicitud::query()
+            ->where('detalle->codigo_tramite', $codigo)
+            ->exists();
     }
 
     public static function siglasTipo(SolicitudTipo $tipo): string

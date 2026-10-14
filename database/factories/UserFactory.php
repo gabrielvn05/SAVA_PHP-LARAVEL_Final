@@ -20,7 +20,7 @@ class UserFactory extends Factory
             'apellidos' => fake()->lastName(),
             'rol' => AppRole::Administrativo,
             'activo' => true,
-            'cedula' => fake()->numerify('##########'),
+            'cedula' => fake()->unique()->numerify('##########'),
             'celular' => fake()->numerify('09########'),
             'carrera' => 'software',
             'jornada' => '',

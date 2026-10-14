@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Support\TemporaryPasswordGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
@@ -31,19 +30,18 @@ class PasswordRecoveryController extends Controller
         if ($user && $user->activo && $user->password) {
             $temporaryPassword = TemporaryPasswordGenerator::generate();
 
-            $user->update([
-                'password' => Hash::make($temporaryPassword),
-                'force_password_change' => true,
-            ]);
-
             try {
                 Mail::to($user->email)->send(new PasswordRecoveryMail(
                     $user->nombreCompleto(),
                     $user->email,
                     $temporaryPassword,
                 ));
-            } catch (\Throwable) {
-                // No revelar el fallo de correo al solicitante.
+                $user->update([
+                    'password' => $temporaryPassword,
+                    'force_password_change' => true,
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
             }
         }
 

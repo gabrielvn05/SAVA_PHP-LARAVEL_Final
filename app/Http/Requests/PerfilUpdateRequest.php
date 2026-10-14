@@ -17,7 +17,10 @@ class PerfilUpdateRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $cedula = CedulaEcuador::normalizeDigits((string) $this->input('cedula', ''));
+        $cedulaActual = trim((string) ($this->user()?->cedula ?? ''));
+        $cedula = $cedulaActual !== ''
+            ? $cedulaActual
+            : CedulaEcuador::normalizeDigits((string) $this->input('cedula', ''));
 
         $this->merge([
             'cedula' => $cedula,

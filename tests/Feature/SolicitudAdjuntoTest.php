@@ -43,4 +43,136 @@ class SolicitudAdjuntoTest extends TestCase
             ->assertOk()
             ->assertHeader('content-type', 'image/png');
     }
+
+    public function test_rechaza_adjunto_con_tipo_no_permitido(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000002',
+            'carrera' => 'software',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('solicitudes.store'), [
+                'tipo' => SolicitudTipo::Permiso->value,
+                'fecha_permiso' => now()->toDateString(),
+                'hora_inicio_permiso' => '08:00',
+                'hora_fin_permiso' => '10:00',
+                'motivo_permiso' => 'reunion',
+                'justificativo' => UploadedFile::fake()->create('malware.exe', 20, 'application/x-msdownload'),
+            ])
+            ->assertSessionHasErrors('justificativo');
+    }
+
+    public function test_enfermedad_exige_justificativo(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000003',
+            'carrera' => 'software',
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('solicitudes.wizard'))
+            ->post(route('solicitudes.store'), [
+                'tipo' => SolicitudTipo::Enfermedad->value,
+                'fecha_inicio' => now()->toDateString(),
+                'fecha_fin' => now()->toDateString(),
+                'diagnostico' => 'Gripe',
+            ])
+            ->assertRedirect(route('solicitudes.wizard'))
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, Solicitud::query()->count());
+    }
+
+    public function test_editar_no_cuenta_eliminaciones_invalidas_en_el_cupo(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000004',
+            'carrera' => 'software',
+        ]);
+        $file = UploadedFile::fake()->create('certificado.png', 20, 'image/png');
+        $path = $file->store('justificativos', 'public');
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Enfermedad,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Reposo médico',
+            'estado' => SolicitudEstado::EnRevisionSecretaria,
+            'justificativo_path' => $path,
+            'justificativo_nombre' => 'certificado.png',
+            'detalle' => [
+                'anexos' => [['path' => $path, 'nombre' => 'certificado.png']],
+            ],
+        ]);
+
+        $nuevos = [];
+        for ($i = 0; $i < 10; $i++) {
+            $nuevos[] = UploadedFile::fake()->create("extra-{$i}.png", 20, 'image/png');
+        }
+
+        $this->actingAs($user)
+            ->from(route('solicitudes.edit', $solicitud))
+            ->put(route('solicitudes.update', $solicitud), [
+                'tipo' => SolicitudTipo::Enfermedad->value,
+                'fecha_inicio' => $solicitud->fecha_inicio->format('Y-m-d'),
+                'fecha_fin' => $solicitud->fecha_fin->format('Y-m-d'),
+                'motivo' => 'Reposo médico',
+                'eliminar_anexos' => ['justificativos/ruta-falsa.png'],
+                'anexos' => $nuevos,
+            ])
+            ->assertRedirect(route('solicitudes.edit', $solicitud))
+            ->assertSessionHas('error');
+    }
+
+    public function test_no_permite_quitar_el_justificativo_obligatorio(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000005',
+            'carrera' => 'software',
+        ]);
+        $file = UploadedFile::fake()->create('certificado.png', 20, 'image/png');
+        $path = $file->store('justificativos', 'public');
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Enfermedad,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Reposo médico',
+            'estado' => SolicitudEstado::EnRevisionSecretaria,
+            'justificativo_path' => $path,
+            'justificativo_nombre' => 'certificado.png',
+            'detalle' => [
+                'anexos' => [['path' => $path, 'nombre' => 'certificado.png']],
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('solicitudes.edit', $solicitud))
+            ->put(route('solicitudes.update', $solicitud), [
+                'tipo' => SolicitudTipo::Enfermedad->value,
+                'fecha_inicio' => $solicitud->fecha_inicio->format('Y-m-d'),
+                'fecha_fin' => $solicitud->fecha_fin->format('Y-m-d'),
+                'motivo' => 'Reposo médico',
+                'eliminar_anexos' => [$path],
+            ])
+            ->assertRedirect(route('solicitudes.edit', $solicitud))
+            ->assertSessionHas('error');
+
+        $solicitud->refresh();
+        $this->assertSame($path, $solicitud->justificativo_path);
+    }
 }

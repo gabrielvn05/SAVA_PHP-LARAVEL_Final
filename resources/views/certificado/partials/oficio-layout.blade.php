@@ -17,6 +17,13 @@
         .firma-solicitante p { margin: 0.2rem 0; }
         .firma-decano { margin-top: 2.5rem; }
         .firma-decano__nombre { font-weight: 700; margin: 0; }
+        .oficio-sello {
+            float: right;
+            width: 118px;
+            height: auto;
+            margin: 0.5rem 0 1rem 1rem;
+            clear: right;
+        }
     </style>
 </head>
 <body>
@@ -48,6 +55,16 @@
         <p>Correo institucional: {{ $correo }}</p>
         <p>Fecha de generación del documento: {{ $fechaGeneracion }}</p>
     </div>
+
+    @if($mostrarSelloAutorizado ?? false)
+        <img
+            src="{{ asset('templates/oficio-media/sello-autorizado.jpg') }}"
+            alt="Sello AUTORIZADO FACIVITEC"
+            class="oficio-sello"
+            width="118"
+            height="118"
+        >
+    @endif
 
     @if($decano)
         <div class="firma-decano">

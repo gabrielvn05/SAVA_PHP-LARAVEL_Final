@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\SolicitudEstado;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
@@ -20,8 +21,15 @@ class OficioPreviewService
 
     public function renderHtmlRespaldo(Solicitud $solicitud, ?User $decano = null): string
     {
-        $solicitud->loadMissing('creador');
-        $decano ??= User::query()->where('rol', 'decano')->where('activo', true)->first();
+        $solicitud->loadMissing(['creador', 'firmante']);
+        if ($solicitud->estado === SolicitudEstado::Aprobada && $solicitud->firmante) {
+            $decano = $solicitud->firmante;
+        } else {
+            $decano ??= User::query()->where('rol', 'decano')->where('activo', true)->first();
+        }
+
+        $mostrarSelloAutorizado = $solicitud->estado === SolicitudEstado::Aprobada
+            && $solicitud->firmante !== null;
 
         $detalle = $solicitud->detalle ?? [];
         $valores = $this->datos->placeholders($solicitud, $decano);
@@ -40,6 +48,7 @@ class OficioPreviewService
         $base = [
             'solicitud' => $solicitud,
             'decano' => $decano,
+            'mostrarSelloAutorizado' => $mostrarSelloAutorizado,
             'codigo' => $codigo,
             'facultadNombre' => OficioDatosService::FACULTAD_NOMBRE,
             'nombreCompleto' => $valores['[Nombre completo del docente]'],

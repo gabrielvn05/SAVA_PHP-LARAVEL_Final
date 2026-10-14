@@ -10,6 +10,8 @@
         'cedula_letras' => 'La cédula solo debe contener números (sin letras).',
         'cedula_formato' => 'La cédula ecuatoriana debe tener exactamente 10 dígitos.',
         'cedula_invalida' => 'La cédula no es válida. Verifica que sea tu número de identidad real.',
+        'cedula_registrada' => 'Esta cédula ya está registrada en una cuenta.',
+        'cedula_en_solicitud' => 'Ya existe una solicitud pendiente con esta cédula.',
         'celular_invalido' => 'Indica un celular válido (mínimo 9 dígitos).',
         'carrera_invalida' => 'Selecciona una carrera válida.',
         'rol_invalido' => 'Selecciona un rol válido.',
@@ -69,7 +71,7 @@
                             aria-describedby="cedula-hint"
                         >
                         <p class="field-hint" id="cedula-hint" style="margin: 0.35rem 0 0;">
-                            10 dígitos numéricos (cédula ecuatoriana). Ejemplo: 1315591303. No use letras ni números repetidos ficticios.
+                            Ingrese los 10 dígitos numéricos de su cédula ecuatoriana, sin letras ni caracteres especiales.
                         </p>
                     </label>
                     <label class="field">

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AppRole;
+use App\Support\AssignableAppRoles;
 use App\Support\Carreras;
 use App\Support\CedulaEcuador;
 use App\Support\InstitutionalEmail;
@@ -49,13 +50,7 @@ class AccountRequestValidator
             return ['ok' => false, 'aviso' => 'carrera_invalida'];
         }
 
-        if (! in_array($rol, [
-            AppRole::Docente->value,
-            AppRole::Administrativo->value,
-            AppRole::Mantenimiento->value,
-            AppRole::Secretaria->value,
-            AppRole::Decano->value,
-        ], true)) {
+        if (! AssignableAppRoles::canRequestPublicly($rol)) {
             return ['ok' => false, 'aviso' => 'rol_invalido'];
         }
 

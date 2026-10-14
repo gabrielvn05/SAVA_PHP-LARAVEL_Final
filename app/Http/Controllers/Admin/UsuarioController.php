@@ -16,7 +16,6 @@ use App\Support\InstitutionalEmail;
 use App\Support\TemporaryPasswordGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
@@ -147,10 +146,6 @@ class UsuarioController extends Controller
         }
 
         $tempPassword = TemporaryPasswordGenerator::generate();
-        $usuario->update([
-            'password' => Hash::make($tempPassword),
-            'force_password_change' => true,
-        ]);
 
         try {
             Mail::to($usuario->email)->send(new TemporaryPasswordMail(
@@ -158,14 +153,20 @@ class UsuarioController extends Controller
                 $usuario->email,
                 $tempPassword,
             ));
-            $mensaje = "Se envió una clave temporal a {$usuario->email}.";
-        } catch (\Throwable) {
-            $mensaje = "Clave temporal generada para {$usuario->email}. Comuníquela por un canal seguro: {$tempPassword}";
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', "No se pudo enviar la clave temporal a {$usuario->email}. La contraseña actual no se modificó.");
         }
+
+        $usuario->update([
+            'password' => $tempPassword,
+            'force_password_change' => true,
+        ]);
 
         $this->audit->log('UPDATE', $usuario);
 
-        return back()->with('success', $mensaje);
+        return back()->with('success', "Se envió una clave temporal a {$usuario->email}.");
     }
 
     public function importCsv(Request $request): RedirectResponse
@@ -197,7 +198,7 @@ class UsuarioController extends Controller
         $this->authorize('delegate', $usuario);
 
         $validated = $request->validate([
-            'capability' => 'required|string',
+            'capability' => ['required', Rule::enum(CapabilityType::class)],
         ]);
 
         UserCapability::query()->updateOrCreate(

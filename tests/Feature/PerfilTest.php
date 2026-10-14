@@ -41,14 +41,14 @@ class PerfilTest extends TestCase
 
         $this->actingAs($user)
             ->put(route('perfil.update'), [
-                'cedula' => '1315591303',
+                'cedula' => '1712345675',
                 'carrera' => 'software',
                 'celular' => '0991234567',
             ])
             ->assertRedirect(route('dashboard'));
 
         $user->refresh();
-        $this->assertSame('1315591303', $user->cedula);
+        $this->assertSame('1712345675', $user->cedula);
         $this->assertSame('software', $user->carrera);
         $this->assertSame('0991234567', $user->celular);
         $this->assertFalse($user->needsProfileCompletion());
@@ -58,7 +58,7 @@ class PerfilTest extends TestCase
     {
         $user = User::factory()->create([
             'rol' => AppRole::Docente,
-            'cedula' => '1315591303',
+            'cedula' => '1712345675',
             'carrera' => 'software',
             'celular' => '0991234567',
         ]);
@@ -72,14 +72,37 @@ class PerfilTest extends TestCase
 
         $this->actingAs($user)
             ->put(route('perfil.update'), [
-                'cedula' => '1315591303',
+                'cedula' => '1712345675',
                 'carrera' => 'biologia',
                 'celular' => '0987654321',
             ])
             ->assertRedirect(route('perfil.edit'));
 
         $user->refresh();
-        $this->assertSame('1315591303', $user->cedula);
+        $this->assertSame('1712345675', $user->cedula);
+        $this->assertSame('biologia', $user->carrera);
+        $this->assertSame('0987654321', $user->celular);
+    }
+
+    public function test_locked_cedula_cannot_be_changed_via_request(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1712345675',
+            'carrera' => 'software',
+            'celular' => '0991234567',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('perfil.update'), [
+                'cedula' => '0951234566',
+                'carrera' => 'biologia',
+                'celular' => '0987654321',
+            ])
+            ->assertRedirect(route('perfil.edit'));
+
+        $user->refresh();
+        $this->assertSame('1712345675', $user->cedula);
         $this->assertSame('biologia', $user->carrera);
         $this->assertSame('0987654321', $user->celular);
     }

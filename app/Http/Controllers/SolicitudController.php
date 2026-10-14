@@ -19,6 +19,7 @@ use App\Support\SolicitudValidator;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -104,12 +105,12 @@ class SolicitudController extends Controller
         }
 
         $validated = $request->validate([
-            'tipo' => 'required|string',
+            'tipo' => ['required', Rule::enum(SolicitudTipo::class)],
             'fecha_inicio' => 'nullable|date',
             'fecha_fin' => 'nullable|date',
             'motivo' => 'nullable|string|max:5000',
-            'justificativo' => 'nullable|file|max:10240',
-            'anexos.*' => 'nullable|file|max:10240',
+            'justificativo' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
+            'anexos.*' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
             'destino' => 'nullable|string|max:500',
             'jornada' => 'nullable|string|max:60',
             'hora_inicio' => 'nullable|string|max:10',
@@ -154,7 +155,7 @@ class SolicitudController extends Controller
             'hora_real_ingreso' => 'nullable|string|max:10',
             'hora_real_salida' => 'nullable|string|max:10',
             'motivo_falta_registro' => 'nullable|string|max:80',
-        ]);
+        ], \App\Support\SolicitudAdjuntoLimits::mimeValidationMessages());
 
         $tipo = $validated['tipo'];
         $detalleExtraPorTipo = [];
@@ -256,16 +257,14 @@ class SolicitudController extends Controller
         $anexos = [];
         if ($request->hasFile('justificativo')) {
             $file = $request->file('justificativo');
-            $path = $file->store('justificativos', 'public');
-            $anexos[] = ['path' => $path, 'nombre' => $file->getClientOriginalName()];
+            $anexos[] = ['path' => SolicitudAdjuntos::guardar($file), 'nombre' => $file->getClientOriginalName()];
         }
 
         foreach ($request->file('anexos', []) as $index => $file) {
             if (! $file) {
                 continue;
             }
-            $path = $file->store('justificativos', 'public');
-            $anexos[] = ['path' => $path, 'nombre' => $file->getClientOriginalName()];
+            $anexos[] = ['path' => SolicitudAdjuntos::guardar($file), 'nombre' => $file->getClientOriginalName()];
         }
 
         $codigo = \App\Support\OficioCodigo::generar($user, SolicitudTipo::from($tipo));
@@ -418,10 +417,11 @@ class SolicitudController extends Controller
             abort(404);
         }
 
-        $disk = Storage::disk('public');
-        if (! $disk->exists($path)) {
+        $diskName = SolicitudAdjuntos::diskConArchivo($path);
+        if ($diskName === null) {
             abort(404);
         }
+        $disk = Storage::disk($diskName);
 
         $nombre = $solicitud->justificativo_nombre ?: 'adjunto';
         foreach ($solicitud->detalle['anexos'] ?? [] as $anexo) {
@@ -449,7 +449,12 @@ class SolicitudController extends Controller
     {
         $this->authorize('update', $solicitud);
 
-        if ($error = SolicitudValidator::validateFechaInicioMaxTresMeses($request->input('fecha_inicio', ''))) {
+        $fechaInicioInput = trim((string) $request->input('fecha_inicio', ''));
+        if (
+            $fechaInicioInput !== ''
+            && $solicitud->tipo !== SolicitudTipo::Justificacion
+            && ($error = SolicitudValidator::validateFechaInicioMaxTresMeses($fechaInicioInput))
+        ) {
             return back()->withInput()->with('error', $error);
         }
 
@@ -458,20 +463,30 @@ class SolicitudController extends Controller
         }
 
         $anexosActuales = SolicitudAdjuntos::anexosActuales($solicitud);
-        $restantesTrasEliminar = count($anexosActuales) - count($request->input('eliminar_anexos', []));
-        if (\App\Support\SolicitudAdjuntoLimits::exceedsFileCount(max(0, $restantesTrasEliminar), $request)) {
+        $restantesTrasEliminar = SolicitudAdjuntos::restantesTrasEliminar($solicitud, $request);
+        if (\App\Support\SolicitudAdjuntoLimits::exceedsFileCount($restantesTrasEliminar, $request)) {
             return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::fileCountMessage());
         }
 
+        $mantenerBorrador = $solicitud->estado === SolicitudEstado::EnBorrador && $request->boolean('borrador');
+        $anexosPrevistos = $restantesTrasEliminar + \App\Support\SolicitudAdjuntoLimits::countNewUploads($request);
+        if (
+            ! $mantenerBorrador
+            && SolicitudValidator::anexoObligatorioParaTipo($solicitud->tipo->value)
+            && $anexosPrevistos < 1
+        ) {
+            return back()->withInput()->with('error', 'Este tipo de trámite requiere adjuntar un justificativo.');
+        }
+
         $validated = $request->validate([
-            'tipo' => 'required|string',
+            'tipo' => ['required', Rule::enum(SolicitudTipo::class)],
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
             'motivo' => 'required|string|max:5000',
-            'justificativo' => 'nullable|file|max:10240',
-            'anexos.*' => 'nullable|file|max:10240',
+            'justificativo' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
+            'anexos.*' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
             'eliminar_anexos.*' => 'nullable|string',
-        ]);
+        ], \App\Support\SolicitudAdjuntoLimits::mimeValidationMessages());
 
         if ($validated['tipo'] !== $solicitud->tipo->value) {
             return back()->withInput()->with('error', 'No puedes cambiar el tipo de solicitud. Crea un trámite nuevo si te equivocaste.');
@@ -513,11 +528,11 @@ class SolicitudController extends Controller
 
         $old = $solicitud->toArray();
         if ($solicitud->justificativo_path) {
-            Storage::disk('public')->delete($solicitud->justificativo_path);
+            SolicitudAdjuntos::borrar($solicitud->justificativo_path);
         }
         foreach (($solicitud->detalle['anexos'] ?? []) as $anexo) {
             if (! empty($anexo['path'])) {
-                Storage::disk('public')->delete($anexo['path']);
+                SolicitudAdjuntos::borrar((string) $anexo['path']);
             }
         }
         $solicitud->delete();

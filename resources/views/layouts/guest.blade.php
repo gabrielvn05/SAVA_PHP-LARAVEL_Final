@@ -9,8 +9,9 @@
     <meta name="apple-mobile-web-app-title" content="SAVA">
     <title>@yield('title', 'SAVA') — Sistema de Asistencia y Validaciones Académicas</title>
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-    <link rel="icon" href="{{ asset('branding/icon-192.png') }}" type="image/png">
-    <link rel="apple-touch-icon" href="{{ asset('branding/icon-192.png') }}">
+    <link rel="icon" href="{{ asset('branding/favicon-32.png') }}" sizes="32x32" type="image/png">
+    <link rel="icon" href="{{ asset('branding/icon-192.png') }}" sizes="192x192" type="image/png">
+    <link rel="apple-touch-icon" href="{{ asset('branding/apple-touch-icon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="app-public">

@@ -68,6 +68,47 @@ class OficioDocxTest extends TestCase
         $this->assertStringNotContainsString('[Tipo de visita de campo]', $xml);
     }
 
+    public function test_docx_aprobado_incluye_sello_autorizado(): void
+    {
+        $docente = User::factory()->create([
+            'rol' => AppRole::Administrativo,
+            'cedula' => '1312000098',
+            'carrera' => 'software',
+        ]);
+        $decano = User::factory()->create([
+            'rol' => AppRole::Decano,
+            'nombres' => 'María',
+            'apellidos' => 'Decano',
+            'cedula' => '1312000097',
+            'carrera' => 'software',
+        ]);
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $docente->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso de prueba',
+            'estado' => SolicitudEstado::Aprobada,
+            'firmado_por' => $decano->id,
+            'detalle' => ['codigo_tramite' => 'FACIVITEC-TEST-SELLO'],
+        ]);
+
+        $binary = app(OficioDocxService::class)->generar($solicitud, $decano);
+        $temp = tempnam(sys_get_temp_dir(), 'oficio-sello-');
+        file_put_contents($temp, $binary);
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($temp));
+        $xml = $zip->getFromName('word/document.xml') ?: '';
+        $this->assertNotFalse($zip->locateName('word/media/sello-autorizado.jpg'));
+        $zip->close();
+        @unlink($temp);
+
+        $this->assertStringContainsString('Sello AUTORIZADO', $xml);
+        $this->assertStringNotContainsString('Sello de APROBADO O RECHAZADO CON FIRMA DEL DECANO', $xml);
+    }
+
     public function test_ruta_descarga_oficio_docx(): void
     {
         $user = User::factory()->create([

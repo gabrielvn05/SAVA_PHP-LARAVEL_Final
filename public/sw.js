@@ -1,4 +1,4 @@
-const CACHE_STATIC = "sava-static-v5";
+const CACHE_STATIC = "sava-static-v6";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

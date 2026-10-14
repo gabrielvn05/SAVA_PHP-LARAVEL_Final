@@ -17,7 +17,7 @@ class PermisoSolicitudTest extends TestCase
     {
         $user = User::factory()->create([
             'rol' => AppRole::Docente,
-            'cedula' => '1315591303',
+            'cedula' => '1712345675',
             'carrera' => 'software',
             'celular' => '0991234567',
         ]);
@@ -72,7 +72,7 @@ class PermisoSolicitudTest extends TestCase
     {
         $user = User::factory()->create([
             'rol' => AppRole::Docente,
-            'cedula' => '1315591303',
+            'cedula' => '1712345675',
             'carrera' => 'software',
         ]);
 

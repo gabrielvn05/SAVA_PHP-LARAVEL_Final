@@ -34,7 +34,9 @@ Route::middleware('guest')->group(function (): void {
         ->middleware('throttle:3,10')
         ->name('recuperar-clave.store');
     Route::get('/solicitar-cuenta', [SolicitarCuentaController::class, 'create'])->name('solicitar-cuenta.create');
-    Route::post('/solicitar-cuenta', [SolicitarCuentaController::class, 'store'])->name('solicitar-cuenta.store');
+    Route::post('/solicitar-cuenta', [SolicitarCuentaController::class, 'store'])
+        ->middleware('throttle:solicitar-cuenta')
+        ->name('solicitar-cuenta.store');
 });
 
 Route::middleware(['auth', 'active'])->group(function (): void {

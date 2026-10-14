@@ -5,12 +5,15 @@ namespace App\Support;
 use App\Models\Solicitud;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class SolicitudAdjuntos
 {
+    public const DISK = 'local';
+
+    public const DISK_LEGACY = 'public';
+
     /**
      * @return list<string>
      */
@@ -70,6 +73,46 @@ class SolicitudAdjuntos
         return array_values(array_filter($anexos, static fn (array $anexo): bool => filled($anexo['path'] ?? null)));
     }
 
+    public static function restantesTrasEliminar(Solicitud $solicitud, Request $request): int
+    {
+        $autorizados = self::pathsAutorizados($solicitud);
+        $eliminados = 0;
+
+        foreach ($request->input('eliminar_anexos', []) as $path) {
+            $path = str_replace('\\', '/', trim((string) $path));
+            if (in_array($path, $autorizados, true)) {
+                $eliminados++;
+            }
+        }
+
+        return max(0, count(self::anexosActuales($solicitud)) - $eliminados);
+    }
+
+    public static function guardar(UploadedFile $file): string
+    {
+        return $file->store('justificativos', self::DISK);
+    }
+
+    public static function diskConArchivo(string $path): ?string
+    {
+        foreach ([self::DISK, self::DISK_LEGACY] as $disk) {
+            if (Storage::disk($disk)->exists($path)) {
+                return $disk;
+            }
+        }
+
+        return null;
+    }
+
+    public static function borrar(string $path): void
+    {
+        foreach ([self::DISK, self::DISK_LEGACY] as $disk) {
+            if (Storage::disk($disk)->exists($path)) {
+                Storage::disk($disk)->delete($path);
+            }
+        }
+    }
+
     /**
      * @param  list<array{path: string, nombre: string}>  $anexos
      * @return list<array{path: string, nombre: string}>
@@ -88,7 +131,7 @@ class SolicitudAdjuntos
                 $anexos,
                 static fn (array $anexo): bool => ($anexo['path'] ?? '') !== $path,
             ));
-            Storage::disk('public')->delete($path);
+            self::borrar($path);
         }
 
         if ($request->hasFile('justificativo')) {
@@ -100,11 +143,11 @@ class SolicitudAdjuntos
                         $anexos,
                         static fn (array $anexo): bool => ($anexo['path'] ?? '') !== $reemplaza,
                     ));
-                    Storage::disk('public')->delete($reemplaza);
+                    self::borrar($reemplaza);
                 }
 
                 $anexos[] = [
-                    'path' => $file->store('justificativos', 'public'),
+                    'path' => self::guardar($file),
                     'nombre' => $file->getClientOriginalName(),
                 ];
             }
@@ -116,7 +159,7 @@ class SolicitudAdjuntos
             }
 
             $anexos[] = [
-                'path' => $file->store('justificativos', 'public'),
+                'path' => self::guardar($file),
                 'nombre' => $file->getClientOriginalName(),
             ];
         }
@@ -141,13 +184,9 @@ class SolicitudAdjuntos
 
     public static function urlVista(Solicitud $solicitud, string $path): string
     {
-        if (Route::has('solicitudes.adjunto')) {
-            return route('solicitudes.adjunto', [
-                'solicitud' => $solicitud,
-                'f' => $path,
-            ]);
-        }
-
-        return Storage::disk('public')->url($path);
+        return route('solicitudes.adjunto', [
+            'solicitud' => $solicitud,
+            'f' => $path,
+        ]);
     }
 }

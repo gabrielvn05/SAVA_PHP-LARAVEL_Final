@@ -11,8 +11,11 @@ use App\Policies\NotificacionFaltaPolicy;
 use App\Policies\SolicitudPolicy;
 use App\Policies\UserPolicy;
 use App\Services\AppNotificationService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use SocialiteProviders\Azure\Provider;
@@ -27,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        RateLimiter::for('solicitar-cuenta', function (Request $request) {
+            $maxAttempts = app()->runningUnitTests() ? 60 : 5;
+
+            return Limit::perMinute($maxAttempts, 10)->by($request->ip());
+        });
+
         Gate::policy(Solicitud::class, SolicitudPolicy::class);
         Gate::policy(NotificacionFalta::class, NotificacionFaltaPolicy::class);
         Gate::policy(User::class, UserPolicy::class);

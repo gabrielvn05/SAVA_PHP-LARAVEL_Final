@@ -9,13 +9,13 @@ class CedulaEcuadorTest extends TestCase
 {
     public function test_rechaza_letras_en_entrada(): void
     {
-        $this->assertTrue(CedulaEcuador::containsLetters('1315591303a'));
-        $this->assertFalse(CedulaEcuador::containsLetters('1315591303'));
+        $this->assertTrue(CedulaEcuador::containsLetters('1712345675a'));
+        $this->assertFalse(CedulaEcuador::containsLetters('1712345675'));
     }
 
     public function test_normaliza_y_limita_a_diez_digitos(): void
     {
-        $this->assertSame('1315591303', CedulaEcuador::normalizeDigits('131-559-1303-99'));
+        $this->assertSame('1712345675', CedulaEcuador::normalizeDigits('171-234-5675-99'));
     }
 
     public function test_rechaza_cedulas_triviales(): void
@@ -26,6 +26,6 @@ class CedulaEcuadorTest extends TestCase
 
     public function test_acepta_cedula_ecuatoriana_valida(): void
     {
-        $this->assertTrue(CedulaEcuador::isValid('1315591303'));
+        $this->assertTrue(CedulaEcuador::isValid('1712345675'));
     }
 }

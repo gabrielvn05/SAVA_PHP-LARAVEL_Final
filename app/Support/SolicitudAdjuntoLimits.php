@@ -11,6 +11,8 @@ class SolicitudAdjuntoLimits
 
     public const MAX_TOTAL_KB = 10240;
 
+    public const ALLOWED_MIMES = 'pdf,png,jpg,jpeg';
+
     public static function totalUploadSizeKb(Request $request): int
     {
         $bytes = 0;
@@ -63,5 +65,27 @@ class SolicitudAdjuntoLimits
     public static function fileCountMessage(): string
     {
         return 'Puedes adjuntar hasta 10 archivos en total (incluidos los que ya están en la solicitud).';
+    }
+
+    /** @return list<string> */
+    public static function uploadedFileRules(): array
+    {
+        return ['nullable', 'file', 'max:'.self::MAX_TOTAL_KB, 'mimes:'.self::ALLOWED_MIMES];
+    }
+
+    public static function mimeMessage(): string
+    {
+        return 'Solo se aceptan archivos PDF, PNG o JPG.';
+    }
+
+    /** @return array<string, string> */
+    public static function mimeValidationMessages(): array
+    {
+        $mensaje = self::mimeMessage();
+
+        return [
+            'justificativo.mimes' => $mensaje,
+            'anexos.*.mimes' => $mensaje,
+        ];
     }
 }

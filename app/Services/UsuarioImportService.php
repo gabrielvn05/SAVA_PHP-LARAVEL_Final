@@ -6,6 +6,7 @@ use App\Enums\AppRole;
 use App\Models\User;
 use App\Support\AssignableAppRoles;
 use App\Support\Carreras;
+use App\Support\CedulaEcuador;
 use App\Support\InstitutionalEmail;
 use App\Support\TemporaryPasswordGenerator;
 use Illuminate\Support\Facades\Hash;
@@ -83,7 +84,7 @@ class UsuarioImportService
         $email = strtolower(trim((string) ($row[$map['email']] ?? '')));
         $nombres = trim((string) ($row[$map['nombres']] ?? ''));
         $apellidos = trim((string) ($row[$map['apellidos']] ?? ''));
-        $cedula = preg_replace('/\D/', '', (string) ($row[$map['cedula']] ?? '')) ?? '';
+        $cedula = CedulaEcuador::normalizeDigits((string) ($row[$map['cedula']] ?? ''));
         $celular = preg_replace('/[^\d+]/', '', ltrim((string) ($row[$map['celular']] ?? ''), '+')) ?? '';
         $carrera = trim((string) ($row[$map['carrera']] ?? ''));
         $rolRaw = isset($map['rol']) ? trim((string) ($row[$map['rol']] ?? '')) : '';
@@ -101,8 +102,12 @@ class UsuarioImportService
             return "Línea {$lineNumber}: el correo {$email} ya existe.";
         }
 
-        if (strlen($cedula) < 10 || strlen($cedula) > 13) {
+        if (! CedulaEcuador::isValid($cedula)) {
             return "Línea {$lineNumber}: cédula inválida.";
+        }
+
+        if (User::query()->where('cedula', $cedula)->exists()) {
+            return "Línea {$lineNumber}: la cédula ya está registrada.";
         }
 
         if (! Carreras::isValid($carrera)) {

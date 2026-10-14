@@ -16,6 +16,24 @@ class AssignableAppRoles
         ));
     }
 
+    /** Roles que un visitante puede pedir en el formulario público. */
+    public static function forPublicRequest(): array
+    {
+        return [
+            AppRole::Docente,
+            AppRole::Administrativo,
+            AppRole::Mantenimiento,
+        ];
+    }
+
+    public static function canRequestPublicly(string $rol): bool
+    {
+        return in_array($rol, array_map(
+            static fn (AppRole $caso): string => $caso->value,
+            self::forPublicRequest(),
+        ), true);
+    }
+
     public static function canAssign(AppRole $rol): bool
     {
         return $rol !== AppRole::Superusuario;
