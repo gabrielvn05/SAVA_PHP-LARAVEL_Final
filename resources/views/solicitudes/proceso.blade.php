@@ -111,9 +111,7 @@
                 </tbody>
             </table>
         </div>
-        @if($solicitudes->hasPages())
-            <div style="padding: 0.75rem;">{{ $solicitudes->links() }}</div>
-        @endif
+        {{ $solicitudes->links() }}
     </article>
 </section>
 @endsection

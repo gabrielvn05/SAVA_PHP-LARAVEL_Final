@@ -207,6 +207,24 @@ class SolicitudProcesoTest extends TestCase
         $this->assertSame('Aprobado y firmado por Decano.', $solicitud->observaciones_decano);
     }
 
+    public function test_inbox_pagination_uses_compact_text_controls_instead_of_svg_chevrons(): void
+    {
+        $solicitante = $this->usuario(AppRole::Administrativo, '1312000210');
+        $secretaria = $this->usuario(AppRole::Secretaria, '1312000211');
+
+        for ($i = 1; $i <= 11; $i++) {
+            $this->crearSolicitud($solicitante, SolicitudEstado::EnRevisionSecretaria, "Motivo paginación {$i}");
+        }
+
+        $this->actingAs($secretaria)
+            ->get(route('solicitudes.proceso'))
+            ->assertOk()
+            ->assertSee('Anterior')
+            ->assertSee('Siguiente')
+            ->assertDontSee('viewBox="0 0 20 20"', false)
+            ->assertDontSee('Pagination Navigation', false);
+    }
+
     public function test_solicitante_cannot_open_the_approval_inbox(): void
     {
         $solicitante = $this->usuario(AppRole::Administrativo, '1312000109');

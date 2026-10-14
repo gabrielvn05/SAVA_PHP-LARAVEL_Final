@@ -13,6 +13,7 @@ use App\Policies\UserPolicy;
 use App\Services\AppNotificationService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -30,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Paginator::defaultView('pagination.sava');
+        Paginator::defaultSimpleView('pagination.sava-simple');
+
         RateLimiter::for('solicitar-cuenta', function (Request $request) {
             $maxAttempts = app()->runningUnitTests() ? 60 : 5;
 
