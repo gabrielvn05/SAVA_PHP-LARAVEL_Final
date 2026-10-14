@@ -8,9 +8,11 @@ use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\OficioDocxService;
+use App\Services\OficioPdfService;
 use App\Support\OficioSelloAutorizado;
 use App\Support\OficioSelloFaltanteException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery\MockInterface;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -160,9 +162,135 @@ class OficioDocxTest extends TestCase
             ],
         ]);
 
+        $this->mock(OficioPdfService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('generar')->andReturn(null);
+            $mock->shouldReceive('usaVistaPdf')->andReturn(false);
+            $mock->shouldReceive('puedeConvertir')->andReturn(false);
+            $mock->shouldReceive('puedeMostrarPdfEnVisor')->andReturn(false);
+            $mock->shouldReceive('invalidarCache')->zeroOrMoreTimes();
+        });
+
         $this->actingAs($user)
             ->get(route('solicitudes.oficio-descargar', $solicitud))
             ->assertOk()
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+
+    public function test_preview_html_muestra_el_oficio_cuando_no_hay_pdf(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Administrativo,
+            'nombres' => 'Gabriel',
+            'apellidos' => 'Velez',
+            'cedula' => '1312000085',
+            'carrera' => 'software',
+        ]);
+        $decano = User::factory()->create([
+            'rol' => AppRole::Decano,
+            'nombres' => 'Maria',
+            'apellidos' => 'Decano',
+            'cedula' => '1312000084',
+            'carrera' => 'software',
+        ]);
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Calamidad familiar',
+            'estado' => SolicitudEstado::Aprobada,
+            'firmado_por' => $decano->id,
+            'fecha_firma' => now(),
+            'detalle' => [
+                'codigo_tramite' => 'FACIVITEC-14102026-PER-CA',
+                'fecha_permiso' => now()->toDateString(),
+                'hora_inicio_permiso' => '08:00',
+                'hora_fin_permiso' => '12:00',
+            ],
+        ]);
+
+        $this->mock(OficioPdfService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('generar')->andReturn(null);
+            $mock->shouldReceive('usaVistaPdf')->andReturn(false);
+            $mock->shouldReceive('puedeConvertir')->andReturn(false);
+            $mock->shouldReceive('puedeMostrarPdfEnVisor')->andReturn(false);
+            $mock->shouldReceive('invalidarCache')->zeroOrMoreTimes();
+        });
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.preview-oficio', $solicitud))
+            ->assertOk()
+            ->assertSee('data-oficio-docx-url', false)
+            ->assertSee(route('solicitudes.oficio-documento', $solicitud), false)
+            ->assertSee('docx-preview.min.js', false)
+            ->assertDontSee('Vista previa aproximada');
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.preview-oficio', ['solicitud' => $solicitud, 'html' => 1]))
+            ->assertOk()
+            ->assertSee('OFICIO N°', false)
+            ->assertSee('FACIVITEC-14102026-PER-CA')
+            ->assertSee('Gabriel Velez')
+            ->assertSee('sello-autorizado.jpg', false)
+            ->assertSee('Sello AUTORIZADO');
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.oficio-documento', $solicitud))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+
+    public function test_oficio_aprobado_se_previsualiza_y_descarga_como_pdf_firmado(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Administrativo,
+            'cedula' => '1312000087',
+            'carrera' => 'software',
+        ]);
+        $decano = User::factory()->create([
+            'rol' => AppRole::Decano,
+            'cedula' => '1312000086',
+            'carrera' => 'software',
+        ]);
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso firmado',
+            'estado' => SolicitudEstado::Aprobada,
+            'firmado_por' => $decano->id,
+            'fecha_firma' => now(),
+            'detalle' => ['codigo_tramite' => 'FACIVITEC-07102026-PER-MZ'],
+        ]);
+
+        $pdf = "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF";
+        $this->mock(OficioPdfService::class, function (MockInterface $mock) use ($pdf): void {
+            $mock->shouldReceive('generar')->andReturn($pdf);
+            $mock->shouldReceive('usaVistaPdf')->andReturn(true);
+            $mock->shouldReceive('puedeConvertir')->andReturn(true);
+            $mock->shouldReceive('puedeMostrarPdfEnVisor')->andReturn(true);
+            $mock->shouldReceive('invalidarCache')->zeroOrMoreTimes();
+        });
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.show', $solicitud))
+            ->assertOk()
+            ->assertSee('Oficio firmado')
+            ->assertSee('Descargar PDF firmado')
+            ->assertSee(route('solicitudes.oficio-descargar', $solicitud), false);
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.preview-oficio', $solicitud))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'inline; filename="FACIVITEC-07102026-PER-MZ-firmado.pdf"');
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.oficio-descargar', $solicitud))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'attachment; filename="FACIVITEC-07102026-PER-MZ-firmado.pdf"')
+            ->assertSee('%PDF-1.4', false);
     }
 }

@@ -8,9 +8,8 @@ use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
 use App\Services\OficioPreviewService;
 use App\Support\OficioSelloFaltanteException;
-use App\Support\ViteManifest;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Route;
 use Illuminate\View\View;
 
 class CertificadoController extends Controller
@@ -21,40 +20,37 @@ class CertificadoController extends Controller
         private readonly OficioPdfService $pdfService,
     ) {}
 
-    public function preview(Solicitud $solicitud): View|Response
+    public function preview(Request $request, Solicitud $solicitud): View|Response
     {
         $this->authorize('view', $solicitud);
 
-        if ($this->pdfService->usaVistaPdf($solicitud)) {
+        if ($request->query('html') !== '1' && $this->pdfService->usaVistaPdf($solicitud)) {
             $pdf = $this->pdfService->generar($solicitud);
             if ($pdf !== null) {
+                $nombre = $this->nombreOficio($solicitud, 'pdf');
+
                 return response($pdf, 200, [
                     'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'inline; filename="oficio.pdf"',
+                    'Content-Disposition' => 'inline; filename="'.$nombre.'"',
                     'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
                 ]);
             }
         }
 
-        if ($this->previewService->puedeUsarPlantillaDocx($solicitud)) {
-            $detalle = $solicitud->detalle ?? [];
-            $descargarUrl = Route::has('solicitudes.oficio-descargar')
-                ? route('solicitudes.oficio-descargar', $solicitud)
-                : route('solicitudes.oficio-documento', $solicitud);
-
-            return view('certificado.oficio-preview-shell', [
-                'solicitud' => $solicitud,
-                'docxUrl' => route('solicitudes.oficio-documento', $solicitud),
-                'descargarUrl' => $descargarUrl,
-                'codigo' => $detalle['codigo_tramite'] ?? 'oficio',
-                'avisoAproximado' => true,
-                'pdfNoDisponible' => ! $this->pdfService->puedeConvertir(),
-                'oficioPreviewScriptUrl' => ViteManifest::moduleUrl('resources/js/oficio-preview.js'),
-            ]);
+        if ($request->query('html') === '1' || ! $this->previewService->puedeUsarPlantillaDocx($solicitud)) {
+            return response($this->previewService->renderHtmlRespaldo($solicitud))
+                ->header('Content-Type', 'text/html; charset=UTF-8');
         }
 
-        return response($this->previewService->renderHtmlRespaldo($solicitud))
-            ->header('Content-Type', 'text/html; charset=UTF-8');
+        $detalle = $solicitud->detalle ?? [];
+
+        return view('certificado.oficio-preview-shell', [
+            'solicitud' => $solicitud,
+            'docxUrl' => route('solicitudes.oficio-documento', $solicitud),
+            'descargarUrl' => route('solicitudes.oficio-descargar', $solicitud),
+            'htmlFallbackUrl' => route('solicitudes.preview-oficio', ['solicitud' => $solicitud, 'html' => 1]),
+            'codigo' => $detalle['codigo_tramite'] ?? 'oficio',
+        ]);
     }
 
     public function documento(Solicitud $solicitud): Response
@@ -66,8 +62,7 @@ class CertificadoController extends Controller
         }
 
         $binary = $this->generarDocxOAbortar($solicitud);
-        $detalle = $solicitud->detalle ?? [];
-        $nombre = ($detalle['codigo_tramite'] ?? 'oficio').'.docx';
+        $nombre = $this->nombreOficio($solicitud, 'docx');
 
         return response($binary, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -80,13 +75,23 @@ class CertificadoController extends Controller
     {
         $this->authorize('view', $solicitud);
 
+        $pdf = $this->pdfService->generar($solicitud);
+        if (is_string($pdf) && $pdf !== '') {
+            $nombre = $this->nombreOficio($solicitud, 'pdf');
+
+            return response($pdf, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
+                'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
+            ]);
+        }
+
         if (! $this->previewService->puedeUsarPlantillaDocx($solicitud)) {
             abort(404);
         }
 
         $binary = $this->generarDocxOAbortar($solicitud);
-        $detalle = $solicitud->detalle ?? [];
-        $nombre = ($detalle['codigo_tramite'] ?? 'oficio').'.docx';
+        $nombre = $this->nombreOficio($solicitud, 'docx');
 
         return response($binary, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -113,5 +118,16 @@ class CertificadoController extends Controller
         $solicitud->loadMissing('firmante');
 
         return $solicitud->firmante;
+    }
+
+    private function nombreOficio(Solicitud $solicitud, string $extension): string
+    {
+        $codigo = (string) (($solicitud->detalle ?? [])['codigo_tramite'] ?? 'oficio');
+        $base = preg_replace('/[^A-Za-z0-9._-]+/', '-', $codigo) ?: 'oficio';
+        if ($solicitud->estado === SolicitudEstado::Aprobada) {
+            return $base.'-firmado.'.$extension;
+        }
+
+        return $base.'.'.$extension;
     }
 }

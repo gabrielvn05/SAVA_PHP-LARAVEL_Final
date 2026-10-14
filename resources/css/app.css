@@ -1596,6 +1596,14 @@ html.sidebar-open {
     min-height: 22rem;
   }
 
+  .doc-viewer__frame--native {
+    display: none;
+  }
+
+  .pdf-viewer {
+    display: flex;
+  }
+
   .pdf-viewer__pages {
     max-height: 70vh;
   }
@@ -3592,7 +3600,7 @@ button:focus-visible {
   min-height: 520px;
   border: 0;
   display: block;
-  background: #52525b;
+  background: #fff;
 }
 
 .doc-viewer__image-wrap {
@@ -3637,11 +3645,21 @@ button:focus-visible {
   align-items: center;
 }
 
-.pdf-viewer {
+.solicitud-preview__downloads {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.pdf-viewer {
+  display: none;
   flex-direction: column;
   background: #52525b;
   min-height: 22rem;
+}
+
+.doc-viewer__frame--native {
+  display: block;
 }
 
 .pdf-viewer__bar {

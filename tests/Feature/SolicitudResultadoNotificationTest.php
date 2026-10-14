@@ -40,6 +40,7 @@ class SolicitudResultadoNotificationTest extends TestCase
             $preview->assertHeader('content-type', 'application/pdf');
         } else {
             $preview->assertSee('data-oficio-docx-url', false);
+            $preview->assertDontSee('No se pudo cargar la vista previa del oficio', false);
         }
     }
 

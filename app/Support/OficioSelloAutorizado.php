@@ -12,7 +12,20 @@ class OficioSelloAutorizado
 
     public static function assetPath(): string
     {
-        return self::$assetPathForTests ?? resource_path('templates/oficio-media/sello-autorizado.jpg');
+        if (self::$assetPathForTests !== null) {
+            return self::$assetPathForTests;
+        }
+
+        foreach ([
+            resource_path('templates/oficio-media/sello-autorizado.jpg'),
+            public_path('templates/oficio-media/sello-autorizado.jpg'),
+        ] as $path) {
+            if (is_readable($path)) {
+                return $path;
+            }
+        }
+
+        return resource_path('templates/oficio-media/sello-autorizado.jpg');
     }
 
     public static function puedeAplicar(): bool

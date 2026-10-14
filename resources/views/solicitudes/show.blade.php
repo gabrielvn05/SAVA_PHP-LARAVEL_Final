@@ -99,11 +99,20 @@
         @if($mostrarOficioInstitucional ?? true)
             <x-doc-viewer
                 title="{{ $estado === \App\Enums\SolicitudEstado::Aprobada ? 'Oficio firmado' : 'Oficio institucional' }}"
-                :file-name="($oficioVistaPdf ?? false) ? (($d['codigo_tramite'] ?? 'oficio').'.pdf') : (($d['codigo_tramite'] ?? 'oficio').'.docx')"
+                :file-name="$estado === \App\Enums\SolicitudEstado::Aprobada
+                    ? (($d['codigo_tramite'] ?? 'oficio').(($oficioVistaPdf ?? false) ? '-firmado.pdf' : '-firmado.docx'))
+                    : (($d['codigo_tramite'] ?? 'oficio').(($oficioVistaPdf ?? false) ? '.pdf' : '.docx'))"
                 :src="$oficioPreviewUrl ?? route('solicitudes.preview-oficio', $solicitud)"
                 :download-href="$oficioDescargarUrl ?? route('solicitudes.preview-oficio', $solicitud)"
-                :kind="($oficioVistaPdf ?? false) ? 'pdf' : (($oficioUsaPlantillaDocx ?? false) ? 'docx' : 'html')"
+                :kind="($oficioVistaPdf ?? false) ? 'pdf' : 'docx'"
             />
+            <div class="solicitud-preview__downloads">
+                <a href="{{ $oficioDescargarUrl ?? route('solicitudes.preview-oficio', $solicitud) }}" class="btn btn--primary btn--sm">
+                    {{ $estado === \App\Enums\SolicitudEstado::Aprobada
+                        ? (($oficioVistaPdf ?? false) ? 'Descargar PDF firmado' : 'Descargar oficio firmado')
+                        : (($oficioVistaPdf ?? false) ? 'Descargar PDF' : 'Descargar oficio') }}
+                </a>
+            </div>
         @endif
 
         @foreach($documentos as $documento)

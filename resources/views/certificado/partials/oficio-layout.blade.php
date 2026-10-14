@@ -17,16 +17,31 @@
         .firma-solicitante p { margin: 0.2rem 0; }
         .firma-decano { margin-top: 2.5rem; }
         .firma-decano__nombre { font-weight: 700; margin: 0; }
+        .oficio-membrete {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin: 0 0 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #0c3d7a;
+        }
+        .oficio-membrete img { max-height: 72px; width: auto; }
+        .firma-bloque { position: relative; min-height: 8rem; }
         .oficio-sello {
-            float: right;
-            width: 118px;
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 140px;
             height: auto;
-            margin: 0.5rem 0 1rem 1rem;
-            clear: right;
         }
     </style>
 </head>
 <body>
+    <header class="oficio-membrete">
+        <img src="{{ asset('templates/oficio-media/logo-facultad.png') }}" alt="FACIVITEC">
+        <img src="{{ asset('templates/oficio-media/marca-uleam.png') }}" alt="ULEAM">
+    </header>
     <p class="meta__codigo">OFICIO N° {{ $codigo }}</p>
 
     <div class="destinatario">
@@ -47,24 +62,23 @@
 
     @yield('contenido')
 
-    <div class="firma-solicitante">
+    <div class="firma-solicitante firma-bloque">
         <p>Atentamente,</p>
         <p>Aprobado por:</p>
         <p>{{ $rolPersonal ?? 'Docente' }} de la {{ $facultadNombre }}</p>
         <p>Cédula: {{ $cedula }}</p>
         <p>Correo institucional: {{ $correo }}</p>
         <p>Fecha de generación del documento: {{ $fechaGeneracion }}</p>
+        @if($mostrarSelloAutorizado ?? false)
+            <img
+                src="{{ asset('templates/oficio-media/sello-autorizado.jpg') }}"
+                alt="Sello AUTORIZADO FACIVITEC"
+                class="oficio-sello"
+                width="140"
+                height="140"
+            >
+        @endif
     </div>
-
-    @if($mostrarSelloAutorizado ?? false)
-        <img
-            src="{{ asset('templates/oficio-media/sello-autorizado.jpg') }}"
-            alt="Sello AUTORIZADO FACIVITEC"
-            class="oficio-sello"
-            width="118"
-            height="118"
-        >
-    @endif
 
     @if($decano)
         <div class="firma-decano">

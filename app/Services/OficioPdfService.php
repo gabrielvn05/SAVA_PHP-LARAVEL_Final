@@ -73,9 +73,10 @@ class OficioPdfService
 
     public function invalidarCache(Solicitud $solicitud): void
     {
-        $path = $this->cachePath($solicitud);
-        if (is_file($path)) {
-            @unlink($path);
+        foreach (glob(storage_path('app/oficios/pdf/'.$solicitud->id.'.*.pdf')) ?: [] as $path) {
+            if (is_file($path)) {
+                @unlink($path);
+            }
         }
     }
 
@@ -83,7 +84,9 @@ class OficioPdfService
 
     private function cachePath(Solicitud $solicitud): string
     {
-        return storage_path('app/oficios/pdf/'.$solicitud->id.'.'.self::PLANTILLA_VERSION.'.pdf');
+        $estado = $solicitud->estado === SolicitudEstado::Aprobada ? 'firmado' : 'pre';
+
+        return storage_path('app/oficios/pdf/'.$solicitud->id.'.'.$estado.'.'.self::PLANTILLA_VERSION.'.pdf');
     }
 
     private function decanoParaOficio(Solicitud $solicitud): ?User

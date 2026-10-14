@@ -30,12 +30,10 @@
             >Abrir</a>
             <a
                 href="{{ $downloadHref }}"
-                class="doc-viewer__tool-btn"
-                title="Descargar"
-                @if(in_array($kind, ['pdf', 'image', 'docx'], true)) download="{{ $fileName }}" @endif
-                target="_blank"
-                rel="noopener"
-            >⬇</a>
+                class="doc-viewer__tool-btn doc-viewer__tool-btn--text"
+                title="Descargar {{ $fileName }}"
+                @if($kind === 'image') download="{{ $fileName }}" @endif
+            >Descargar</a>
             <button type="button" class="doc-viewer__tool-btn" title="Abrir / imprimir" data-doc-print="{{ $src }}">🖨</button>
         </div>
     </div>
@@ -50,6 +48,7 @@
                 <a href="{{ $downloadHref }}" class="btn btn--secondary btn--sm" target="_blank" rel="noopener">Descargar archivo original</a>
             </div>
         @elseif($isPdf)
+            <iframe title="{{ $title }}" src="{{ $frameSrc }}" class="doc-viewer__frame doc-viewer__frame--native" loading="lazy"></iframe>
             <div
                 class="pdf-viewer"
                 data-pdf-viewer
