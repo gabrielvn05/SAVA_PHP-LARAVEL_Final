@@ -28,4 +28,11 @@ class CedulaEcuadorTest extends TestCase
     {
         $this->assertTrue(CedulaEcuador::isValid('1712345675'));
     }
+
+    public function test_genera_cedulas_sinteticas_validas(): void
+    {
+        for ($i = 0; $i < 8; $i++) {
+            $this->assertTrue(CedulaEcuador::isValid(CedulaEcuador::fake()));
+        }
+    }
 }

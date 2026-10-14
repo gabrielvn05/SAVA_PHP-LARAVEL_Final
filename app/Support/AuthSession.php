@@ -6,6 +6,7 @@ use App\Enums\AppRole;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class AuthSession
 {
@@ -23,6 +24,10 @@ class AuthSession
 
         Auth::login($user, $remember);
         $request->session()->regenerate();
+
+        $token = Str::random(40);
+        $user->forceFill(['session_token' => $token])->save();
+        $request->session()->put('auth_session_token', $token);
 
         SingleSessionEnforcer::closeOtherSessions($user, $request->session()->getId());
     }

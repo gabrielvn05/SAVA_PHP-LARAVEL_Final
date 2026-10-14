@@ -8,9 +8,11 @@ class OficioSelloAutorizado
 
     public const MEDIA_PATH = 'word/media/sello-autorizado.jpg';
 
+    public static ?string $assetPathForTests = null;
+
     public static function assetPath(): string
     {
-        return resource_path('templates/oficio-media/sello-autorizado.jpg');
+        return self::$assetPathForTests ?? resource_path('templates/oficio-media/sello-autorizado.jpg');
     }
 
     public static function puedeAplicar(): bool

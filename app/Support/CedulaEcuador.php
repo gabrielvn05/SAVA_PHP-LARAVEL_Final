@@ -37,6 +37,20 @@ class CedulaEcuador
         return self::checkDigitValid($cedula);
     }
 
+    public static function fake(): string
+    {
+        for ($intento = 0; $intento < 40; $intento++) {
+            $provincia = str_pad((string) random_int(1, 24), 2, '0', STR_PAD_LEFT);
+            $cuerpo = $provincia.((string) random_int(0, 5)).str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $cedula = $cuerpo.(string) self::expectedCheckDigit($cuerpo);
+            if (self::isValid($cedula)) {
+                return $cedula;
+            }
+        }
+
+        return '1712345675';
+    }
+
     private static function isTriviallyInvalid(string $cedula): bool
     {
         if (preg_match('/^(\d)\1{9}$/', $cedula)) {
@@ -56,19 +70,22 @@ class CedulaEcuador
 
     private static function checkDigitValid(string $cedula): bool
     {
+        return self::expectedCheckDigit(substr($cedula, 0, 9)) === (int) $cedula[9];
+    }
+
+    private static function expectedCheckDigit(string $nueveDigitos): int
+    {
         $coeficientes = [2, 1, 2, 1, 2, 1, 2, 1, 2];
         $suma = 0;
 
         for ($i = 0; $i < 9; $i++) {
-            $valor = (int) $cedula[$i] * $coeficientes[$i];
+            $valor = (int) $nueveDigitos[$i] * $coeficientes[$i];
             if ($valor >= 10) {
                 $valor -= 9;
             }
             $suma += $valor;
         }
 
-        $digitoEsperado = (10 - ($suma % 10)) % 10;
-
-        return $digitoEsperado === (int) $cedula[9];
+        return (10 - ($suma % 10)) % 10;
     }
 }

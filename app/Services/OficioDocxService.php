@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Support\OficioSelloAutorizado;
+use App\Support\OficioSelloFaltanteException;
 use Illuminate\Support\Facades\File;
 use ZipArchive;
 
@@ -48,7 +49,11 @@ class OficioDocxService
             throw new \RuntimeException('No se pudo abrir la plantilla.');
         }
 
-        $aplicarSello = $decano !== null && OficioSelloAutorizado::puedeAplicar();
+        if ($decano !== null && ! OficioSelloAutorizado::puedeAplicar()) {
+            throw OficioSelloFaltanteException::make();
+        }
+
+        $aplicarSello = $decano !== null;
         $documentXml = null;
         $documentRels = null;
         $contentTypes = null;

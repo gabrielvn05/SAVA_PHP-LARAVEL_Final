@@ -199,6 +199,8 @@ class UsuarioController extends Controller
 
         $validated = $request->validate([
             'capability' => ['required', Rule::enum(CapabilityType::class)],
+        ], [
+            'capability.enum' => 'Selecciona una capacidad válida.',
         ]);
 
         UserCapability::query()->updateOrCreate(

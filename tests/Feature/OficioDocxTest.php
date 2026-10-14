@@ -8,6 +8,8 @@ use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\OficioDocxService;
+use App\Support\OficioSelloAutorizado;
+use App\Support\OficioSelloFaltanteException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use ZipArchive;
@@ -107,6 +109,32 @@ class OficioDocxTest extends TestCase
 
         $this->assertStringContainsString('Sello AUTORIZADO', $xml);
         $this->assertStringNotContainsString('Sello de APROBADO O RECHAZADO CON FIRMA DEL DECANO', $xml);
+    }
+
+    public function test_oficio_aprobado_falla_si_falta_el_sello(): void
+    {
+        $docente = User::factory()->create(['rol' => AppRole::Administrativo]);
+        $decano = User::factory()->create(['rol' => AppRole::Decano]);
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $docente->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso de prueba',
+            'estado' => SolicitudEstado::Aprobada,
+            'firmado_por' => $decano->id,
+            'detalle' => ['codigo_tramite' => 'FACIVITEC-TEST-SELLO-FALTA'],
+        ]);
+
+        OficioSelloAutorizado::$assetPathForTests = storage_path('app/missing-sello-autorizado.jpg');
+        try {
+            app(OficioDocxService::class)->generar($solicitud, $decano);
+            $this->fail('Debió fallar al faltar el sello de autorizado.');
+        } catch (OficioSelloFaltanteException $e) {
+            $this->assertStringContainsString('sello', mb_strtolower($e->getMessage()));
+        } finally {
+            OficioSelloAutorizado::$assetPathForTests = null;
+        }
     }
 
     public function test_ruta_descarga_oficio_docx(): void

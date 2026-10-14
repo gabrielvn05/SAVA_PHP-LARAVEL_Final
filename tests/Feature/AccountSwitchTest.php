@@ -84,6 +84,35 @@ class AccountSwitchTest extends TestCase
             ->assertSee($decano->cedula);
     }
 
+    public function test_a_newer_login_invalidates_the_previous_session(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'docente.sesion@uleam.edu.ec',
+            'password' => 'SavaTest2026!',
+            'rol' => AppRole::Docente,
+            'cedula' => '0951234566',
+            'carrera' => 'software',
+            'celular' => '0990000000',
+            'force_password_change' => false,
+        ]);
+
+        $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'SavaTest2026!',
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertNotEmpty(session('auth_session_token'));
+
+        $user->forceFill(['session_token' => 'token-de-otro-dispositivo'])->save();
+        $this->app['auth']->forgetGuards();
+
+        $this->get(route('dashboard'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+    }
+
     private function microsoftUser(): User
     {
         return User::factory()->create([

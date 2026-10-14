@@ -53,7 +53,13 @@ class OficioPdfService
             return file_get_contents($cachePath) ?: null;
         }
 
-        $docx = $this->docx->generar($solicitud, $this->decanoParaOficio($solicitud));
+        try {
+            $docx = $this->docx->generar($solicitud, $this->decanoParaOficio($solicitud));
+        } catch (\App\Support\OficioSelloFaltanteException $e) {
+            report($e);
+
+            return null;
+        }
         $pdf = $this->convertirDocx($docx);
         if ($pdf === null) {
             return null;

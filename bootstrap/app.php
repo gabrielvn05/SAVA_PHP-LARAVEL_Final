@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureProfileComplete;
+use App\Http\Middleware\EnsureSingleSession;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\PreventSensitivePageCache;
 use App\Http\Middleware\SecurityHeaders;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(PreventSensitivePageCache::class);
         $middleware->appendToGroup('web', EnsurePasswordChanged::class);
         $middleware->appendToGroup('web', EnsureProfileComplete::class);
+        $middleware->appendToGroup('web', EnsureSingleSession::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -90,6 +90,18 @@ class UsuarioRolTest extends TestCase
             ->assertDontSee($super->email, false);
     }
 
+    public function test_superusuario_rechaza_capacidad_invalida(): void
+    {
+        $super = $this->usuario(AppRole::Superusuario, '1313000011');
+        $docente = $this->usuario(AppRole::Docente, '1313000012');
+
+        $this->actingAs($super)
+            ->post(route('admin.usuarios.delegate', $docente), [
+                'capability' => 'hackear_sistema',
+            ])
+            ->assertSessionHasErrors('capability');
+    }
+
     public function test_secretaria_cannot_manage_users(): void
     {
         $secretaria = $this->usuario(AppRole::Secretaria, '1313000010');

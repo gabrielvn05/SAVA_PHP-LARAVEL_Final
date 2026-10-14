@@ -7,6 +7,7 @@ use App\Models\Solicitud;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
 use App\Services\OficioPreviewService;
+use App\Support\OficioSelloFaltanteException;
 use App\Support\ViteManifest;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
@@ -64,7 +65,7 @@ class CertificadoController extends Controller
             abort(404);
         }
 
-        $binary = $this->docxService->generar($solicitud, $this->decanoFirmante($solicitud));
+        $binary = $this->generarDocxOAbortar($solicitud);
         $detalle = $solicitud->detalle ?? [];
         $nombre = ($detalle['codigo_tramite'] ?? 'oficio').'.docx';
 
@@ -83,7 +84,7 @@ class CertificadoController extends Controller
             abort(404);
         }
 
-        $binary = $this->docxService->generar($solicitud, $this->decanoFirmante($solicitud));
+        $binary = $this->generarDocxOAbortar($solicitud);
         $detalle = $solicitud->detalle ?? [];
         $nombre = ($detalle['codigo_tramite'] ?? 'oficio').'.docx';
 
@@ -92,6 +93,15 @@ class CertificadoController extends Controller
             'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
             'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
         ]);
+    }
+
+    private function generarDocxOAbortar(Solicitud $solicitud): string
+    {
+        try {
+            return $this->docxService->generar($solicitud, $this->decanoFirmante($solicitud));
+        } catch (OficioSelloFaltanteException $e) {
+            abort(503, $e->getMessage());
+        }
     }
 
     private function decanoFirmante(Solicitud $solicitud): ?\App\Models\User
