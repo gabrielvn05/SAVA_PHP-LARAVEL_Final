@@ -441,6 +441,9 @@
             <p class="field-hint" style="margin: 0;">
                 Al enviar la solicitud se podrá consultar el oficio institucional desde el detalle del trámite.
             </p>
+            <p class="field-hint" style="margin: 0 0 0.5rem;">
+                Al continuar podrás <strong>firmar el oficio en el navegador</strong> y después enviarlo a Secretaría.
+            </p>
             @include('solicitudes._adjuntos-field', [
                 'label' => 'Adjuntar documento de respaldo (opcional)',
                 'existingCount' => 0,
@@ -449,10 +452,7 @@
 
             <div class="row" style="justify-content: space-between;">
                 <button class="btn btn--secondary" type="button" data-wizard-back>Atrás</button>
-                <div class="row" style="gap: 8px;">
-                    <button type="submit" name="borrador" value="1" class="btn btn--secondary">Guardar borrador</button>
-                    <button type="submit" class="btn btn--primary">Enviar solicitud</button>
-                </div>
+                <button type="submit" class="btn btn--primary">Continuar a firma</button>
             </div>
         </article>
     </form>

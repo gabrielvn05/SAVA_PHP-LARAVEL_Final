@@ -69,6 +69,16 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         ->name('solicitudes.oficio-descargar');
     Route::get('/solicitudes/{solicitud}/adjunto', [SolicitudController::class, 'adjunto'])
         ->name('solicitudes.adjunto');
+    Route::get('/solicitudes/{solicitud}/firmar', [\App\Http\Controllers\SolicitudFirmaDocenteController::class, 'show'])
+        ->name('solicitudes.firmar');
+    Route::get('/solicitudes/{solicitud}/oficio/pdf-firma', [\App\Http\Controllers\SolicitudFirmaDocenteController::class, 'pdfFirma'])
+        ->name('solicitudes.oficio-pdf-firma');
+    Route::post('/solicitudes/{solicitud}/firmar-navegador', [\App\Http\Controllers\SolicitudFirmaDocenteController::class, 'firmarNavegador'])
+        ->name('solicitudes.firmar-navegador');
+    Route::post('/solicitudes/{solicitud}/firmar-oficio-p12', [\App\Http\Controllers\SolicitudFirmaDocenteController::class, 'firmarP12'])
+        ->name('solicitudes.firmar-oficio-p12');
+    Route::post('/solicitudes/{solicitud}/enviar-secretaria', [\App\Http\Controllers\SolicitudFirmaDocenteController::class, 'enviarSecretaria'])
+        ->name('solicitudes.enviar-secretaria');
 
     Route::resource('solicitudes', SolicitudController::class)
         ->except(['index'])

@@ -1,5 +1,6 @@
 import './bootstrap';
 import { initSolicitudAdjuntos } from './solicitud-adjuntos.js';
+import { initOficioFirmaNavegador } from './oficio-firma-navegador.js';
 
 function registerPwa() {
     if (!('serviceWorker' in navigator)) return;
@@ -542,6 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initLoadingForms();
     initWizard();
     initSolicitudAdjuntos();
+    initOficioFirmaNavegador();
     initDocViewers();
     initRechazoModal();
     initUserAdminModals();

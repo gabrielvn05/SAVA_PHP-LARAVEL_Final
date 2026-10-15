@@ -11,6 +11,7 @@ use App\Services\AppNotificationService;
 use App\Services\AuditService;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
+use App\Services\SolicitudOficioFirmadoService;
 use App\Services\SolicitudWorkflowService;
 use App\Support\AdjuntoPreview;
 use App\Support\SolicitudAdjuntos;
@@ -316,9 +317,11 @@ class SolicitudController extends Controller
             $user->update(['jornada' => $validated['jornada']]);
         }
 
-        $estado = $request->boolean('borrador')
-            ? SolicitudEstado::EnBorrador
-            : $this->workflow->estadoInicial($user->rol);
+        $estado = match (true) {
+            $this->workflow->solicitudCreadaPorDecano($user->rol) => SolicitudEstado::Aprobada,
+            $user->rol === AppRole::Secretaria => SolicitudEstado::PendienteAprobacionDecano,
+            default => SolicitudEstado::EnBorrador,
+        };
 
         $solicitud = Solicitud::create([
             'creado_por' => $user->id,
@@ -336,6 +339,16 @@ class SolicitudController extends Controller
 
         $this->audit->log('INSERT', $solicitud);
         $this->appNotifications->onSolicitudCreada($solicitud);
+
+        if ($estado === SolicitudEstado::EnBorrador && $this->mostrarFlujoFirmaDocente($solicitud)) {
+            return redirect()->route('solicitudes.firmar', $solicitud)
+                ->with('success', 'Datos registrados. Firma el oficio y envíalo a Secretaría.');
+        }
+
+        if ($estado === SolicitudEstado::EnBorrador) {
+            return redirect()->route('solicitudes.edit', $solicitud)
+                ->with('success', 'Solicitud guardada. Completa el trámite cuando estés listo.');
+        }
 
         return redirect()->route('solicitudes.show', $solicitud)
             ->with('success', 'Solicitud registrada correctamente.');
@@ -375,7 +388,37 @@ class SolicitudController extends Controller
             'oficioVistaPdf' => $this->oficioPdf->puedeMostrarPdfEnVisor($solicitud),
             'oficioPreviewUrl' => $oficioPreviewUrl,
             'oficioDescargarUrl' => $oficioDescargarUrl,
+            'mostrarFirmaDocente' => $this->mostrarFlujoFirmaDocente($solicitud),
+            'oficioDocxUrl' => route('solicitudes.oficio-documento', $solicitud),
+            'oficioUsaDocx' => $this->oficioDocx->puedeGenerarDocx($solicitud),
         ]);
+    }
+
+    /** @return array{oficioPreviewUrl: string, oficioDescargarUrl: string, oficioDocxUrl: string, oficioUsaDocx: bool} */
+    private function urlsOficio(Solicitud $solicitud): array
+    {
+        $oficioUsaDocx = $this->oficioDocx->puedeGenerarDocx($solicitud);
+        $oficioPreviewUrl = route('solicitudes.preview-oficio', $solicitud);
+        $oficioDescargarUrl = Route::has('solicitudes.oficio-descargar') && $oficioUsaDocx
+            ? route('solicitudes.oficio-descargar', $solicitud)
+            : $oficioPreviewUrl;
+
+        return [
+            'oficioPreviewUrl' => $oficioPreviewUrl,
+            'oficioDescargarUrl' => $oficioDescargarUrl,
+            'oficioDocxUrl' => route('solicitudes.oficio-documento', $solicitud),
+            'oficioUsaDocx' => $oficioUsaDocx,
+        ];
+    }
+
+    private function mostrarFlujoFirmaDocente(Solicitud $solicitud): bool
+    {
+        if ($solicitud->creado_por !== auth()->id()) {
+            return false;
+        }
+
+        return in_array($solicitud->estado, [SolicitudEstado::EnBorrador, SolicitudEstado::EnRevisionSecretaria], true)
+            && $this->oficioDocx->puedeGenerarDocx($solicitud);
     }
 
     public function adjunto(Request $request, Solicitud $solicitud): Response
@@ -412,6 +455,8 @@ class SolicitudController extends Controller
             'solicitud' => $solicitud,
             'tipos' => SolicitudTipo::cases(),
             'anexos' => SolicitudAdjuntos::anexosActuales($solicitud),
+            'mostrarFirmaDocente' => $this->mostrarFlujoFirmaDocente($solicitud),
+            ...$this->urlsOficio($solicitud),
         ]);
     }
 
@@ -465,6 +510,15 @@ class SolicitudController extends Controller
         $old = $solicitud->toArray();
         $detalle = $solicitud->detalle ?? [];
         $anexos = SolicitudAdjuntos::aplicarCambiosAdjuntos($solicitud, $request, $anexosActuales);
+        if ($request->hasFile('oficio_firmado_docente')) {
+            $firmado = app(SolicitudOficioFirmadoService::class)->aplicarSubidaManual(
+                $solicitud,
+                $request->file('oficio_firmado_docente'),
+                $anexos,
+            );
+            $anexos = $firmado['anexos'];
+            $detalle['firma_docente'] = $firmado['firma_docente'];
+        }
         $legacy = SolicitudAdjuntos::sincronizarCamposLegacy($anexos);
 
         $detalle['anexos'] = $legacy['detalle_anexos'];
@@ -480,10 +534,6 @@ class SolicitudController extends Controller
             'justificativo_path' => $legacy['justificativo_path'],
             'justificativo_nombre' => $legacy['justificativo_nombre'],
         ];
-
-        if ($solicitud->estado === SolicitudEstado::EnBorrador && ! $request->boolean('borrador')) {
-            $data['estado'] = $this->workflow->estadoInicial(auth()->user()->rol);
-        }
 
         $solicitud->update($data);
         $this->audit->log('UPDATE', $solicitud, $old);

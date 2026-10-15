@@ -94,6 +94,20 @@
         </div>
     </article>
 
+    @if(($mostrarFirmaDocente ?? false) && auth()->id() === $solicitud->creado_por)
+        @include('solicitudes._oficio-firma-docente', [
+            'solicitud' => $solicitud,
+            'oficioPreviewUrl' => $oficioPreviewUrl ?? route('solicitudes.preview-oficio', $solicitud),
+            'oficioDescargarUrl' => $oficioDescargarUrl ?? route('solicitudes.preview-oficio', $solicitud),
+            'oficioDocxUrl' => $oficioDocxUrl ?? route('solicitudes.oficio-documento', $solicitud),
+            'oficioUsaDocx' => $oficioUsaDocx ?? false,
+            'soloDescarga' => true,
+        ])
+        <p style="margin: 0;">
+            <a href="{{ route('solicitudes.firmar', $solicitud) }}" class="btn btn--primary btn--sm">Firmar oficio</a>
+        </p>
+    @endif
+
     <article class="card stack solicitud-preview">
         <h2 class="solicitud-preview__title">Vista previa de la solicitud</h2>
         @if($mostrarOficioInstitucional ?? true)

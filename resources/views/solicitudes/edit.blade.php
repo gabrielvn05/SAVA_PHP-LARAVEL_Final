@@ -11,6 +11,11 @@
                 Tipo: <strong>{{ $solicitud->tipo->label() }}</strong> (no se puede cambiar; crea un trámite nuevo si te equivocaste).
             </p>
         </div>
+        @if(($mostrarFirmaDocente ?? false) && $solicitud->estado === \App\Enums\SolicitudEstado::EnBorrador)
+            <div class="page-header__actions">
+                <a href="{{ route('solicitudes.firmar', $solicitud) }}" class="btn btn--primary btn--sm">Ir a firmar oficio</a>
+            </div>
+        @endif
     </header>
 
     <article class="card stack">
@@ -35,16 +40,16 @@
             </div>
 
             @include('solicitudes._adjuntos-field', [
-                'label' => 'Agregar documentos',
+                'label' => 'Otros documentos de respaldo',
                 'solicitud' => $solicitud,
                 'anexos' => $anexos,
                 'requiredWhenEnfermedad' => $solicitud->tipo === \App\Enums\SolicitudTipo::Enfermedad,
             ])
 
             <div class="row" style="gap: 0.65rem; flex-wrap: wrap;">
-                <button type="submit" name="borrador" value="0" class="btn btn--primary">Guardar cambios</button>
-                @if($solicitud->estado === \App\Enums\SolicitudEstado::EnBorrador)
-                    <button type="submit" name="borrador" value="1" class="btn btn--secondary">Mantener borrador</button>
+                <button type="submit" name="borrador" value="1" class="btn btn--primary">Guardar cambios</button>
+                @if(($mostrarFirmaDocente ?? false) && $solicitud->estado === \App\Enums\SolicitudEstado::EnBorrador)
+                    <a href="{{ route('solicitudes.firmar', $solicitud) }}" class="btn btn--secondary">Continuar a firma</a>
                 @endif
             </div>
         </form>

@@ -42,6 +42,16 @@ class OficioPdfService
         return $this->generar($solicitud) !== null;
     }
 
+    public function generarParaFirma(Solicitud $solicitud): ?string
+    {
+        $pdf = $this->generar($solicitud);
+        if (is_string($pdf) && $pdf !== '') {
+            return $pdf;
+        }
+
+        return $this->generarDesdeHtmlRespaldo($solicitud);
+    }
+
     public function generar(Solicitud $solicitud): ?string
     {
         if (! $this->docx->puedeGenerarDocx($solicitud)) {
@@ -162,5 +172,24 @@ class OficioPdfService
         File::deleteDirectory($workDir);
 
         return $pdf;
+    }
+
+    private function generarDesdeHtmlRespaldo(Solicitud $solicitud): ?string
+    {
+        try {
+            $html = app(OficioPreviewService::class)->renderHtmlRespaldo($solicitud);
+            $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+            $pdf->setPrintHeader(false);
+            $pdf->setPrintFooter(false);
+            $pdf->SetMargins(14, 16, 14);
+            $pdf->AddPage();
+            $pdf->writeHTML($html, true, false, true, false, '');
+
+            return $pdf->Output('', 'S');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 }

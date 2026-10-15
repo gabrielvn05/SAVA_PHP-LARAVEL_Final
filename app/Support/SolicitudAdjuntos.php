@@ -120,6 +120,15 @@ class SolicitudAdjuntos
         return $file->store('justificativos', self::DISK);
     }
 
+    public static function guardarContenido(string $binary, string $extension): string
+    {
+        $extension = preg_replace('/[^a-z0-9]+/i', '', $extension) ?: 'bin';
+        $path = 'justificativos/'.Str::uuid().'.'.$extension;
+        Storage::disk(self::DISK)->put($path, $binary);
+
+        return $path;
+    }
+
     public static function diskConArchivo(string $path): ?string
     {
         foreach ([self::DISK, self::DISK_LEGACY] as $disk) {
