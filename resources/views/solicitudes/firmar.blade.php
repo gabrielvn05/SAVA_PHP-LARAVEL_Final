@@ -39,21 +39,7 @@
     @endif
 
     @if($firmado)
-        <p class="alert alert--success" style="margin: 0;">
-            Oficio firmado: <strong>{{ $firmado['nombre'] ?? 'Documento' }}</strong>
-            · <a href="{{ SolicitudAdjuntos::urlVista($solicitud, $firmado['path']) }}" target="_blank" rel="noopener">Ver</a>
-        </p>
-        <form method="POST" action="{{ route('solicitudes.enviar-secretaria', $solicitud) }}" class="row" style="gap: 0.5rem; flex-wrap: wrap;">
-            @csrf
-            <button type="submit" class="btn btn--primary">Enviar a Secretaría</button>
-            <span class="field-hint" style="margin: 0; align-self: center;">La solicitud pasará a revisión de Secretaría.</span>
-        </form>
-        <p class="field-hint" style="margin: 0;">
-            ¿Quieres firmar de nuevo?
-            <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'p12']) }}">Certificado .p12</a>
-            ·
-            <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'manual']) }}">Subir otro PDF</a>
-        </p>
+        @include('solicitudes._firmar-documento-firmado', ['solicitud' => $solicitud, 'firmado' => $firmado])
     @elseif($mostrarSelector)
         <p class="field-hint" style="margin: 0;">
             Paso 2 de 2: elige cómo firmar el oficio. Luego podrás enviarlo a Secretaría.

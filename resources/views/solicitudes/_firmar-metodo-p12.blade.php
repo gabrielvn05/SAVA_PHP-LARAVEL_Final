@@ -13,7 +13,7 @@
         <h2 class="solicitud-section-title" style="margin: 0;">Firma con certificado .p12</h2>
         <p class="field-hint" style="margin: 0.35rem 0 0;">
             1) Sube el archivo .p12. 2) Ingresa la contraseña. 3) Haz clic en el documento donde debe ir la firma. 4) Aplica la firma.
-            El certificado <strong>no se guarda</strong> en el servidor.
+            El PDF firmado <strong>sí se guarda</strong> en tu trámite; el archivo <strong>.p12 no se almacena</strong>.
         </p>
     </div>
 

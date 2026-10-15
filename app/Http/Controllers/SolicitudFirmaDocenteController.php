@@ -170,7 +170,11 @@ class SolicitudFirmaDocenteController extends Controller
             $anexos,
         );
 
-        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado con certificado .p12. Revisa el documento y envía a Secretaría.');
+        return $this->redirectTrasGuardarFirma(
+            $solicitud,
+            $firmado,
+            'Oficio firmado con certificado .p12. Revisa la vista previa y, si está correcto, envía a Secretaría.',
+        );
     }
 
     public function subirManual(Request $request, Solicitud $solicitud): RedirectResponse
@@ -190,7 +194,11 @@ class SolicitudFirmaDocenteController extends Controller
         $anexos = SolicitudAdjuntos::anexosActuales($solicitud);
         $firmado = $this->oficioFirmado->aplicarSubidaManual($solicitud, $file, $anexos);
 
-        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado subido correctamente. Revisa el archivo y envía a Secretaría.');
+        return $this->redirectTrasGuardarFirma(
+            $solicitud,
+            $firmado,
+            'Oficio firmado guardado. Revisa la vista previa y envía a Secretaría cuando esté listo.',
+        );
     }
 
     /**
