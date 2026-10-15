@@ -102,6 +102,9 @@ export function initOficioFirmaNavegador() {
     const statusEl = root.querySelector('[data-firma-status]');
 
     const pad = padCanvas ? initSignaturePad(padCanvas) : null;
+    if (!padCanvas) {
+        return;
+    }
 
     clearBtn?.addEventListener('click', () => pad?.clear());
 
