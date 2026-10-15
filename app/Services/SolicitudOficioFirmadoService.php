@@ -16,6 +16,15 @@ class SolicitudOficioFirmadoService
 
     public function __construct(private readonly OficioPdfService $pdfService) {}
 
+    private function assertManipulacionPdfDisponible(): void
+    {
+        if (! class_exists(Fpdi::class)) {
+            throw ValidationException::withMessages([
+                'p12' => 'En el servidor faltan las librerías PDF (FPDI/TCPDF). Ejecuta «composer install --no-dev» en el proyecto y vuelve a intentar.',
+            ]);
+        }
+    }
+
     /**
      * @param  list<array{path: string, nombre: string, rol?: string}>  $anexos
      * @return array{anexos: list<array{path: string, nombre: string, rol?: string}>, firma_docente: array<string, string>}
@@ -49,7 +58,8 @@ class SolicitudOficioFirmadoService
         float $yPorcentaje,
         array $anexos,
     ): array {
-        $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
+        $this->assertManipulacionPdfDisponible();
+        $pdf = $this->pdfService->pdfParaSuperponerFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
             throw ValidationException::withMessages([
                 'firma_imagen' => 'No se pudo preparar el PDF del oficio para firmar en el navegador.',
@@ -64,7 +74,7 @@ class SolicitudOficioFirmadoService
         file_put_contents($tmpPng, file_get_contents($imagenFirma->getRealPath()) ?: '');
 
         try {
-            $pdfFirmado = $this->superponerImagenEnPdf($pdf, $tmpPng, $pagina, $xPorcentaje, $yPorcentaje);
+            $pdfFirmado = $this->superponerSelloEnPdf($pdf, $tmpPng, $pagina, $xPorcentaje, $yPorcentaje);
         } finally {
             @unlink($tmpPng);
         }
@@ -101,9 +111,10 @@ class SolicitudOficioFirmadoService
         float $yPorcentaje,
         array $anexos,
     ): array {
+        $this->assertManipulacionPdfDisponible();
         ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
 
-        $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
+        $pdf = $this->pdfService->pdfParaSuperponerFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
             throw ValidationException::withMessages([
                 'p12' => 'No se pudo preparar el PDF del oficio.',
@@ -113,7 +124,7 @@ class SolicitudOficioFirmadoService
         if (function_exists('imagecreatetruecolor')) {
             $selloPng = $this->crearPngSelloElectronico($titular);
             try {
-                $pdfFirmado = $this->superponerImagenEnPdf($pdf, $selloPng, $pagina, $xPorcentaje, $yPorcentaje);
+                $pdfFirmado = $this->superponerSelloEnPdf($pdf, $selloPng, $pagina, $xPorcentaje, $yPorcentaje);
             } finally {
                 @unlink($selloPng);
             }
@@ -145,7 +156,7 @@ class SolicitudOficioFirmadoService
     ): array {
         ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
 
-        $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
+        $pdf = $this->pdfService->pdfParaSuperponerFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
             throw ValidationException::withMessages([
                 'p12' => 'No se pudo preparar el PDF del oficio.',
@@ -160,7 +171,7 @@ class SolicitudOficioFirmadoService
         file_put_contents($tmpPng, file_get_contents($imagenFirma->getRealPath()) ?: '');
 
         try {
-            $pdfFirmado = $this->superponerImagenEnPdf($pdf, $tmpPng, $pagina, $xPorcentaje, $yPorcentaje);
+            $pdfFirmado = $this->superponerSelloEnPdf($pdf, $tmpPng, $pagina, $xPorcentaje, $yPorcentaje);
         } finally {
             @unlink($tmpPng);
         }
@@ -324,6 +335,34 @@ class SolicitudOficioFirmadoService
         return $pdf->Output('', 'S');
     }
 
+    private function superponerSelloEnPdf(
+        string $pdfBytes,
+        string $pngPath,
+        int $paginaObjetivo,
+        float $xPorcentaje,
+        float $yPorcentaje,
+    ): string {
+        $pdf = $this->nuevoPdfFpdi();
+        $reader = StreamReader::createByString($pdfBytes);
+        $pageCount = $pdf->setSourceFile($reader);
+        $paginaObjetivo = max(1, min($paginaObjetivo, $pageCount));
+
+        for ($page = 1; $page <= $pageCount; $page++) {
+            $this->importarPaginaPdf($pdf, $page);
+            if ($page === $paginaObjetivo) {
+                $anchoFirma = 45.0;
+                $altoFirma = 16.0;
+                $pageW = $pdf->GetPageWidth();
+                $pageH = $pdf->GetPageHeight();
+                $x = ($xPorcentaje / 100) * $pageW - ($anchoFirma / 2);
+                $y = ($yPorcentaje / 100) * $pageH - ($altoFirma / 2);
+                $pdf->Image($pngPath, max(4, $x), max(4, $y), $anchoFirma, $altoFirma, 'PNG');
+            }
+        }
+
+        return $pdf->Output('', 'S');
+    }
+
     private function superponerTextoEnPdf(
         string $pdfBytes,
         string $titular,
@@ -331,20 +370,13 @@ class SolicitudOficioFirmadoService
         float $xPorcentaje,
         float $yPorcentaje,
     ): string {
-        $pdf = new Fpdi;
-        $pdf->setPrintHeader(false);
-        $pdf->setPrintFooter(false);
-
+        $pdf = $this->nuevoPdfFpdi();
         $reader = StreamReader::createByString($pdfBytes);
         $pageCount = $pdf->setSourceFile($reader);
         $paginaObjetivo = max(1, min($paginaObjetivo, $pageCount));
 
         for ($page = 1; $page <= $pageCount; $page++) {
-            $template = $pdf->importPage($page);
-            $size = $pdf->getTemplateSize($template);
-            $orientation = ($size['width'] ?? 0) > ($size['height'] ?? 0) ? 'L' : 'P';
-            $pdf->AddPage($orientation, [$size['width'], $size['height']]);
-            $pdf->useTemplate($template);
+            $this->importarPaginaPdf($pdf, $page);
 
             if ($page === $paginaObjetivo) {
                 $pageW = $pdf->GetPageWidth();
@@ -363,40 +395,23 @@ class SolicitudOficioFirmadoService
         return $pdf->Output('', 'S');
     }
 
-    private function superponerImagenEnPdf(
-        string $pdfBytes,
-        string $pngPath,
-        int $paginaObjetivo,
-        float $xPorcentaje,
-        float $yPorcentaje,
-    ): string {
+    private function nuevoPdfFpdi(): Fpdi
+    {
         $pdf = new Fpdi;
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
+        $pdf->SetAutoPageBreak(false);
 
-        $reader = StreamReader::createByString($pdfBytes);
-        $pageCount = $pdf->setSourceFile($reader);
-        $paginaObjetivo = max(1, min($paginaObjetivo, $pageCount));
+        return $pdf;
+    }
 
-        for ($page = 1; $page <= $pageCount; $page++) {
-            $template = $pdf->importPage($page);
-            $size = $pdf->getTemplateSize($template);
-            $orientation = ($size['width'] ?? 0) > ($size['height'] ?? 0) ? 'L' : 'P';
-            $pdf->AddPage($orientation, [$size['width'], $size['height']]);
-            $pdf->useTemplate($template);
-
-            if ($page === $paginaObjetivo) {
-                $anchoFirma = 45.0;
-                $altoFirma = 16.0;
-                $pageW = $pdf->GetPageWidth();
-                $pageH = $pdf->GetPageHeight();
-                $x = ($xPorcentaje / 100) * $pageW - ($anchoFirma / 2);
-                $y = ($yPorcentaje / 100) * $pageH - ($altoFirma / 2);
-                $pdf->Image($pngPath, max(4, $x), max(4, $y), $anchoFirma, $altoFirma, 'PNG');
-            }
-        }
-
-        return $pdf->Output('', 'S');
+    private function importarPaginaPdf(Fpdi $pdf, int $page): void
+    {
+        $template = $pdf->importPage($page);
+        $size = $pdf->getTemplateSize($template);
+        $orientation = $size['orientation'] ?? ((($size['width'] ?? 0) > ($size['height'] ?? 0)) ? 'L' : 'P');
+        $pdf->AddPage($orientation, [$size['width'], $size['height']]);
+        $pdf->useTemplate($template, 0, 0, $size['width'], $size['height'], true);
     }
 
     public static function oficioFirmadoEnAnexos(Solicitud $solicitud): ?array

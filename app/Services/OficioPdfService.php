@@ -75,6 +75,29 @@ class OficioPdfService
         return $this->generarParaFirma($solicitud);
     }
 
+    /**
+     * PDF para colocar firma con FPDI. Evita PDF de LibreOffice (suele corromper el layout al reimportar).
+     */
+    public function pdfParaSuperponerFirma(Solicitud $solicitud): ?string
+    {
+        $cachePath = $this->cachePathSuperponer($solicitud);
+        if ($this->cacheValido($cachePath, $solicitud)) {
+            $bytes = file_get_contents($cachePath);
+
+            return is_string($bytes) && $bytes !== '' ? $bytes : null;
+        }
+
+        $htmlPdf = $this->generarDesdeHtmlRespaldo($solicitud);
+        if (! is_string($htmlPdf) || $htmlPdf === '') {
+            return null;
+        }
+
+        File::ensureDirectoryExists(dirname($cachePath));
+        file_put_contents($cachePath, $htmlPdf);
+
+        return $htmlPdf;
+    }
+
     private function leerCachePdf(Solicitud $solicitud): ?string
     {
         $path = $this->cachePath($solicitud);
@@ -132,6 +155,14 @@ class OficioPdfService
         }
     }
 
+    public function invalidarCacheSuperponer(Solicitud $solicitud): void
+    {
+        $path = $this->cachePathSuperponer($solicitud);
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
+
     public const PLANTILLA_VERSION = '2026-10-13a';
 
     private function cachePath(Solicitud $solicitud): string
@@ -139,6 +170,11 @@ class OficioPdfService
         $estado = $solicitud->estado === SolicitudEstado::Aprobada ? 'firmado' : 'pre';
 
         return storage_path('app/oficios/pdf/'.$solicitud->id.'.'.$estado.'.'.self::PLANTILLA_VERSION.'.pdf');
+    }
+
+    private function cachePathSuperponer(Solicitud $solicitud): string
+    {
+        return storage_path('app/oficios/pdf/'.$solicitud->id.'.superponer.'.self::PLANTILLA_VERSION.'.pdf');
     }
 
     private function decanoParaOficio(Solicitud $solicitud): ?User
