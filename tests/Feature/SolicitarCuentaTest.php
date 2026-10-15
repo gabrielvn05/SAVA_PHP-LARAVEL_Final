@@ -32,12 +32,23 @@ class SolicitarCuentaTest extends TestCase
             ->assertRedirect(route('solicitar-cuenta.create', ['aviso' => 'cedula_letras'], false));
     }
 
-    public function test_rechaza_cedula_invalida(): void
+    public function test_acepta_cedula_con_diez_digitos_sin_validar_digito_verificador(): void
     {
         $this->post(route('solicitar-cuenta.store'), $this->payload([
             'cedula' => '1231231231',
         ]))
-            ->assertRedirect(route('solicitar-cuenta.create', ['aviso' => 'cedula_invalida'], false));
+            ->assertRedirect(route('login', ['solicitud' => 'ok'], false));
+
+        $this->assertSame(1, AccountRequest::query()->count());
+        $this->assertSame('1231231231', AccountRequest::query()->value('cedula'));
+    }
+
+    public function test_rechaza_cedula_con_menos_de_diez_digitos(): void
+    {
+        $this->post(route('solicitar-cuenta.store'), $this->payload([
+            'cedula' => '12345',
+        ]))
+            ->assertRedirect(route('solicitar-cuenta.create', ['aviso' => 'cedula_formato'], false));
     }
 
     public function test_acepta_solicitud_valida(): void

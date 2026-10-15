@@ -6,7 +6,6 @@ use App\Support\Carreras;
 use App\Support\CedulaEcuador;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class PerfilUpdateRequest extends FormRequest
 {
@@ -43,25 +42,6 @@ class PerfilUpdateRequest extends FormRequest
             'carrera' => ['required', 'string', Rule::in($carreras)],
             'celular' => ['required', 'string', 'regex:/^\d{9,15}$/'],
         ];
-    }
-
-    public function withValidator(Validator $validator): void
-    {
-        $validator->after(function (Validator $validator): void {
-            $cedula = (string) $this->input('cedula', '');
-            if ($cedula === '' || strlen($cedula) !== 10) {
-                return;
-            }
-
-            $user = $this->user();
-            if ($user && trim((string) $user->cedula) !== '' && $user->cedula === $cedula) {
-                return;
-            }
-
-            if (! CedulaEcuador::isValid($cedula)) {
-                $validator->errors()->add('cedula', 'La cédula no es válida. Verifica que sea tu número de identidad ecuatoriano.');
-            }
-        });
     }
 
     /** @return array<string, string> */

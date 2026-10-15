@@ -30,12 +30,8 @@ class AccountRequestValidator
             return ['ok' => false, 'aviso' => 'cedula_letras'];
         }
 
-        if (strlen($cedula) !== 10) {
+        if (strlen($cedula) !== 10 || ! ctype_digit($cedula)) {
             return ['ok' => false, 'aviso' => 'cedula_formato'];
-        }
-
-        if (! CedulaEcuador::isValid($cedula)) {
-            return ['ok' => false, 'aviso' => 'cedula_invalida'];
         }
 
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
