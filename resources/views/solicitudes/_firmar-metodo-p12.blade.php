@@ -27,9 +27,10 @@
         data-loading-label="Firmando oficio con certificado…"
     >
         @csrf
-        <input type="hidden" name="firma_page" value="1" data-firma-page-input>
-        <input type="hidden" name="firma_x" value="75" data-firma-x-input>
-        <input type="hidden" name="firma_y" value="88" data-firma-y-input>
+        <input type="hidden" name="_return_modo" value="p12">
+        <input type="hidden" name="firma_page" value="{{ old('firma_page', 1) }}" data-firma-page-input>
+        <input type="hidden" name="firma_x" value="{{ old('firma_x', 75) }}" data-firma-x-input>
+        <input type="hidden" name="firma_y" value="{{ old('firma_y', 88) }}" data-firma-y-input>
 
         <label class="field">
             <span class="field__label">Archivo de firma (.p12 o .pfx) *</span>
@@ -45,6 +46,8 @@
                     class="field__input"
                     placeholder="Contraseña del .p12"
                     autocomplete="off"
+                    required
+                    value="{{ old('p12_password') }}"
                     data-firma-p12-password
                 >
             </label>
@@ -65,6 +68,6 @@
 
         <p class="field-hint" data-firma-status style="margin: 0; color: var(--color-danger);"></p>
 
-        <button type="submit" class="btn btn--primary" data-firma-submit disabled>Aplicar firma al oficio</button>
+        <button type="submit" class="btn btn--primary" data-firma-submit>Aplicar firma al oficio</button>
     </form>
 </article>

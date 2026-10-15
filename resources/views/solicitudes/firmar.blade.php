@@ -37,9 +37,21 @@
     @if(session('error'))
         <p class="alert alert--danger" style="margin: 0;">{{ session('error') }}</p>
     @endif
+    @if($errors->any())
+        <div class="alert alert--danger stack" style="margin: 0; gap: 0.35rem;">
+            <p style="margin: 0;"><strong>No se pudo aplicar la firma:</strong></p>
+            <ul style="margin: 0; padding-left: 1.2rem;">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     @if($firmado)
-        @include('solicitudes._firmar-documento-firmado', ['solicitud' => $solicitud, 'firmado' => $firmado])
+        <div id="vista-firmado">
+            @include('solicitudes._firmar-documento-firmado', ['solicitud' => $solicitud, 'firmado' => $firmado])
+        </div>
     @elseif($mostrarSelector)
         <p class="field-hint" style="margin: 0;">
             Paso 2 de 2: elige cómo firmar el oficio. Luego podrás enviarlo a Secretaría.
@@ -59,8 +71,8 @@
                 </p>
             </a>
         </div>
-    @elseif($modo === 'p12')
-        @include('solicitudes._firmar-metodo-p12')
+    @elseif($modo === 'p12' || old('_return_modo') === 'p12')
+        @include('solicitudes._firmar-metodo-p12', ['modo' => 'p12'])
     @elseif($modo === 'manual')
         @include('solicitudes._firmar-metodo-manual')
     @endif

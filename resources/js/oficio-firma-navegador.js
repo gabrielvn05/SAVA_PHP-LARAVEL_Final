@@ -101,6 +101,11 @@ function initP12PosicionFlow(root) {
     let currentPage = Number(pageInput?.value || 1);
     let pdfLoaded = false;
     let posicionElegida = false;
+    const tieneCoords = () => {
+        const x = Number(xInput?.value || 0);
+        const y = Number(yInput?.value || 0);
+        return x > 0 && y > 0;
+    };
 
     const setMark = (xPct, yPct) => {
         if (!mark) {
@@ -130,7 +135,10 @@ function initP12PosicionFlow(root) {
         }
         const p12Ok = p12FileInput instanceof HTMLInputElement && p12FileInput.files?.length;
         const passOk = p12PasswordInput instanceof HTMLInputElement && p12PasswordInput.value.trim() !== '';
-        submitBtn.disabled = !(p12Ok && passOk && posicionElegida);
+        const listo = Boolean(p12Ok && passOk && (posicionElegida || tieneCoords()));
+        if (submitBtn instanceof HTMLButtonElement) {
+            submitBtn.disabled = !listo;
+        }
     };
 
     p12FileInput?.addEventListener('change', () => {
@@ -170,7 +178,7 @@ function initP12PosicionFlow(root) {
     form?.addEventListener('submit', (event) => {
         const p12Ok = p12FileInput instanceof HTMLInputElement && p12FileInput.files?.length;
         const passOk = p12PasswordInput instanceof HTMLInputElement && p12PasswordInput.value.trim() !== '';
-        if (!p12Ok || !passOk || !posicionElegida) {
+        if (!p12Ok || !passOk || (!posicionElegida && !tieneCoords())) {
             event.preventDefault();
             if (statusEl) {
                 statusEl.textContent = 'Sube el .p12, ingresa la contraseña y haz clic en el documento para ubicar la firma.';
@@ -185,6 +193,8 @@ function initP12PosicionFlow(root) {
             submitBtn.disabled = true;
         }
     });
+
+    syncSubmitState();
 
     async function renderPdfPreview() {
         if (!pdfUrl || !pageCanvas || !pageBtn || pdfLoaded) {
@@ -210,10 +220,9 @@ function initP12PosicionFlow(root) {
             pageCanvas.height = viewport.height;
             await page.render({ canvasContext: pageCanvas.getContext('2d'), viewport }).promise;
 
-            if (mark instanceof HTMLElement) {
-                mark.hidden = true;
-            }
+            setMark(Number(xInput?.value || 75), Number(yInput?.value || 88));
             pdfLoaded = true;
+            syncSubmitState();
         } catch {
             if (statusEl) {
                 statusEl.textContent = 'No se pudo cargar la vista del PDF. Intenta de nuevo o usa la subida manual.';

@@ -110,11 +110,15 @@ class SolicitudOficioFirmadoService
             ]);
         }
 
-        $selloPng = $this->crearPngSelloElectronico($titular);
-        try {
-            $pdfFirmado = $this->superponerImagenEnPdf($pdf, $selloPng, $pagina, $xPorcentaje, $yPorcentaje);
-        } finally {
-            @unlink($selloPng);
+        if (function_exists('imagecreatetruecolor')) {
+            $selloPng = $this->crearPngSelloElectronico($titular);
+            try {
+                $pdfFirmado = $this->superponerImagenEnPdf($pdf, $selloPng, $pagina, $xPorcentaje, $yPorcentaje);
+            } finally {
+                @unlink($selloPng);
+            }
+        } else {
+            $pdfFirmado = $this->superponerTextoEnPdf($pdf, $titular, $pagina, $xPorcentaje, $yPorcentaje);
         }
 
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-p12.pdf';
@@ -316,6 +320,45 @@ class SolicitudOficioFirmadoService
         $pdf->SetFont('helvetica', '', 11);
         $pdf->Ln(4);
         $pdf->MultiCell(0, 6, "El documento anterior fue firmado electrónicamente mediante certificado digital (.p12) en SAVA.\n\nTitular del certificado: {$titular}\nFecha y hora: {$fecha}".($serial !== '' ? "\nN.º de serie: {$serial}" : '')."\n\nEl archivo .p12 no se almacena en el sistema; solo se usó en el momento de la firma.", 0, 'L');
+
+        return $pdf->Output('', 'S');
+    }
+
+    private function superponerTextoEnPdf(
+        string $pdfBytes,
+        string $titular,
+        int $paginaObjetivo,
+        float $xPorcentaje,
+        float $yPorcentaje,
+    ): string {
+        $pdf = new Fpdi;
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+
+        $reader = StreamReader::createByString($pdfBytes);
+        $pageCount = $pdf->setSourceFile($reader);
+        $paginaObjetivo = max(1, min($paginaObjetivo, $pageCount));
+
+        for ($page = 1; $page <= $pageCount; $page++) {
+            $template = $pdf->importPage($page);
+            $size = $pdf->getTemplateSize($template);
+            $orientation = ($size['width'] ?? 0) > ($size['height'] ?? 0) ? 'L' : 'P';
+            $pdf->AddPage($orientation, [$size['width'], $size['height']]);
+            $pdf->useTemplate($template);
+
+            if ($page === $paginaObjetivo) {
+                $pageW = $pdf->GetPageWidth();
+                $pageH = $pdf->GetPageHeight();
+                $x = max(4.0, ($xPorcentaje / 100) * $pageW - 20);
+                $y = max(4.0, ($yPorcentaje / 100) * $pageH - 8);
+                $pdf->SetFont('helvetica', 'B', 9);
+                $pdf->SetXY($x, $y);
+                $pdf->Cell(80, 5, 'Firma electronica', 0, 1);
+                $pdf->SetFont('helvetica', '', 8);
+                $pdf->SetX($x);
+                $pdf->MultiCell(80, 4, mb_substr($titular, 0, 48), 0, 'L');
+            }
+        }
 
         return $pdf->Output('', 'S');
     }

@@ -33,6 +33,7 @@ class SolicitudFirmaDocenteController extends Controller
     {
         $this->authorize('update', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
+        $solicitud->refresh();
 
         if (! $this->oficioDocx->puedeGenerarDocx($solicitud)) {
             abort(404, 'Este trámite no admite firma de oficio en línea.');
@@ -216,9 +217,17 @@ class SolicitudFirmaDocenteController extends Controller
             'justificativo_nombre' => $legacy['justificativo_nombre'],
         ]);
 
+        $solicitud->refresh();
+        if (! SolicitudOficioFirmadoService::tieneFirmaDocente($solicitud)) {
+            return redirect()
+                ->route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'p12'])
+                ->with('error', 'No se pudo guardar el oficio firmado. Intenta de nuevo o usa la subida manual.');
+        }
+
         return redirect()
-            ->route('solicitudes.firmar', $solicitud)
-            ->with('success', $mensaje);
+            ->to(route('solicitudes.firmar', $solicitud).'#vista-firmado')
+            ->with('success', $mensaje)
+            ->with('firma_aplicada', true);
     }
 
     public function enviarSecretaria(Solicitud $solicitud): RedirectResponse

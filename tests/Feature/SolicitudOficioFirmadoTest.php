@@ -102,7 +102,7 @@ class SolicitudOficioFirmadoTest extends TestCase
             ->post(route('solicitudes.subir-oficio-firmado', $solicitud), [
                 'oficio_firmado_docente' => $pdf,
             ])
-            ->assertRedirect(route('solicitudes.firmar', $solicitud));
+            ->assertRedirect(route('solicitudes.firmar', $solicitud).'#vista-firmado');
 
         $solicitud->refresh();
         $this->assertNotNull(SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud));
@@ -143,7 +143,7 @@ class SolicitudOficioFirmadoTest extends TestCase
                 'firma_x' => 75,
                 'firma_y' => 88,
             ])
-            ->assertRedirect(route('solicitudes.firmar', $solicitud));
+            ->assertRedirect(route('solicitudes.firmar', $solicitud).'#vista-firmado');
 
         $solicitud->refresh();
         $this->assertNotNull(SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud));
