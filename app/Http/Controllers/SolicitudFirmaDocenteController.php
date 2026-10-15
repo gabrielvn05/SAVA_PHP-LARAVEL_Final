@@ -38,6 +38,8 @@ class SolicitudFirmaDocenteController extends Controller
             abort(404, 'Este trámite no admite firma de oficio en línea.');
         }
 
+        $this->oficioPdf->generarParaFirma($solicitud);
+
         $oficioUsaDocx = $this->oficioDocx->puedeGenerarDocx($solicitud);
         $oficioPreviewUrl = route('solicitudes.preview-oficio', $solicitud);
         $oficioDescargarUrl = Route::has('solicitudes.oficio-descargar') && $oficioUsaDocx

@@ -49,7 +49,7 @@ class SolicitudOficioFirmadoService
         float $yPorcentaje,
         array $anexos,
     ): array {
-        $pdf = $this->pdfService->generarParaFirma($solicitud);
+        $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
             throw ValidationException::withMessages([
                 'firma_imagen' => 'No se pudo preparar el PDF del oficio para firmar en el navegador.',
@@ -100,7 +100,7 @@ class SolicitudOficioFirmadoService
         $titular = (string) ($info['subject']['CN'] ?? $solicitud->creador?->nombreCompleto() ?? 'Titular del certificado');
         $serial = isset($info['serialNumber']) ? (string) $info['serialNumber'] : '';
 
-        $pdf = $this->pdfService->generarParaFirma($solicitud);
+        $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
             throw ValidationException::withMessages([
                 'p12' => 'No se pudo generar el PDF del oficio en el servidor. Descarga Word o PDF, fírmalo externamente y súbelo.',

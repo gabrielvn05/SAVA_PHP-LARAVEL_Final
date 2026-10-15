@@ -157,6 +157,11 @@ export function initOficioFirmaNavegador() {
             pageInput.value = String(currentPage);
         }
 
+        const submitBtn = form.querySelector('[type="submit"]');
+        if (submitBtn instanceof HTMLButtonElement) {
+            submitBtn.disabled = true;
+        }
+
         form.submit();
     });
 

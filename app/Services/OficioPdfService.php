@@ -44,12 +44,54 @@ class OficioPdfService
 
     public function generarParaFirma(Solicitud $solicitud): ?string
     {
+        $desdeCache = $this->leerCachePdf($solicitud);
+        if ($desdeCache !== null) {
+            return $desdeCache;
+        }
+
+        $htmlPdf = $this->generarDesdeHtmlRespaldo($solicitud);
+        if (is_string($htmlPdf) && $htmlPdf !== '') {
+            $this->escribirCachePdf($solicitud, $htmlPdf);
+
+            return $htmlPdf;
+        }
+
         $pdf = $this->generar($solicitud);
         if (is_string($pdf) && $pdf !== '') {
             return $pdf;
         }
 
-        return $this->generarDesdeHtmlRespaldo($solicitud);
+        return null;
+    }
+
+    /** PDF base para superponer firma: reutiliza el mismo archivo que la vista previa. */
+    public function pdfBaseParaFirma(Solicitud $solicitud): ?string
+    {
+        $desdeCache = $this->leerCachePdf($solicitud);
+        if ($desdeCache !== null) {
+            return $desdeCache;
+        }
+
+        return $this->generarParaFirma($solicitud);
+    }
+
+    private function leerCachePdf(Solicitud $solicitud): ?string
+    {
+        $path = $this->cachePath($solicitud);
+        if (! is_file($path)) {
+            return null;
+        }
+
+        $bytes = file_get_contents($path);
+
+        return is_string($bytes) && $bytes !== '' ? $bytes : null;
+    }
+
+    private function escribirCachePdf(Solicitud $solicitud, string $pdf): void
+    {
+        $path = $this->cachePath($solicitud);
+        File::ensureDirectoryExists(dirname($path));
+        file_put_contents($path, $pdf);
     }
 
     public function generar(Solicitud $solicitud): ?string
@@ -163,7 +205,8 @@ class OficioPdfService
             $workDir,
             $inputPath,
         ]);
-        $process->setTimeout(120);
+        $timeout = max(15, (int) config('oficio.libreoffice_timeout_seconds', 45));
+        $process->setTimeout($timeout);
         $process->run();
 
         $pdfPath = $workDir.DIRECTORY_SEPARATOR.'oficio.pdf';

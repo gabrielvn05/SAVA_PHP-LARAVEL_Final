@@ -12,6 +12,8 @@ return [
 
     'pdf_cache_minutes' => (int) env('OFICIO_PDF_CACHE_MINUTES', 120),
 
+    'libreoffice_timeout_seconds' => (int) env('OFICIO_LIBREOFFICE_TIMEOUT', 45),
+
     /*
     | false (recomendado): vista previa renderizando el DOCX (respeta márgenes y cuadros de firma).
     | true: convierte a PDF con LibreOffice (el PDF suele verse más compacto que en Word).

@@ -81,7 +81,7 @@
 
         <p class="field-hint" data-firma-status style="margin: 0; color: var(--color-danger);"></p>
 
-        <form method="POST" action="{{ route('solicitudes.firmar-navegador', $solicitud) }}" data-firma-form enctype="multipart/form-data">
+        <form method="POST" action="{{ route('solicitudes.firmar-navegador', $solicitud) }}" data-firma-form enctype="multipart/form-data" data-loading-label="Aplicando firma al oficio…">
             @csrf
             <input type="file" name="firma_imagen" data-firma-file-input hidden accept="image/png">
             <input type="hidden" name="firma_page" value="1" data-firma-page-input>
