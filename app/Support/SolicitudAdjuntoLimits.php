@@ -52,6 +52,11 @@ class SolicitudAdjuntoLimits
         return $count;
     }
 
+    public static function hasNewUploads(Request $request): bool
+    {
+        return self::countNewUploads($request) > 0;
+    }
+
     public static function exceedsFileCount(int $existingCount, Request $request): bool
     {
         return ($existingCount + self::countNewUploads($request)) > self::MAX_FILES;

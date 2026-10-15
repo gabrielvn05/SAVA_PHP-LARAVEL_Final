@@ -42,7 +42,7 @@
                         @foreach($anexos as $anexo)
                             <li>
                                 <label class="row" style="align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="eliminar_anexos[]" value="{{ $anexo['path'] }}">
+                                    <input type="checkbox" name="eliminar_anexos[]" value="{{ $anexo['path'] }}" data-solicitud-adjuntos-remove-existing>
                                     <span>{{ $anexo['nombre'] ?? 'Documento' }}</span>
                                 </label>
                             </li>
@@ -51,17 +51,11 @@
                 </fieldset>
             @endif
 
-            <div class="form-grid">
-                <label class="field field--full">
-                    <span class="field__label">Reemplazar o agregar documento principal</span>
-                    <input type="file" name="justificativo" class="field__input" accept=".pdf,.png,.jpg,.jpeg">
-                </label>
-                <label class="field field--full">
-                    <span class="field__label">Anexos adicionales</span>
-                    <input type="file" name="anexos[]" class="field__input" multiple accept=".pdf,.png,.jpg,.jpeg">
-                    <span class="field-hint">Hasta 10 archivos en total y 10 MB de peso combinado.</span>
-                </label>
-            </div>
+            @include('solicitudes._adjuntos-field', [
+                'label' => 'Agregar o reemplazar documentos',
+                'existingCount' => count($anexos),
+                'requiredWhenEnfermedad' => $solicitud->tipo === \App\Enums\SolicitudTipo::Enfermedad,
+            ])
 
             <div class="row" style="gap: 0.65rem; flex-wrap: wrap;">
                 <button type="submit" name="borrador" value="0" class="btn btn--primary">Guardar cambios</button>

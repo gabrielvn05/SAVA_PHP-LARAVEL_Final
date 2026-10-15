@@ -249,21 +249,20 @@ class SolicitudController extends Controller
         }
 
         if (SolicitudValidator::anexoObligatorioParaTipo($validated['tipo'])
-            && ! $request->hasFile('justificativo')
-            && ! $request->hasFile('anexos')) {
+            && ! \App\Support\SolicitudAdjuntoLimits::hasNewUploads($request)) {
             return back()->withInput()->with('error', 'Este tipo de trámite requiere adjuntar un justificativo.');
         }
 
         $anexos = [];
-        if ($request->hasFile('justificativo')) {
-            $file = $request->file('justificativo');
+        foreach ($request->file('anexos', []) as $file) {
+            if (! $file instanceof \Illuminate\Http\UploadedFile) {
+                continue;
+            }
             $anexos[] = ['path' => SolicitudAdjuntos::guardar($file), 'nombre' => $file->getClientOriginalName()];
         }
 
-        foreach ($request->file('anexos', []) as $index => $file) {
-            if (! $file) {
-                continue;
-            }
+        if ($request->hasFile('justificativo')) {
+            $file = $request->file('justificativo');
             $anexos[] = ['path' => SolicitudAdjuntos::guardar($file), 'nombre' => $file->getClientOriginalName()];
         }
 

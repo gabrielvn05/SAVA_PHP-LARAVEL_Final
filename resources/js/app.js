@@ -1,4 +1,5 @@
 import './bootstrap';
+import { initSolicitudAdjuntos } from './solicitud-adjuntos.js';
 
 function registerPwa() {
     if (!('serviceWorker' in navigator)) return;
@@ -237,6 +238,14 @@ function initWizard() {
             anexoLabel.textContent = tipo === 'enfermedad'
                 ? 'Adjuntar certificado o soporte médico *'
                 : 'Adjuntar documento de respaldo (opcional)';
+        }
+        const adjuntosRoot = document.querySelector('[data-solicitud-adjuntos]');
+        if (adjuntosRoot) {
+            adjuntosRoot.dataset.requiredWhen = tipo === 'enfermedad' ? '1' : '0';
+            const adjInput = adjuntosRoot.querySelector('[data-solicitud-adjuntos-input]');
+            if (adjInput) {
+                adjInput.required = false;
+            }
         }
         syncInstitucionNombre();
     }
@@ -537,6 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initPasswordToggles();
     initLoadingForms();
     initWizard();
+    initSolicitudAdjuntos();
     initDocViewers();
     initRechazoModal();
     initUserAdminModals();

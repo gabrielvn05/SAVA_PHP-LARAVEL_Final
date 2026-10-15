@@ -61,9 +61,40 @@ class SolicitudAdjuntoTest extends TestCase
                 'hora_inicio_permiso' => '08:00',
                 'hora_fin_permiso' => '10:00',
                 'motivo_permiso' => 'reunion',
-                'justificativo' => UploadedFile::fake()->create('malware.exe', 20, 'application/x-msdownload'),
+                'anexos' => [
+                    UploadedFile::fake()->create('malware.exe', 20, 'application/x-msdownload'),
+                ],
             ])
-            ->assertSessionHasErrors('justificativo');
+            ->assertSessionHasErrors('anexos.0');
+    }
+
+    public function test_store_guarda_hasta_varios_anexos_en_un_solo_campo(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000006',
+            'carrera' => 'software',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('solicitudes.store'), [
+                'tipo' => SolicitudTipo::Permiso->value,
+                'fecha_permiso' => now()->toDateString(),
+                'hora_inicio_permiso' => '08:00',
+                'hora_fin_permiso' => '10:00',
+                'motivo_permiso' => 'reunion',
+                'anexos' => [
+                    UploadedFile::fake()->create('uno.pdf', 100, 'application/pdf'),
+                    UploadedFile::fake()->create('dos.png', 100, 'image/png'),
+                ],
+            ])
+            ->assertRedirect();
+
+        $solicitud = Solicitud::query()->first();
+        $this->assertNotNull($solicitud);
+        $this->assertCount(2, $solicitud->detalle['anexos'] ?? []);
     }
 
     public function test_enfermedad_exige_justificativo(): void

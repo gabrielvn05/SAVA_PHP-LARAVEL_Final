@@ -430,16 +430,11 @@
             <p class="field-hint" style="margin: 0;">
                 Al enviar la solicitud se podrá consultar el oficio institucional desde el detalle del trámite.
             </p>
-            <div>
-                <label id="anexo-label">Adjuntar documento de respaldo</label>
-                <input type="file" name="justificativo" accept=".pdf,.png,.jpg,.jpeg">
-                <p class="field-hint">PDF, PNG o JPG. Hasta 10 archivos y 10 MB de peso total entre todos.</p>
-            </div>
-            <div>
-                <label>Anexos adicionales</label>
-                <input type="file" name="anexos[]" multiple accept=".pdf,.png,.jpg,.jpeg">
-                <p class="field-hint">Puedes seleccionar varios archivos a la vez (máximo 10 en total).</p>
-            </div>
+            @include('solicitudes._adjuntos-field', [
+                'label' => 'Adjuntar documento de respaldo (opcional)',
+                'existingCount' => 0,
+                'requiredWhenEnfermedad' => false,
+            ])
 
             <div class="row" style="justify-content: space-between;">
                 <button class="btn btn--secondary" type="button" data-wizard-back>Atrás</button>
