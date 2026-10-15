@@ -312,6 +312,109 @@ class SolicitudOficioFirmadoService
         return $pdf->Output('', 'S');
     }
 
+    private function superponerBloqueFirmaElectronicaEnPdf(
+        string $pdfBytes,
+        Solicitud $solicitud,
+        string $titular,
+        string $serial,
+        int $paginaObjetivo,
+        float $xPorcentaje,
+        float $yPorcentaje,
+    ): string {
+        $pdf = $this->nuevoPdfFpdi();
+        $reader = StreamReader::createByString($pdfBytes);
+        $pageCount = $pdf->setSourceFile($reader);
+        $paginaObjetivo = max(1, min($paginaObjetivo, $pageCount));
+
+        $bloqueAncho = 72.0;
+        $bloqueAlto = 22.0;
+        $qrSize = 18.0;
+        $aviso = (string) config('oficio.firma_electronica_aviso', 'Validar en SAVA ULEAM.');
+        $qrPayload = $this->payloadQrFirmaElectronica($solicitud, $titular, $serial);
+        [$nombreLinea1, $nombreLinea2] = $this->partirNombreTitularCertificado($titular);
+
+        for ($page = 1; $page <= $pageCount; $page++) {
+            $this->importarPaginaPdf($pdf, $page);
+            if ($page !== $paginaObjetivo) {
+                continue;
+            }
+
+            $pageW = $pdf->GetPageWidth();
+            $pageH = $pdf->GetPageHeight();
+            $x = max(4.0, ($xPorcentaje / 100) * $pageW - ($bloqueAncho / 2));
+            $y = max(4.0, ($yPorcentaje / 100) * $pageH - ($bloqueAlto / 2));
+
+            $estiloQr = [
+                'border' => false,
+                'padding' => 0,
+                'fgcolor' => [0, 0, 0],
+                'bgcolor' => false,
+            ];
+            $pdf->write2DBarcode($qrPayload, 'QRCODE,H', $x, $y + 0.5, $qrSize, $qrSize, $estiloQr, 'N');
+
+            $textX = $x + $qrSize + 2.5;
+            $textW = $bloqueAncho - $qrSize - 2.5;
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->SetFont('courier', '', 6.5);
+            $pdf->SetXY($textX, $y + 0.5);
+            $pdf->Cell($textW, 3.2, $aviso, 0, 1, 'L');
+            $pdf->SetX($textX);
+            $pdf->Cell($textW, 3.2, 'Firmado electrónicamente por:', 0, 1, 'L');
+            $pdf->SetFont('courier', 'B', 9);
+            $pdf->SetX($textX);
+            $pdf->Cell($textW, 4.6, mb_strtoupper($nombreLinea1), 0, 1, 'L');
+            if ($nombreLinea2 !== '') {
+                $pdf->SetX($textX);
+                $pdf->Cell($textW, 4.6, mb_strtoupper($nombreLinea2), 0, 1, 'L');
+            }
+        }
+
+        return $pdf->Output('', 'S');
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function partirNombreTitularCertificado(string $titular): array
+    {
+        $titular = trim(preg_replace('/\s+/u', ' ', $titular) ?? $titular);
+        if ($titular === '') {
+            return ['Titular del certificado', ''];
+        }
+
+        $partes = preg_split('/\s+/u', $titular) ?: [$titular];
+        if (count($partes) < 3) {
+            return [$titular, ''];
+        }
+
+        $mitad = (int) ceil(count($partes) / 2);
+
+        return [
+            implode(' ', array_slice($partes, 0, $mitad)),
+            implode(' ', array_slice($partes, $mitad)),
+        ];
+    }
+
+    private function payloadQrFirmaElectronica(Solicitud $solicitud, string $titular, string $serial): string
+    {
+        $base = (string) config('oficio.firma_electronica_qr_url', '');
+        if ($base !== '') {
+            return rtrim($base, '/').'/'.$solicitud->id;
+        }
+
+        $lineas = [
+            'SAVA ULEAM',
+            'Solicitud: '.$solicitud->id,
+            'Titular: '.$titular,
+        ];
+        if ($serial !== '') {
+            $lineas[] = 'Serie certificado: '.$serial;
+        }
+        $lineas[] = 'Fecha: '.now()->toIso8601String();
+
+        return implode("\n", $lineas);
+    }
+
     private function superponerSelloEnPdf(
         string $pdfBytes,
         string $pngPath,
@@ -334,38 +437,6 @@ class SolicitudOficioFirmadoService
                 $x = ($xPorcentaje / 100) * $pageW - ($anchoFirma / 2);
                 $y = ($yPorcentaje / 100) * $pageH - ($altoFirma / 2);
                 $pdf->Image($pngPath, max(4, $x), max(4, $y), $anchoFirma, $altoFirma, 'PNG');
-            }
-        }
-
-        return $pdf->Output('', 'S');
-    }
-
-    private function superponerTextoEnPdf(
-        string $pdfBytes,
-        string $titular,
-        int $paginaObjetivo,
-        float $xPorcentaje,
-        float $yPorcentaje,
-    ): string {
-        $pdf = $this->nuevoPdfFpdi();
-        $reader = StreamReader::createByString($pdfBytes);
-        $pageCount = $pdf->setSourceFile($reader);
-        $paginaObjetivo = max(1, min($paginaObjetivo, $pageCount));
-
-        for ($page = 1; $page <= $pageCount; $page++) {
-            $this->importarPaginaPdf($pdf, $page);
-
-            if ($page === $paginaObjetivo) {
-                $pageW = $pdf->GetPageWidth();
-                $pageH = $pdf->GetPageHeight();
-                $x = max(4.0, ($xPorcentaje / 100) * $pageW - 20);
-                $y = max(4.0, ($yPorcentaje / 100) * $pageH - 8);
-                $pdf->SetFont('helvetica', 'B', 9);
-                $pdf->SetXY($x, $y);
-                $pdf->Cell(80, 5, 'Firma electronica', 0, 1);
-                $pdf->SetFont('helvetica', '', 8);
-                $pdf->SetX($x);
-                $pdf->MultiCell(80, 4, mb_substr($titular, 0, 48), 0, 'L');
             }
         }
 
