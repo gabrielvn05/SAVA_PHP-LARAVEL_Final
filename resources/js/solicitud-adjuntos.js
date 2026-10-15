@@ -134,6 +134,9 @@ function initSolicitudAdjuntosRoot(root) {
 
         showMessage(root, message);
         syncUi();
+    });
+
+    input.addEventListener('click', () => {
         input.value = '';
     });
 
@@ -146,6 +149,8 @@ function initSolicitudAdjuntosRoot(root) {
 
     const form = root.closest('form');
     form?.addEventListener('submit', (event) => {
+        input.files = filesToTransfer(selected).files;
+
         if (root.dataset.requiredWhen === '1' && selected.length + remainingExisting(root) < 1) {
             event.preventDefault();
             showMessage(root, 'Este tipo de trámite requiere adjuntar al menos un documento.');

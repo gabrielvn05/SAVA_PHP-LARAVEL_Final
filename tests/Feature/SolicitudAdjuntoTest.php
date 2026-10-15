@@ -165,6 +165,124 @@ class SolicitudAdjuntoTest extends TestCase
             ->assertSessionHas('error');
     }
 
+    public function test_editar_agregar_archivo_no_borra_otros_sin_marcar_eliminar(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000007',
+            'carrera' => 'software',
+        ]);
+
+        $uno = UploadedFile::fake()->create('uno.pdf', 100, 'application/pdf');
+        $dos = UploadedFile::fake()->create('dos.pdf', 100, 'application/pdf');
+        $pathUno = $uno->store('justificativos', 'local');
+        $pathDos = $dos->store('justificativos', 'local');
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::EnBorrador,
+            'justificativo_path' => $pathUno,
+            'justificativo_nombre' => 'uno.pdf',
+            'detalle' => [
+                'anexos' => [
+                    ['path' => $pathUno, 'nombre' => 'uno.pdf'],
+                    ['path' => $pathDos, 'nombre' => 'dos.pdf'],
+                ],
+            ],
+        ]);
+
+        $nuevo = UploadedFile::fake()->create('tres.pdf', 100, 'application/pdf');
+
+        $this->actingAs($user)
+            ->put(route('solicitudes.update', $solicitud), [
+                'tipo' => SolicitudTipo::Permiso->value,
+                'fecha_inicio' => $solicitud->fecha_inicio->format('Y-m-d'),
+                'fecha_fin' => $solicitud->fecha_fin->format('Y-m-d'),
+                'motivo' => 'Permiso',
+                'borrador' => 1,
+                'anexos' => [$nuevo],
+            ])
+            ->assertRedirect(route('solicitudes.show', $solicitud));
+
+        $solicitud->refresh();
+        $paths = array_column($solicitud->detalle['anexos'] ?? [], 'path');
+
+        $this->assertContains($pathUno, $paths);
+        $this->assertContains($pathDos, $paths);
+        $this->assertCount(3, $paths);
+        Storage::disk('local')->assertExists($pathUno);
+        Storage::disk('local')->assertExists($pathDos);
+    }
+
+    public function test_editar_reemplazo_explicito_quita_solo_el_marcado(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000008',
+            'carrera' => 'software',
+        ]);
+
+        $uno = UploadedFile::fake()->create('uno.pdf', 100, 'application/pdf');
+        $dos = UploadedFile::fake()->create('dos.pdf', 100, 'application/pdf');
+        $pathUno = $uno->store('justificativos', 'local');
+        $pathDos = $dos->store('justificativos', 'local');
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::EnBorrador,
+            'justificativo_path' => $pathUno,
+            'justificativo_nombre' => 'uno.pdf',
+            'detalle' => [
+                'anexos' => [
+                    ['path' => $pathUno, 'nombre' => 'uno.pdf'],
+                    ['path' => $pathDos, 'nombre' => 'dos.pdf'],
+                ],
+            ],
+        ]);
+
+        $reemplazo = UploadedFile::fake()->create('reemplazo.pdf', 100, 'application/pdf');
+
+        $this->actingAs($user)
+            ->put(route('solicitudes.update', $solicitud), [
+                'tipo' => SolicitudTipo::Permiso->value,
+                'fecha_inicio' => $solicitud->fecha_inicio->format('Y-m-d'),
+                'fecha_fin' => $solicitud->fecha_fin->format('Y-m-d'),
+                'motivo' => 'Permiso',
+                'borrador' => 1,
+                'eliminar_anexos' => [$pathUno],
+                'anexos' => [$reemplazo],
+            ])
+            ->assertRedirect(route('solicitudes.show', $solicitud));
+
+        $solicitud->refresh();
+        $paths = array_column($solicitud->detalle['anexos'] ?? [], 'path');
+
+        $this->assertNotContains($pathUno, $paths);
+        $this->assertContains($pathDos, $paths);
+        $this->assertCount(2, $paths);
+        Storage::disk('local')->assertMissing($pathUno);
+        Storage::disk('local')->assertExists($pathDos);
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.show', $solicitud))
+            ->assertOk()
+            ->assertSee('dos.pdf')
+            ->assertSee('reemplazo.pdf')
+            ->assertDontSee('uno.pdf');
+    }
+
     public function test_no_permite_quitar_el_justificativo_obligatorio(): void
     {
         Storage::fake('public');

@@ -346,36 +346,7 @@ class SolicitudController extends Controller
         $this->authorize('view', $solicitud);
         $solicitud->load(['creador', 'revisor', 'firmante']);
 
-        $documentos = collect($solicitud->detalle['anexos'] ?? [])
-            ->map(function (array $anexo) use ($solicitud): array {
-                $path = $anexo['path'] ?? null;
-                $nombre = $anexo['nombre'] ?? 'Documento';
-
-                return [
-                    'path' => $path,
-                    'nombre' => $nombre,
-                    'url' => ($path && SolicitudAdjuntos::pathEsValido($path))
-                        ? SolicitudAdjuntos::urlVista($solicitud, $path)
-                        : null,
-                    'kind' => AdjuntoPreview::kind($nombre),
-                ];
-            })
-            ->filter(fn (array $anexo): bool => filled($anexo['url']))
-            ->values();
-
-        if ($solicitud->justificativo_path && $documentos->doesntContain(
-            fn (array $anexo): bool => ($anexo['path'] ?? null) === $solicitud->justificativo_path
-        )) {
-            $justificativoPath = $solicitud->justificativo_path;
-            $documentos->prepend([
-                'path' => $justificativoPath,
-                'nombre' => $solicitud->justificativo_nombre ?: 'Justificativo',
-                'url' => SolicitudAdjuntos::pathEsValido($justificativoPath)
-                    ? SolicitudAdjuntos::urlVista($solicitud, $justificativoPath)
-                    : null,
-                'kind' => AdjuntoPreview::kind($solicitud->justificativo_nombre),
-            ]);
-        }
+        $documentos = SolicitudAdjuntos::documentosParaVista($solicitud);
 
         $user = auth()->user();
         $esStaff = in_array($user->rol, [AppRole::Secretaria, AppRole::Decano, AppRole::Superusuario], true)
@@ -395,7 +366,7 @@ class SolicitudController extends Controller
         return view('solicitudes.show', [
             'solicitud' => $solicitud,
             'timeline' => SolicitudTimeline::for($solicitud),
-            'documentos' => $documentos->all(),
+            'documentos' => $documentos,
             'esStaff' => $esStaff,
             'mostrarOficioInstitucional' => $mostrarOficioInstitucional,
             'puedeActuarSecretaria' => $user->can('revisar', $solicitud) && $solicitud->creado_por !== $user->id,

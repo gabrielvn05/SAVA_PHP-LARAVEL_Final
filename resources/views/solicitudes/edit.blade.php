@@ -34,26 +34,10 @@
                 </label>
             </div>
 
-            @if($anexos !== [])
-                <fieldset class="stack" style="border: 0; padding: 0; margin: 0;">
-                    <legend class="field__label">Archivos actuales</legend>
-                    <p class="field-hint" style="margin: 0 0 0.5rem;">Marca los que deseas quitar antes de subir reemplazos.</p>
-                    <ul class="stack" style="list-style: none; padding: 0; margin: 0; gap: 0.5rem;">
-                        @foreach($anexos as $anexo)
-                            <li>
-                                <label class="row" style="align-items: center; gap: 0.5rem;">
-                                    <input type="checkbox" name="eliminar_anexos[]" value="{{ $anexo['path'] }}" data-solicitud-adjuntos-remove-existing>
-                                    <span>{{ $anexo['nombre'] ?? 'Documento' }}</span>
-                                </label>
-                            </li>
-                        @endforeach
-                    </ul>
-                </fieldset>
-            @endif
-
             @include('solicitudes._adjuntos-field', [
-                'label' => 'Agregar o reemplazar documentos',
-                'existingCount' => count($anexos),
+                'label' => 'Agregar documentos',
+                'solicitud' => $solicitud,
+                'anexos' => $anexos,
                 'requiredWhenEnfermedad' => $solicitud->tipo === \App\Enums\SolicitudTipo::Enfermedad,
             ])
 

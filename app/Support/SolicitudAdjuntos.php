@@ -19,20 +19,10 @@ class SolicitudAdjuntos
      */
     public static function pathsAutorizados(Solicitud $solicitud): array
     {
-        $paths = [];
-        $detalle = $solicitud->detalle ?? [];
-
-        foreach ($detalle['anexos'] ?? [] as $anexo) {
-            if (! empty($anexo['path'])) {
-                $paths[] = (string) $anexo['path'];
-            }
-        }
-
-        if ($solicitud->justificativo_path) {
-            $paths[] = $solicitud->justificativo_path;
-        }
-
-        return array_values(array_unique($paths));
+        return array_values(array_map(
+            static fn (array $anexo): string => (string) $anexo['path'],
+            self::anexosActuales($solicitud),
+        ));
     }
 
     public static function pathEsValido(string $path): bool
@@ -71,6 +61,43 @@ class SolicitudAdjuntos
         }
 
         return array_values(array_filter($anexos, static fn (array $anexo): bool => filled($anexo['path'] ?? null)));
+    }
+
+    /**
+     * @param  list<array{path: string, nombre: string}>  $anexos
+     * @return list<array{path: string, nombre: string}>
+     */
+    public static function filtrarAnexosConArchivo(array $anexos): array
+    {
+        return array_values(array_filter($anexos, static function (array $anexo): bool {
+            $path = (string) ($anexo['path'] ?? '');
+
+            return $path !== ''
+                && self::pathEsValido($path)
+                && self::diskConArchivo($path) !== null;
+        }));
+    }
+
+    /**
+     * @return list<array{path: string, nombre: string, url: string, kind: string}>
+     */
+    public static function documentosParaVista(Solicitud $solicitud): array
+    {
+        $documentos = [];
+
+        foreach (self::filtrarAnexosConArchivo(self::anexosActuales($solicitud)) as $anexo) {
+            $path = (string) $anexo['path'];
+            $nombre = (string) ($anexo['nombre'] ?? 'Documento');
+
+            $documentos[] = [
+                'path' => $path,
+                'nombre' => $nombre,
+                'url' => self::urlVista($solicitud, $path),
+                'kind' => AdjuntoPreview::kind($nombre),
+            ];
+        }
+
+        return $documentos;
     }
 
     public static function restantesTrasEliminar(Solicitud $solicitud, Request $request): int
@@ -134,26 +161,7 @@ class SolicitudAdjuntos
             self::borrar($path);
         }
 
-        if ($request->hasFile('justificativo')) {
-            $file = $request->file('justificativo');
-            if ($file instanceof UploadedFile) {
-                $reemplaza = $solicitud->justificativo_path;
-                if ($reemplaza) {
-                    $anexos = array_values(array_filter(
-                        $anexos,
-                        static fn (array $anexo): bool => ($anexo['path'] ?? '') !== $reemplaza,
-                    ));
-                    self::borrar($reemplaza);
-                }
-
-                $anexos[] = [
-                    'path' => self::guardar($file),
-                    'nombre' => $file->getClientOriginalName(),
-                ];
-            }
-        }
-
-        foreach ($request->file('anexos', []) as $file) {
+        foreach ([$request->file('justificativo'), ...$request->file('anexos', [])] as $file) {
             if (! $file instanceof UploadedFile) {
                 continue;
             }
@@ -164,7 +172,7 @@ class SolicitudAdjuntos
             ];
         }
 
-        return array_values($anexos);
+        return self::filtrarAnexosConArchivo(array_values($anexos));
     }
 
     /**

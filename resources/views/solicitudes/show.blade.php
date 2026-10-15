@@ -115,6 +115,10 @@
             </div>
         @endif
 
+        @if(count($documentos) > 0)
+            <h3 class="solicitud-section-title" style="margin: 1rem 0 0;">Documentos adjuntos</h3>
+        @endif
+
         @foreach($documentos as $documento)
             <x-doc-viewer
                 :title="$documento['nombre']"
