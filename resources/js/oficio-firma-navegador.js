@@ -82,12 +82,147 @@ function initSignaturePad(canvas) {
     };
 }
 
-export function initOficioFirmaNavegador() {
-    const root = document.querySelector('[data-oficio-firma-root]');
-    if (!root) {
-        return;
-    }
+function initP12PosicionFlow(root) {
+    const pdfUrl = root.dataset.pdfUrl;
+    const pageBtn = root.querySelector('[data-firma-page]');
+    const pageCanvas = root.querySelector('[data-firma-page-canvas]');
+    const mark = root.querySelector('[data-firma-mark]');
+    const form = root.querySelector('[data-firma-form]');
+    const pageInput = root.querySelector('[data-firma-page-input]');
+    const xInput = root.querySelector('[data-firma-x-input]');
+    const yInput = root.querySelector('[data-firma-y-input]');
+    const statusEl = root.querySelector('[data-firma-status]');
+    const p12FileInput = root.querySelector('[data-firma-p12-file]');
+    const p12PasswordInput = root.querySelector('[data-firma-p12-password]');
+    const passwordWrap = root.querySelector('[data-firma-p12-password-wrap]');
+    const previewWrap = root.querySelector('[data-firma-p12-preview-wrap]');
+    const submitBtn = root.querySelector('[data-firma-submit]');
 
+    let currentPage = Number(pageInput?.value || 1);
+    let pdfLoaded = false;
+    let posicionElegida = false;
+
+    const setMark = (xPct, yPct) => {
+        if (!mark) {
+            return;
+        }
+        mark.hidden = false;
+        mark.style.left = `${xPct}%`;
+        mark.style.top = `${yPct}%`;
+        posicionElegida = true;
+        if (xInput) {
+            xInput.value = String(Math.round(xPct * 10) / 10);
+        }
+        if (yInput) {
+            yInput.value = String(Math.round(yPct * 10) / 10);
+        }
+        if (submitBtn instanceof HTMLButtonElement) {
+            submitBtn.disabled = false;
+        }
+        if (statusEl) {
+            statusEl.textContent = '';
+        }
+    };
+
+    const syncSubmitState = () => {
+        if (!(submitBtn instanceof HTMLButtonElement)) {
+            return;
+        }
+        const p12Ok = p12FileInput instanceof HTMLInputElement && p12FileInput.files?.length;
+        const passOk = p12PasswordInput instanceof HTMLInputElement && p12PasswordInput.value.trim() !== '';
+        submitBtn.disabled = !(p12Ok && passOk && posicionElegida);
+    };
+
+    p12FileInput?.addEventListener('change', () => {
+        const hasFile = p12FileInput instanceof HTMLInputElement && p12FileInput.files?.length;
+        if (passwordWrap instanceof HTMLElement) {
+            passwordWrap.hidden = !hasFile;
+        }
+        if (!hasFile && previewWrap instanceof HTMLElement) {
+            previewWrap.hidden = true;
+        }
+        if (hasFile && p12PasswordInput instanceof HTMLInputElement) {
+            p12PasswordInput.required = true;
+            p12PasswordInput.focus();
+        }
+        posicionElegida = false;
+        syncSubmitState();
+    });
+
+    p12PasswordInput?.addEventListener('input', async () => {
+        const passOk = p12PasswordInput instanceof HTMLInputElement && p12PasswordInput.value.trim() !== '';
+        if (previewWrap instanceof HTMLElement) {
+            previewWrap.hidden = !passOk;
+        }
+        if (passOk && !pdfLoaded) {
+            await renderPdfPreview();
+        }
+        syncSubmitState();
+    });
+
+    pageBtn?.addEventListener('click', (event) => {
+        const rect = pageBtn.getBoundingClientRect();
+        const xPct = ((event.clientX - rect.left) / rect.width) * 100;
+        const yPct = ((event.clientY - rect.top) / rect.height) * 100;
+        setMark(xPct, yPct);
+    });
+
+    form?.addEventListener('submit', (event) => {
+        const p12Ok = p12FileInput instanceof HTMLInputElement && p12FileInput.files?.length;
+        const passOk = p12PasswordInput instanceof HTMLInputElement && p12PasswordInput.value.trim() !== '';
+        if (!p12Ok || !passOk || !posicionElegida) {
+            event.preventDefault();
+            if (statusEl) {
+                statusEl.textContent = 'Sube el .p12, ingresa la contraseña y haz clic en el documento para ubicar la firma.';
+            }
+            return;
+        }
+
+        if (pageInput) {
+            pageInput.value = String(currentPage);
+        }
+        if (submitBtn instanceof HTMLButtonElement) {
+            submitBtn.disabled = true;
+        }
+    });
+
+    async function renderPdfPreview() {
+        if (!pdfUrl || !pageCanvas || !pageBtn || pdfLoaded) {
+            return;
+        }
+
+        try {
+            const pdfjs = await loadPdfJs(root);
+            const response = await fetch(pdfUrl, { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error('pdf');
+            }
+            const buffer = await response.arrayBuffer();
+            const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+            currentPage = pdf.numPages;
+            if (pageInput) {
+                pageInput.value = String(currentPage);
+            }
+
+            const page = await pdf.getPage(currentPage);
+            const viewport = page.getViewport({ scale: 1.35 });
+            pageCanvas.width = viewport.width;
+            pageCanvas.height = viewport.height;
+            await page.render({ canvasContext: pageCanvas.getContext('2d'), viewport }).promise;
+
+            if (mark instanceof HTMLElement) {
+                mark.hidden = true;
+            }
+            pdfLoaded = true;
+        } catch {
+            if (statusEl) {
+                statusEl.textContent = 'No se pudo cargar la vista del PDF. Intenta de nuevo o usa la subida manual.';
+            }
+        }
+    }
+}
+
+function initPadFlow(root) {
     const pdfUrl = root.dataset.pdfUrl;
     const pageBtn = root.querySelector('[data-firma-page]');
     const pageCanvas = root.querySelector('[data-firma-page-canvas]');
@@ -102,11 +237,11 @@ export function initOficioFirmaNavegador() {
     const statusEl = root.querySelector('[data-firma-status]');
 
     const pad = padCanvas ? initSignaturePad(padCanvas) : null;
-    if (!padCanvas) {
+    if (!pad || !padCanvas) {
         return;
     }
 
-    clearBtn?.addEventListener('click', () => pad?.clear());
+    clearBtn?.addEventListener('click', () => pad.clear());
 
     let currentPage = Number(pageInput?.value || 1);
 
@@ -132,29 +267,11 @@ export function initOficioFirmaNavegador() {
         setMark(xPct, yPct);
     });
 
-    const requireP12 = root.getAttribute('data-firma-require-p12') === '1';
-    const p12FileInput = root.querySelector('[data-firma-p12-file]');
-    const p12PasswordInput = root.querySelector('[data-firma-p12-password]');
-
     form?.addEventListener('submit', async (event) => {
-        if (requireP12) {
-            const p12Ok = p12FileInput instanceof HTMLInputElement && p12FileInput.files?.length;
-            const passOk = p12PasswordInput instanceof HTMLInputElement && p12PasswordInput.value.trim() !== '';
-            if (!p12Ok || !passOk) {
-                event.preventDefault();
-                if (statusEl) {
-                    statusEl.textContent = 'Selecciona el archivo .p12 e ingresa la contraseña del certificado.';
-                }
-                return;
-            }
-        }
-
-        if (!pad || pad.isEmpty()) {
+        if (pad.isEmpty()) {
             event.preventDefault();
             if (statusEl) {
-                statusEl.textContent = requireP12
-                    ? 'Dibuja tu rúbrica en el recuadro antes de aplicar.'
-                    : 'Dibuja tu firma en el recuadro antes de aplicar.';
+                statusEl.textContent = 'Dibuja tu firma en el recuadro antes de aplicar.';
             }
             return;
         }
@@ -176,11 +293,6 @@ export function initOficioFirmaNavegador() {
 
         if (pageInput) {
             pageInput.value = String(currentPage);
-        }
-
-        const submitBtn = form.querySelector('[type="submit"]');
-        if (submitBtn instanceof HTMLButtonElement) {
-            submitBtn.disabled = true;
         }
 
         form.submit();
@@ -213,8 +325,23 @@ export function initOficioFirmaNavegador() {
             setMark(Number(xInput?.value || 75), Number(yInput?.value || 88));
         } catch {
             if (statusEl) {
-                statusEl.textContent = 'No se pudo cargar la vista del PDF. Usa descarga Word/PDF o certificado .p12.';
+                statusEl.textContent = 'No se pudo cargar la vista del PDF.';
             }
         }
     })();
+}
+
+export function initOficioFirmaNavegador() {
+    document.querySelectorAll('[data-oficio-firma-root]').forEach((root) => {
+        if (!(root instanceof HTMLElement)) {
+            return;
+        }
+
+        if (root.getAttribute('data-firma-modo') === 'p12-posicion') {
+            initP12PosicionFlow(root);
+            return;
+        }
+
+        initPadFlow(root);
+    });
 }

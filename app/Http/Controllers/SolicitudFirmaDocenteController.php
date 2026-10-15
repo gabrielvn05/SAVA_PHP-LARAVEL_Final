@@ -132,9 +132,9 @@ class SolicitudFirmaDocenteController extends Controller
             'p12' => ['required', 'file', 'max:5120'],
             'p12_password' => ['required', 'string', 'max:255'],
             'firma_imagen' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
-            'firma_page' => ['nullable', 'integer', 'min:1', 'max:50'],
-            'firma_x' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'firma_y' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'firma_page' => ['required_without:firma_imagen', 'integer', 'min:1', 'max:50'],
+            'firma_x' => ['required_without:firma_imagen', 'numeric', 'min:0', 'max:100'],
+            'firma_y' => ['required_without:firma_imagen', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $p12 = $request->file('p12');
@@ -160,14 +160,17 @@ class SolicitudFirmaDocenteController extends Controller
             return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado con certificado .p12. Revisa el documento y envía a Secretaría.');
         }
 
-        $firmado = $this->oficioFirmado->firmarConP12(
+        $firmado = $this->oficioFirmado->firmarConP12EnPosicion(
             $solicitud,
             $p12,
             (string) $request->input('p12_password'),
+            (int) $request->input('firma_page', 1),
+            (float) $request->input('firma_x', 75),
+            (float) $request->input('firma_y', 88),
             $anexos,
         );
 
-        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado electrónicamente. Revisa el documento y envía a Secretaría.');
+        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado con certificado .p12. Revisa el documento y envía a Secretaría.');
     }
 
     public function subirManual(Request $request, Solicitud $solicitud): RedirectResponse
