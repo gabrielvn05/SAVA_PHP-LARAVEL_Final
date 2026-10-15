@@ -1,7 +1,9 @@
-async function loadPdfJs() {
-    const pdfjsLib = await import(/* @vite-ignore */ '/vendor/pdfjs/pdf.min.js');
+async function loadPdfJs(root) {
+    const libUrl = root.getAttribute('data-pdf-lib') || '/vendor/pdfjs/pdf.min.js';
+    const workerUrl = root.getAttribute('data-pdf-worker') || '/vendor/pdfjs/pdf.worker.min.js';
+    const pdfjsLib = await import(/* @vite-ignore */ libUrl);
     const api = pdfjsLib.default ?? pdfjsLib;
-    api.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.js';
+    api.GlobalWorkerOptions.workerSrc = workerUrl;
 
     return api;
 }
@@ -164,7 +166,7 @@ export function initOficioFirmaNavegador() {
 
     (async () => {
         try {
-            const pdfjs = await loadPdfJs();
+            const pdfjs = await loadPdfJs(root);
             const response = await fetch(pdfUrl, { credentials: 'same-origin' });
             if (!response.ok) {
                 throw new Error('pdf');
