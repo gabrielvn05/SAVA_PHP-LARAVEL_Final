@@ -45,7 +45,7 @@ class SolicitudFirmaDocenteController extends Controller
         }
 
         if ($modo !== null) {
-            $this->oficioPdf->pdfParaSuperponerFirma($solicitud);
+            $this->oficioPdf->generarParaFirma($solicitud);
         }
 
         $oficioUsaDocx = $this->oficioDocx->puedeGenerarDocx($solicitud);
@@ -70,7 +70,7 @@ class SolicitudFirmaDocenteController extends Controller
         $this->authorize('view', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
 
-        $pdf = $this->oficioPdf->pdfParaSuperponerFirma($solicitud);
+        $pdf = $this->oficioPdf->generarParaFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
             abort(503, 'No se pudo generar el PDF del oficio.');
         }

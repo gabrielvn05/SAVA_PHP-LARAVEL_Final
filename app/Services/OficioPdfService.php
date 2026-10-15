@@ -42,79 +42,38 @@ class OficioPdfService
         return $this->generar($solicitud) !== null;
     }
 
+    /** PDF institucional para vista previa al firmar (Word/LibreOffice; HTML solo si no hay conversión). */
     public function generarParaFirma(Solicitud $solicitud): ?string
     {
-        $desdeCache = $this->leerCachePdf($solicitud);
-        if ($desdeCache !== null) {
-            return $desdeCache;
+        if ($this->docx->puedeGenerarDocx($solicitud)) {
+            $pdf = $this->generar($solicitud);
+            if (is_string($pdf) && $pdf !== '') {
+                return $pdf;
+            }
+        }
+
+        $cachePath = $this->cachePath($solicitud);
+        if ($this->cacheValido($cachePath, $solicitud)) {
+            $desdeCache = file_get_contents($cachePath);
+
+            return is_string($desdeCache) && $desdeCache !== '' ? $desdeCache : null;
         }
 
         $htmlPdf = $this->generarDesdeHtmlRespaldo($solicitud);
-        if (is_string($htmlPdf) && $htmlPdf !== '') {
-            $this->escribirCachePdf($solicitud, $htmlPdf);
 
-            return $htmlPdf;
-        }
-
-        $pdf = $this->generar($solicitud);
-        if (is_string($pdf) && $pdf !== '') {
-            return $pdf;
-        }
-
-        return null;
+        return is_string($htmlPdf) && $htmlPdf !== '' ? $htmlPdf : null;
     }
 
-    /** PDF base para superponer firma: reutiliza el mismo archivo que la vista previa. */
+    /** @deprecated alias */
     public function pdfBaseParaFirma(Solicitud $solicitud): ?string
     {
-        $desdeCache = $this->leerCachePdf($solicitud);
-        if ($desdeCache !== null) {
-            return $desdeCache;
-        }
-
         return $this->generarParaFirma($solicitud);
     }
 
-    /**
-     * PDF para colocar firma con FPDI. Evita PDF de LibreOffice (suele corromper el layout al reimportar).
-     */
+    /** @deprecated alias */
     public function pdfParaSuperponerFirma(Solicitud $solicitud): ?string
     {
-        $cachePath = $this->cachePathSuperponer($solicitud);
-        if ($this->cacheValido($cachePath, $solicitud)) {
-            $bytes = file_get_contents($cachePath);
-
-            return is_string($bytes) && $bytes !== '' ? $bytes : null;
-        }
-
-        $htmlPdf = $this->generarDesdeHtmlRespaldo($solicitud);
-        if (! is_string($htmlPdf) || $htmlPdf === '') {
-            return null;
-        }
-
-        File::ensureDirectoryExists(dirname($cachePath));
-        file_put_contents($cachePath, $htmlPdf);
-
-        return $htmlPdf;
-    }
-
-    private function leerCachePdf(Solicitud $solicitud): ?string
-    {
-        $path = $this->cachePath($solicitud);
-        if (! is_file($path)) {
-            return null;
-        }
-
-        $bytes = file_get_contents($path);
-
-        return is_string($bytes) && $bytes !== '' ? $bytes : null;
-    }
-
-    private function escribirCachePdf(Solicitud $solicitud, string $pdf): void
-    {
-        $path = $this->cachePath($solicitud);
-        File::ensureDirectoryExists(dirname($path));
-        file_put_contents($path, $pdf);
+        return $this->generarParaFirma($solicitud);
     }
 
     public function generar(Solicitud $solicitud): ?string
@@ -155,26 +114,14 @@ class OficioPdfService
         }
     }
 
-    public function invalidarCacheSuperponer(Solicitud $solicitud): void
-    {
-        $path = $this->cachePathSuperponer($solicitud);
-        if (is_file($path)) {
-            @unlink($path);
-        }
-    }
 
-    public const PLANTILLA_VERSION = '2026-10-13a';
+    public const PLANTILLA_VERSION = '2026-10-15a';
 
     private function cachePath(Solicitud $solicitud): string
     {
         $estado = $solicitud->estado === SolicitudEstado::Aprobada ? 'firmado' : 'pre';
 
         return storage_path('app/oficios/pdf/'.$solicitud->id.'.'.$estado.'.'.self::PLANTILLA_VERSION.'.pdf');
-    }
-
-    private function cachePathSuperponer(Solicitud $solicitud): string
-    {
-        return storage_path('app/oficios/pdf/'.$solicitud->id.'.superponer.'.self::PLANTILLA_VERSION.'.pdf');
     }
 
     private function decanoParaOficio(Solicitud $solicitud): ?User
@@ -256,13 +203,10 @@ class OficioPdfService
     private function generarDesdeHtmlRespaldo(Solicitud $solicitud): ?string
     {
         try {
-            $html = app(OficioPreviewService::class)->renderHtmlRespaldo($solicitud);
-            $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-            $pdf->setPrintHeader(false);
-            $pdf->setPrintFooter(false);
-            $pdf->SetMargins(14, 16, 14);
-            $pdf->AddPage();
-            $pdf->writeHTML($html, true, false, true, false, '');
+            $pdf = $this->nuevoTcpdfDesdeHtml($solicitud);
+            if ($pdf === null) {
+                return null;
+            }
 
             return $pdf->Output('', 'S');
         } catch (\Throwable $e) {
@@ -270,5 +214,46 @@ class OficioPdfService
 
             return null;
         }
+    }
+
+    private function nuevoTcpdfDesdeHtml(Solicitud $solicitud): ?\TCPDF
+    {
+        $html = app(OficioPreviewService::class)->renderHtmlRespaldo($solicitud);
+        $html = $this->prepararHtmlParaTcpdf($html);
+
+        $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->SetMargins(14, 16, 14);
+        $pdf->SetAutoPageBreak(true, 18);
+        $pdf->AddPage();
+        $pdf->writeHTML($html, true, false, true, false, '');
+
+        return $pdf;
+    }
+
+    private function prepararHtmlParaTcpdf(string $html): string
+    {
+        $archivos = [
+            'logo-facultad.png' => 'image/png',
+            'marca-uleam.png' => 'image/png',
+            'sello-autorizado.jpg' => 'image/jpeg',
+        ];
+
+        foreach ($archivos as $archivo => $mime) {
+            $local = public_path('templates/oficio-media/'.$archivo);
+            if (! is_file($local)) {
+                continue;
+            }
+
+            $dataUri = 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($local));
+            $html = preg_replace(
+                '#src=(["\'])(?:https?://[^"\']+/)?templates/oficio-media/'.preg_quote($archivo, '#').'\\1#',
+                'src="'.$dataUri.'"',
+                $html,
+            ) ?? $html;
+        }
+
+        return $html;
     }
 }

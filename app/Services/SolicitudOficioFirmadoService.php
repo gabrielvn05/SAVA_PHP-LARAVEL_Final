@@ -59,7 +59,7 @@ class SolicitudOficioFirmadoService
         array $anexos,
     ): array {
         $this->assertManipulacionPdfDisponible();
-        $pdf = $this->pdfService->pdfParaSuperponerFirma($solicitud);
+        $pdf = $this->pdfService->generarParaFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
             throw ValidationException::withMessages([
                 'firma_imagen' => 'No se pudo preparar el PDF del oficio para firmar en el navegador.',
@@ -71,12 +71,14 @@ class SolicitudOficioFirmadoService
             throw ValidationException::withMessages(['firma_imagen' => 'No se pudo procesar la imagen de firma.']);
         }
 
-        file_put_contents($tmpPng, file_get_contents($imagenFirma->getRealPath()) ?: '');
+        $pngPath = $tmpPng.'.png';
+        @unlink($tmpPng);
+        file_put_contents($pngPath, file_get_contents($imagenFirma->getRealPath()) ?: '');
 
         try {
-            $pdfFirmado = $this->superponerSelloEnPdf($pdf, $tmpPng, $pagina, $xPorcentaje, $yPorcentaje);
+            $pdfFirmado = $this->superponerSelloEnPdf($pdf, $pngPath, $pagina, $xPorcentaje, $yPorcentaje);
         } finally {
-            @unlink($tmpPng);
+            @unlink($pngPath);
         }
 
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-navegador.pdf';
@@ -111,26 +113,25 @@ class SolicitudOficioFirmadoService
         float $yPorcentaje,
         array $anexos,
     ): array {
-        $this->assertManipulacionPdfDisponible();
         ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
 
-        $pdf = $this->pdfService->pdfParaSuperponerFirma($solicitud);
+        $pdf = $this->pdfService->generarParaFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
             throw ValidationException::withMessages([
                 'p12' => 'No se pudo preparar el PDF del oficio.',
             ]);
         }
 
-        if (function_exists('imagecreatetruecolor')) {
-            $selloPng = $this->crearPngSelloElectronico($titular);
-            try {
-                $pdfFirmado = $this->superponerSelloEnPdf($pdf, $selloPng, $pagina, $xPorcentaje, $yPorcentaje);
-            } finally {
-                @unlink($selloPng);
-            }
-        } else {
-            $pdfFirmado = $this->superponerTextoEnPdf($pdf, $titular, $pagina, $xPorcentaje, $yPorcentaje);
-        }
+        $this->assertManipulacionPdfDisponible();
+        $pdfFirmado = $this->superponerBloqueFirmaElectronicaEnPdf(
+            $pdf,
+            $solicitud,
+            $titular,
+            $serial,
+            $pagina,
+            $xPorcentaje,
+            $yPorcentaje,
+        );
 
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-p12.pdf';
         $path = SolicitudAdjuntos::guardarContenido($pdfFirmado, 'pdf');
@@ -156,24 +157,34 @@ class SolicitudOficioFirmadoService
     ): array {
         ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
 
-        $pdf = $this->pdfService->pdfParaSuperponerFirma($solicitud);
-        if (! is_string($pdf) || $pdf === '') {
-            throw ValidationException::withMessages([
-                'p12' => 'No se pudo preparar el PDF del oficio.',
-            ]);
-        }
-
         $tmpPng = tempnam(sys_get_temp_dir(), 'firma-png-');
         if ($tmpPng === false) {
             throw ValidationException::withMessages(['firma_imagen' => 'No se pudo procesar la imagen de firma.']);
         }
 
-        file_put_contents($tmpPng, file_get_contents($imagenFirma->getRealPath()) ?: '');
+        $pngPath = $tmpPng.'.png';
+        @unlink($tmpPng);
+        file_put_contents($pngPath, file_get_contents($imagenFirma->getRealPath()) ?: '');
+
+        $this->assertManipulacionPdfDisponible();
+        $pdf = $this->pdfService->generarParaFirma($solicitud);
+        if (! is_string($pdf) || $pdf === '') {
+            @unlink($pngPath);
+            throw ValidationException::withMessages([
+                'firma_imagen' => 'No se pudo preparar el PDF del oficio.',
+            ]);
+        }
 
         try {
-            $pdfFirmado = $this->superponerSelloEnPdf($pdf, $tmpPng, $pagina, $xPorcentaje, $yPorcentaje);
+            $pdfFirmado = $this->superponerSelloEnPdf($pdf, $pngPath, $pagina, $xPorcentaje, $yPorcentaje);
         } finally {
-            @unlink($tmpPng);
+            @unlink($pngPath);
+        }
+
+        if (! is_string($pdfFirmado) || $pdfFirmado === '') {
+            throw ValidationException::withMessages([
+                'p12' => 'No se pudo generar el oficio firmado.',
+            ]);
         }
 
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-p12.pdf';
@@ -238,40 +249,6 @@ class SolicitudOficioFirmadoService
             'anexos' => $anexos,
             'firma_docente' => $meta,
         ];
-    }
-
-    /**
-     * @return array{titular: string, serial: string}
-     */
-    private function crearPngSelloElectronico(string $titular): string
-    {
-        $ancho = 240;
-        $alto = 56;
-        $imagen = imagecreatetruecolor($ancho, $alto);
-        if ($imagen === false) {
-            throw ValidationException::withMessages(['p12' => 'No se pudo generar el sello de firma en el servidor.']);
-        }
-
-        $blanco = imagecolorallocate($imagen, 255, 255, 255);
-        $azul = imagecolorallocate($imagen, 12, 61, 122);
-        imagefill($imagen, 0, 0, $blanco);
-        imagerectangle($imagen, 0, 0, $ancho - 1, $alto - 1, $azul);
-        imagestring($imagen, 3, 10, 10, 'Firma electronica', $azul);
-        $linea = mb_strlen($titular) > 36 ? mb_substr($titular, 0, 33).'...' : $titular;
-        imagestring($imagen, 2, 10, 30, $linea, $azul);
-
-        $path = tempnam(sys_get_temp_dir(), 'sello-p12-');
-        if ($path === false) {
-            imagedestroy($imagen);
-            throw ValidationException::withMessages(['p12' => 'No se pudo generar el sello de firma.']);
-        }
-
-        $pngPath = $path.'.png';
-        @unlink($path);
-        imagepng($imagen, $pngPath);
-        imagedestroy($imagen);
-
-        return $pngPath;
     }
 
     /**
