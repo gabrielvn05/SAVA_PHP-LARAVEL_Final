@@ -314,29 +314,21 @@ function initWizard() {
 
     function syncInstitucionNombre() {
         const wrap = document.querySelector('.wizard-field--institucion-nombre');
-        const hintId = 'institucion-medica-aviso';
-        let hint = document.getElementById(hintId);
-        if (!instTipo) return;
+        const avisoIess = document.getElementById('institucion-medica-aviso-iess');
+        if (!instTipo) {
+            return;
+        }
 
         const enfermedadVisible = !document.querySelector('.wizard-field--enfermedad')?.hidden;
-        const showNombre = enfermedadVisible && instTipo.value && instTipo.value !== 'IESS';
+        const noEsIess = instTipo.value !== '' && instTipo.value !== 'IESS';
+        const showNombre = enfermedadVisible && noEsIess;
+
         if (wrap) {
             wrap.hidden = !showNombre;
         }
 
-        if (enfermedadVisible && instTipo.value && instTipo.value !== 'IESS') {
-            if (!hint) {
-                hint = document.createElement('p');
-                hint.id = hintId;
-                hint.className = 'field-hint';
-                hint.style.margin = '0.35rem 0 0';
-                hint.style.color = 'var(--color-warning, #b45309)';
-                instTipo.closest('div')?.appendChild(hint);
-            }
-            hint.hidden = false;
-            hint.textContent = 'Recuerda adjuntar el certificado médico avalado por el IESS cuando corresponda.';
-        } else if (hint) {
-            hint.hidden = true;
+        if (avisoIess) {
+            avisoIess.hidden = !(enfermedadVisible && noEsIess);
         }
     }
 
@@ -352,6 +344,9 @@ function initWizard() {
         if (panelTipo) panelTipo.hidden = step !== 0;
         if (panelDatos) panelDatos.hidden = step !== 1;
         if (progress) progress.classList.toggle('is-done', step >= 1);
+        if (step === 1) {
+            syncInstitucionNombre();
+        }
         const top = document.querySelector('.page-header') || document.getElementById('wizard-form');
         top?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         window.scrollTo({ top: 0, behavior: 'smooth' });

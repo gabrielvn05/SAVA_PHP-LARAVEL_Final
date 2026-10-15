@@ -198,6 +198,17 @@
                                 <option value="{{ $inst }}" @selected(old('institucion_medica_tipo') === $inst)>{{ $inst }}</option>
                             @endforeach
                         </select>
+                        <div
+                            id="institucion-medica-aviso-iess"
+                            class="alert alert--warning"
+                            role="status"
+                            hidden
+                            style="margin-top: 0.65rem;"
+                        >
+                            <strong>Certificado avalado por el IESS.</strong>
+                            Si la institución no es IESS, debes adjuntar al final del formulario el certificado médico
+                            <strong>avalado o aprobado por el IESS</strong> (PDF, PNG o JPG), además del certificado del establecimiento si lo tienes.
+                        </div>
                     </div>
                     <div class="wizard-field wizard-field--institucion-nombre" hidden>
                         <label>Nombre del establecimiento *</label>
