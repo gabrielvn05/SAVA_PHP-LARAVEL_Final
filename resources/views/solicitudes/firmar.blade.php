@@ -8,6 +8,7 @@
 
     $firmado = SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud);
     $codigo = ($solicitud->detalle ?? [])['codigo_tramite'] ?? $solicitud->id;
+    $mostrarSelector = ! $firmado && empty($modo);
 @endphp
 
 @section('content')
@@ -29,9 +30,12 @@
         <div class="wizard-progress__step is-done"></div>
     </div>
 
-    <p class="field-hint" style="margin: 0;">
-        Paso 2 de 2: firma tu oficio en el navegador y luego envíalo a Secretaría. No hace falta guardar borrador solo para firmar.
-    </p>
+    @if(session('success'))
+        <p class="alert alert--success" style="margin: 0;">{{ session('success') }}</p>
+    @endif
+    @if(session('error'))
+        <p class="alert alert--danger" style="margin: 0;">{{ session('error') }}</p>
+    @endif
 
     @if($firmado)
         <p class="alert alert--success" style="margin: 0;">
@@ -43,62 +47,35 @@
             <button type="submit" class="btn btn--primary">Enviar a Secretaría</button>
             <span class="field-hint" style="margin: 0; align-self: center;">La solicitud pasará a revisión de Secretaría.</span>
         </form>
+        <p class="field-hint" style="margin: 0;">
+            ¿Quieres firmar de nuevo?
+            <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'p12']) }}">Certificado .p12</a>
+            ·
+            <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'manual']) }}">Subir otro PDF</a>
+        </p>
+    @elseif($mostrarSelector)
+        <p class="field-hint" style="margin: 0;">
+            Paso 2 de 2: elige cómo firmar el oficio. Luego podrás enviarlo a Secretaría.
+        </p>
+
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+            <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'p12']) }}" class="wizard-tipo-card" style="text-decoration: none; color: inherit;">
+                <h2 class="wizard-tipo-card__title">Firmar con certificado .p12</h2>
+                <p class="wizard-tipo-card__desc">
+                    Sube tu archivo de firma electrónica (.p12), ingresa la contraseña, dibuja tu rúbrica y ubícala en el documento.
+                </p>
+            </a>
+            <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'manual']) }}" class="wizard-tipo-card" style="text-decoration: none; color: inherit;">
+                <h2 class="wizard-tipo-card__title">Subir documento firmado manualmente</h2>
+                <p class="wizard-tipo-card__desc">
+                    Descarga el oficio en PDF o Word, fírmalo fuera del sistema e importa el archivo ya firmado.
+                </p>
+            </a>
+        </div>
+    @elseif($modo === 'p12')
+        @include('solicitudes._firmar-metodo-p12')
+    @elseif($modo === 'manual')
+        @include('solicitudes._firmar-metodo-manual')
     @endif
-
-    <article
-        class="card stack"
-        data-oficio-firma-root
-        data-pdf-url="{{ $pdfFirmaUrl }}"
-        style="gap: 1rem;"
-    >
-        <div>
-            <h2 class="solicitud-section-title" style="margin: 0;">Firma en el navegador</h2>
-            <p class="field-hint" style="margin: 0.35rem 0 0;">
-                1) Dibuja tu firma. 2) Haz clic en el documento donde debe aparecer. 3) Pulsa «Aplicar firma al oficio».
-            </p>
-        </div>
-
-        <div class="row" style="gap: 0.5rem; flex-wrap: wrap;">
-            <a href="{{ $oficioDescargarUrl }}" class="btn btn--secondary btn--sm" download>Opción: descargar PDF/Word</a>
-            @if($oficioUsaDocx ?? false)
-                <a href="{{ $oficioDocxUrl }}" class="btn btn--secondary btn--sm" download>Descargar Word</a>
-            @endif
-        </div>
-
-        <label class="field">
-            <span class="field__label">Tu firma (dibuja con mouse o dedo)</span>
-            <canvas data-firma-pad width="420" height="130" style="width: 100%; max-width: 420px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); touch-action: none;"></canvas>
-            <button type="button" class="btn btn--ghost btn--sm" data-firma-clear style="margin-top: 0.35rem;">Limpiar firma</button>
-        </label>
-
-        <div class="firma-pdf-positioner">
-            <p class="field-hint" style="margin: 0 0 0.5rem; color: #fff; padding: 0 1rem;">Haz clic en el documento para ubicar la firma (última página)</p>
-            <button type="button" class="firma-pdf-positioner__page" data-firma-page>
-                <canvas class="firma-pdf-positioner__canvas" data-firma-page-canvas></canvas>
-                <span class="firma-pdf-positioner__mark" data-firma-mark hidden>Firma aquí</span>
-            </button>
-        </div>
-
-        <p class="field-hint" data-firma-status style="margin: 0; color: var(--color-danger);"></p>
-
-        <form method="POST" action="{{ route('solicitudes.firmar-navegador', $solicitud) }}" data-firma-form enctype="multipart/form-data" data-loading-label="Aplicando firma al oficio…">
-            @csrf
-            <input type="file" name="firma_imagen" data-firma-file-input hidden accept="image/png">
-            <input type="hidden" name="firma_page" value="1" data-firma-page-input>
-            <input type="hidden" name="firma_x" value="75" data-firma-x-input>
-            <input type="hidden" name="firma_y" value="88" data-firma-y-input>
-            <button type="submit" class="btn btn--primary">Aplicar firma al oficio</button>
-        </form>
-
-        <details>
-            <summary class="field__label" style="cursor: pointer;">Alternativa: certificado .p12 (no se guarda)</summary>
-            <form method="POST" action="{{ route('solicitudes.firmar-oficio-p12', $solicitud) }}" enctype="multipart/form-data" class="stack" style="gap: 0.65rem; margin-top: 0.5rem;" data-no-loading>
-                @csrf
-                <input type="file" name="p12" accept=".p12,.pfx" required class="field__input">
-                <input type="password" name="p12_password" required class="field__input" placeholder="Contraseña del certificado" autocomplete="off">
-                <button type="submit" class="btn btn--secondary btn--sm">Firmar con .p12</button>
-            </form>
-        </details>
-    </article>
 </section>
 @endsection

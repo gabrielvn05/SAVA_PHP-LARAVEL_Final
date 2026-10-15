@@ -129,11 +129,29 @@ export function initOficioFirmaNavegador() {
         setMark(xPct, yPct);
     });
 
+    const requireP12 = root.getAttribute('data-firma-require-p12') === '1';
+    const p12FileInput = root.querySelector('[data-firma-p12-file]');
+    const p12PasswordInput = root.querySelector('[data-firma-p12-password]');
+
     form?.addEventListener('submit', async (event) => {
+        if (requireP12) {
+            const p12Ok = p12FileInput instanceof HTMLInputElement && p12FileInput.files?.length;
+            const passOk = p12PasswordInput instanceof HTMLInputElement && p12PasswordInput.value.trim() !== '';
+            if (!p12Ok || !passOk) {
+                event.preventDefault();
+                if (statusEl) {
+                    statusEl.textContent = 'Selecciona el archivo .p12 e ingresa la contraseña del certificado.';
+                }
+                return;
+            }
+        }
+
         if (!pad || pad.isEmpty()) {
             event.preventDefault();
             if (statusEl) {
-                statusEl.textContent = 'Dibuja tu firma en el recuadro antes de aplicar.';
+                statusEl.textContent = requireP12
+                    ? 'Dibuja tu rúbrica en el recuadro antes de aplicar.'
+                    : 'Dibuja tu firma en el recuadro antes de aplicar.';
             }
             return;
         }

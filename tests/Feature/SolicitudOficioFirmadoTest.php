@@ -44,8 +44,8 @@ class SolicitudOficioFirmadoTest extends TestCase
         $this->actingAs($user)
             ->get(route('solicitudes.firmar', $solicitud))
             ->assertOk()
-            ->assertSee('Firma en el navegador', false)
-            ->assertSee('Aplicar firma al oficio', false);
+            ->assertSee('Firmar con certificado .p12', false)
+            ->assertSee('Subir documento firmado manualmente', false);
     }
 
     public function test_enviar_secretaria_sin_firma_vuelve_a_firmar(): void
@@ -74,6 +74,44 @@ class SolicitudOficioFirmadoTest extends TestCase
 
         $solicitud->refresh();
         $this->assertSame(SolicitudEstado::EnBorrador, $solicitud->estado);
+    }
+
+    public function test_subir_manual_y_enviar_secretaria(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000105',
+            'carrera' => 'software',
+        ]);
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::EnBorrador,
+            'detalle' => ['codigo_tramite' => 'FACIVITEC-TEST-MANUAL'],
+        ]);
+
+        $pdf = UploadedFile::fake()->create('oficio-firmado.pdf', 200, 'application/pdf');
+
+        $this->actingAs($user)
+            ->post(route('solicitudes.subir-oficio-firmado', $solicitud), [
+                'oficio_firmado_docente' => $pdf,
+            ])
+            ->assertRedirect(route('solicitudes.firmar', $solicitud));
+
+        $solicitud->refresh();
+        $this->assertNotNull(SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud));
+
+        $this->actingAs($user)
+            ->post(route('solicitudes.enviar-secretaria', $solicitud))
+            ->assertRedirect(route('solicitudes.show', $solicitud));
+
+        $this->assertSame(SolicitudEstado::EnRevisionSecretaria, $solicitud->fresh()->estado);
     }
 
     public function test_firmar_navegador_y_enviar_secretaria(): void

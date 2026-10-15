@@ -76,8 +76,10 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         ->name('solicitudes.oficio-pdf-firma');
     Route::post('/solicitudes/{solicitud}/firmar-navegador', [SolicitudFirmaDocenteController::class, 'firmarNavegador'])
         ->name('solicitudes.firmar-navegador');
-    Route::post('/solicitudes/{solicitud}/firmar-oficio-p12', [SolicitudFirmaDocenteController::class, 'firmarP12'])
-        ->name('solicitudes.firmar-oficio-p12');
+    Route::post('/solicitudes/{solicitud}/firmar-p12-documento', [SolicitudFirmaDocenteController::class, 'firmarP12Documento'])
+        ->name('solicitudes.firmar-p12-documento');
+    Route::post('/solicitudes/{solicitud}/subir-oficio-firmado', [SolicitudFirmaDocenteController::class, 'subirManual'])
+        ->name('solicitudes.subir-oficio-firmado');
     Route::post('/solicitudes/{solicitud}/enviar-secretaria', [SolicitudFirmaDocenteController::class, 'enviarSecretaria'])
         ->name('solicitudes.enviar-secretaria');
 

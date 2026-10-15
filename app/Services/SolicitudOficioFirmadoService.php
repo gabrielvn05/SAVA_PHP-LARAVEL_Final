@@ -84,21 +84,57 @@ class SolicitudOficioFirmadoService
         return self::oficioFirmadoEnAnexos($solicitud) !== null;
     }
 
-    public function firmarConP12(Solicitud $solicitud, UploadedFile $p12, string $contrasena, array $anexos): array
-    {
-        $contenidoP12 = file_get_contents($p12->getRealPath()) ?: '';
-        $certificados = [];
-        if ($contenidoP12 === '' || ! openssl_pkcs12_read($contenidoP12, $certificados, $contrasena)) {
+    /**
+     * @param  list<array{path: string, nombre: string, rol?: string}>  $anexos
+     * @return array{anexos: list<array{path: string, nombre: string, rol?: string}>, firma_docente: array<string, string>}
+     */
+    public function firmarConP12EImagenEnDocumento(
+        Solicitud $solicitud,
+        UploadedFile $p12,
+        string $contrasena,
+        UploadedFile $imagenFirma,
+        int $pagina,
+        float $xPorcentaje,
+        float $yPorcentaje,
+        array $anexos,
+    ): array {
+        ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
+
+        $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
+        if (! is_string($pdf) || $pdf === '') {
             throw ValidationException::withMessages([
-                'p12' => 'No se pudo leer el certificado. Verifica el archivo .p12 y la contraseña.',
+                'p12' => 'No se pudo preparar el PDF del oficio.',
             ]);
         }
 
-        unset($contenidoP12, $certificados['pkey']);
+        $tmpPng = tempnam(sys_get_temp_dir(), 'firma-png-');
+        if ($tmpPng === false) {
+            throw ValidationException::withMessages(['firma_imagen' => 'No se pudo procesar la imagen de firma.']);
+        }
 
-        $info = openssl_x509_parse($certificados['cert'] ?? '') ?: [];
-        $titular = (string) ($info['subject']['CN'] ?? $solicitud->creador?->nombreCompleto() ?? 'Titular del certificado');
-        $serial = isset($info['serialNumber']) ? (string) $info['serialNumber'] : '';
+        file_put_contents($tmpPng, file_get_contents($imagenFirma->getRealPath()) ?: '');
+
+        try {
+            $pdfFirmado = $this->superponerImagenEnPdf($pdf, $tmpPng, $pagina, $xPorcentaje, $yPorcentaje);
+        } finally {
+            @unlink($tmpPng);
+        }
+
+        $nombre = OficioNombreArchivo::base($solicitud).'-firmado-p12.pdf';
+        $path = SolicitudAdjuntos::guardarContenido($pdfFirmado, 'pdf');
+
+        return $this->insertarOficioFirmado($anexos, $path, $nombre, [
+            'tipo' => 'p12_documento',
+            'titular' => $titular,
+            'serial' => $serial,
+            'pagina' => (string) $pagina,
+            'fecha' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function firmarConP12(Solicitud $solicitud, UploadedFile $p12, string $contrasena, array $anexos): array
+    {
+        ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
 
         $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
         if (! is_string($pdf) || $pdf === '') {
@@ -146,6 +182,28 @@ class SolicitudOficioFirmadoService
             'anexos' => $anexos,
             'firma_docente' => $meta,
         ];
+    }
+
+    /**
+     * @return array{titular: string, serial: string}
+     */
+    private function leerCertificadoP12(UploadedFile $p12, string $contrasena, Solicitud $solicitud): array
+    {
+        $contenidoP12 = file_get_contents($p12->getRealPath()) ?: '';
+        $certificados = [];
+        if ($contenidoP12 === '' || ! openssl_pkcs12_read($contenidoP12, $certificados, $contrasena)) {
+            throw ValidationException::withMessages([
+                'p12' => 'No se pudo leer el certificado. Verifica el archivo .p12 y la contraseña.',
+            ]);
+        }
+
+        unset($contenidoP12, $certificados['pkey']);
+
+        $info = openssl_x509_parse($certificados['cert'] ?? '') ?: [];
+        $titular = (string) ($info['subject']['CN'] ?? $solicitud->creador?->nombreCompleto() ?? 'Titular del certificado');
+        $serial = isset($info['serialNumber']) ? (string) $info['serialNumber'] : '';
+
+        return ['titular' => $titular, 'serial' => $serial];
     }
 
     private function validarArchivoFirmado(UploadedFile $file): void

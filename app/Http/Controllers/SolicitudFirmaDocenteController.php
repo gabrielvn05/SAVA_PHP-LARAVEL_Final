@@ -29,7 +29,7 @@ class SolicitudFirmaDocenteController extends Controller
         private readonly AppNotificationService $appNotifications,
     ) {}
 
-    public function show(Solicitud $solicitud): View
+    public function show(Request $request, Solicitud $solicitud): View
     {
         $this->authorize('update', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
@@ -38,7 +38,14 @@ class SolicitudFirmaDocenteController extends Controller
             abort(404, 'Este trámite no admite firma de oficio en línea.');
         }
 
-        $this->oficioPdf->generarParaFirma($solicitud);
+        $modo = $request->query('modo');
+        if (! in_array($modo, ['p12', 'manual'], true)) {
+            $modo = null;
+        }
+
+        if ($modo !== null) {
+            $this->oficioPdf->generarParaFirma($solicitud);
+        }
 
         $oficioUsaDocx = $this->oficioDocx->puedeGenerarDocx($solicitud);
         $oficioPreviewUrl = route('solicitudes.preview-oficio', $solicitud);
@@ -48,6 +55,7 @@ class SolicitudFirmaDocenteController extends Controller
 
         return view('solicitudes.firmar', [
             'solicitud' => $solicitud,
+            'modo' => $modo,
             'pdfFirmaUrl' => route('solicitudes.oficio-pdf-firma', $solicitud),
             'oficioPreviewUrl' => $oficioPreviewUrl,
             'oficioDescargarUrl' => $oficioDescargarUrl,
@@ -112,34 +120,69 @@ class SolicitudFirmaDocenteController extends Controller
             'justificativo_nombre' => $legacy['justificativo_nombre'],
         ]);
 
-        return redirect()
-            ->route('solicitudes.firmar', $solicitud)
-            ->with('success', 'Firma aplicada al oficio. Revisa el documento y envía a Secretaría cuando esté listo.');
+        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Firma aplicada al oficio. Revisa el documento y envía a Secretaría cuando esté listo.');
     }
 
-    public function firmarP12(Request $request, Solicitud $solicitud): RedirectResponse
+    public function firmarP12Documento(Request $request, Solicitud $solicitud): RedirectResponse
+    {
+        $this->authorize('update', $solicitud);
+        $this->abortSiNoPuedeFirmar($solicitud);
+
+        $validated = $request->validate([
+            'p12' => ['required', 'file', 'max:5120'],
+            'p12_password' => ['required', 'string', 'max:255'],
+            'firma_imagen' => ['required', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
+            'firma_page' => ['required', 'integer', 'min:1', 'max:50'],
+            'firma_x' => ['required', 'numeric', 'min:0', 'max:100'],
+            'firma_y' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $p12 = $request->file('p12');
+        $imagen = $request->file('firma_imagen');
+        if ($p12 === null || $imagen === null) {
+            abort(422);
+        }
+
+        $anexos = SolicitudAdjuntos::anexosActuales($solicitud);
+        $firmado = $this->oficioFirmado->firmarConP12EImagenEnDocumento(
+            $solicitud,
+            $p12,
+            (string) $validated['p12_password'],
+            $imagen,
+            (int) $validated['firma_page'],
+            (float) $validated['firma_x'],
+            (float) $validated['firma_y'],
+            $anexos,
+        );
+
+        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado con certificado .p12. Revisa el documento y envía a Secretaría.');
+    }
+
+    public function subirManual(Request $request, Solicitud $solicitud): RedirectResponse
     {
         $this->authorize('update', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
 
         $request->validate([
-            'p12' => ['required', 'file', 'max:5120'],
-            'p12_password' => ['required', 'string', 'max:255'],
+            'oficio_firmado_docente' => ['required', 'file', 'max:10240', 'mimes:pdf,png,jpg,jpeg'],
         ]);
 
-        $p12 = $request->file('p12');
-        if ($p12 === null) {
+        $file = $request->file('oficio_firmado_docente');
+        if ($file === null) {
             abort(422);
         }
 
         $anexos = SolicitudAdjuntos::anexosActuales($solicitud);
-        $firmado = $this->oficioFirmado->firmarConP12(
-            $solicitud,
-            $p12,
-            (string) $request->input('p12_password'),
-            $anexos,
-        );
+        $firmado = $this->oficioFirmado->aplicarSubidaManual($solicitud, $file, $anexos);
 
+        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado subido correctamente. Revisa el archivo y envía a Secretaría.');
+    }
+
+    /**
+     * @param  array{anexos: list<array{path: string, nombre: string, rol?: string}>, firma_docente: array<string, string>}  $firmado
+     */
+    private function redirectTrasGuardarFirma(Solicitud $solicitud, array $firmado, string $mensaje): RedirectResponse
+    {
         $legacy = SolicitudAdjuntos::sincronizarCamposLegacy($firmado['anexos']);
         $detalle = $solicitud->detalle ?? [];
         $detalle['anexos'] = $legacy['detalle_anexos'];
@@ -152,7 +195,7 @@ class SolicitudFirmaDocenteController extends Controller
 
         return redirect()
             ->route('solicitudes.firmar', $solicitud)
-            ->with('success', 'Oficio firmado electrónicamente. Revisa el archivo y envía a Secretaría cuando esté listo.');
+            ->with('success', $mensaje);
     }
 
     public function enviarSecretaria(Solicitud $solicitud): RedirectResponse

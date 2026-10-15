@@ -442,7 +442,7 @@
                 Al enviar la solicitud se podrá consultar el oficio institucional desde el detalle del trámite.
             </p>
             <p class="field-hint" style="margin: 0 0 0.5rem;">
-                Al continuar podrás <strong>firmar el oficio en el navegador</strong> y después enviarlo a Secretaría.
+                Al continuar elegirás <strong>cómo firmar el oficio</strong> (certificado .p12 o subida manual) y luego lo enviarás a Secretaría.
             </p>
             @include('solicitudes._adjuntos-field', [
                 'label' => 'Adjuntar documento de respaldo (opcional)',
