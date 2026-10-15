@@ -68,6 +68,8 @@ class OficioDocxTest extends TestCase
         $this->assertStringContainsString('Fecha de generación del documento', $xml);
 
         $this->assertStringContainsString('Correo Institucional:', $xml);
+        $this->assertStringContainsString($user->email, $xml);
+        $this->assertStringNotContainsString('[Correo]', $xml);
         $this->assertStringContainsString('visita t', $xml);
         $this->assertStringNotContainsString('[Tipo de visita de campo]', $xml);
     }

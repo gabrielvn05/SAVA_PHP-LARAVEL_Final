@@ -126,19 +126,7 @@ class OficioDocxService
      */
     private function rellenarXml(string $xml, array $valores, string $correoDocente, string $correoDecano): string
     {
-        $xml = preg_replace(
-            '/Correo Institucional: \[Correo\]/u',
-            'Correo Institucional: '.$this->xmlEscape($correoDocente),
-            $xml,
-            1,
-        ) ?? $xml;
-
-        $xml = preg_replace(
-            '/Correo Institucional: \[Correo\]/u',
-            'Correo Institucional: '.$this->xmlEscape($correoDecano),
-            $xml,
-            1,
-        ) ?? $xml;
+        $xml = $this->insertarCorreosInstitucionales($xml, $correoDocente, $correoDecano);
 
         $codigo = $valores['[Código del oficio]'] ?? '';
         if ($codigo !== '') {
@@ -175,6 +163,43 @@ class OficioDocxService
      * Word y docx-preview expanden espacios con justificación; en la fila de datos
      * de firma eso separa «Correo» e «Institucional:» cuando el correo es largo.
      */
+    private function insertarCorreosInstitucionales(string $xml, string $correoDocente, string $correoDecano): string
+    {
+        if ($correoDocente !== '') {
+            $xml = preg_replace(
+                '/Correo Institucional:(?:\s|<[^>]+>)*\[Correo\]/u',
+                'Correo Institucional: '.$this->xmlEscape($correoDocente),
+                $xml,
+                1,
+            ) ?? $xml;
+
+            $xml = preg_replace(
+                '/\[Correo\]/',
+                $this->xmlEscape($correoDocente),
+                $xml,
+                1,
+            ) ?? $xml;
+        }
+
+        if ($correoDecano !== '') {
+            $xml = preg_replace(
+                '/Correo Institucional:(?:\s|<[^>]+>)*\[Correo\]/u',
+                'Correo Institucional: '.$this->xmlEscape($correoDecano),
+                $xml,
+                1,
+            ) ?? $xml;
+
+            $xml = preg_replace(
+                '/\[Correo\]/',
+                $this->xmlEscape($correoDecano),
+                $xml,
+                1,
+            ) ?? $xml;
+        }
+
+        return $xml;
+    }
+
     private function normalizarTablaFirma(string $xml): string
     {
         if (! str_contains($xml, 'Aprobado por')) {

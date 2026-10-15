@@ -48,6 +48,8 @@ class OficioDatosService
             '[facultad]' => self::FACULTAD_NOMBRE,
             '[Facultad]' => self::FACULTAD_ETIQUETA,
             '[Cédula]' => $cedula,
+            '[Correo]' => (string) $creador->email,
+            '[Correo institucional]' => (string) $creador->email,
             '[Rol del personal]' => $rolPersonal,
             '[Fecha automática del sistema]' => now()->translatedFormat('d \d\e F \d\e Y'),
             '[Fecha y hora completa automática del sistema]' => $fechaGeneracion,
