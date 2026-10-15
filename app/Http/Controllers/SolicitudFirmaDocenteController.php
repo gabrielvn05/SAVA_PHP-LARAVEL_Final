@@ -128,34 +128,46 @@ class SolicitudFirmaDocenteController extends Controller
         $this->authorize('update', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
 
-        $validated = $request->validate([
+        $request->validate([
             'p12' => ['required', 'file', 'max:5120'],
             'p12_password' => ['required', 'string', 'max:255'],
-            'firma_imagen' => ['required', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
-            'firma_page' => ['required', 'integer', 'min:1', 'max:50'],
-            'firma_x' => ['required', 'numeric', 'min:0', 'max:100'],
-            'firma_y' => ['required', 'numeric', 'min:0', 'max:100'],
+            'firma_imagen' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
+            'firma_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'firma_x' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'firma_y' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $p12 = $request->file('p12');
-        $imagen = $request->file('firma_imagen');
-        if ($p12 === null || $imagen === null) {
+        if ($p12 === null) {
             abort(422);
         }
 
         $anexos = SolicitudAdjuntos::anexosActuales($solicitud);
-        $firmado = $this->oficioFirmado->firmarConP12EImagenEnDocumento(
+        $imagen = $request->file('firma_imagen');
+
+        if ($imagen !== null) {
+            $firmado = $this->oficioFirmado->firmarConP12EImagenEnDocumento(
+                $solicitud,
+                $p12,
+                (string) $request->input('p12_password'),
+                $imagen,
+                (int) $request->input('firma_page', 1),
+                (float) $request->input('firma_x', 75),
+                (float) $request->input('firma_y', 88),
+                $anexos,
+            );
+
+            return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado con certificado .p12. Revisa el documento y envía a Secretaría.');
+        }
+
+        $firmado = $this->oficioFirmado->firmarConP12(
             $solicitud,
             $p12,
-            (string) $validated['p12_password'],
-            $imagen,
-            (int) $validated['firma_page'],
-            (float) $validated['firma_x'],
-            (float) $validated['firma_y'],
+            (string) $request->input('p12_password'),
             $anexos,
         );
 
-        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado con certificado .p12. Revisa el documento y envía a Secretaría.');
+        return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado electrónicamente. Revisa el documento y envía a Secretaría.');
     }
 
     public function subirManual(Request $request, Solicitud $solicitud): RedirectResponse
