@@ -7,6 +7,7 @@ use App\Models\Solicitud;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
 use App\Services\OficioPreviewService;
+use App\Support\OficioNombreArchivo;
 use App\Support\OficioSelloFaltanteException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -122,12 +123,6 @@ class CertificadoController extends Controller
 
     private function nombreOficio(Solicitud $solicitud, string $extension): string
     {
-        $codigo = (string) (($solicitud->detalle ?? [])['codigo_tramite'] ?? 'oficio');
-        $base = preg_replace('/[^A-Za-z0-9._-]+/', '-', $codigo) ?: 'oficio';
-        if ($solicitud->estado === SolicitudEstado::Aprobada) {
-            return $base.'-firmado.'.$extension;
-        }
-
-        return $base.'.'.$extension;
+        return OficioNombreArchivo::firmado($solicitud, $extension);
     }
 }

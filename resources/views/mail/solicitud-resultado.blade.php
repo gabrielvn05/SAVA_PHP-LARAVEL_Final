@@ -30,7 +30,14 @@
         @endif
         <p style="margin:16px 0 0">
             @if($aprobada)
-                El oficio firmado va adjunto en PDF. También puedes ver el trámite en SAVA:
+                @if(($formatoAdjunto ?? null) === 'pdf')
+                    El oficio firmado por el Decano va <strong>adjunto en PDF</strong> en este correo.
+                @elseif(($formatoAdjunto ?? null) === 'docx')
+                    El oficio firmado va adjunto en Word (DOCX). Si tu correo no muestra el archivo, descárgalo desde SAVA.
+                @else
+                    Puedes descargar el oficio firmado desde el detalle del trámite en SAVA:
+                @endif
+                También puedes abrir la solicitud aquí:
             @else
                 Puedes consultar el detalle en SAVA:
             @endif

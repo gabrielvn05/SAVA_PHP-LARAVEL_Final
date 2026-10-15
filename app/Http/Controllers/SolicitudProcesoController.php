@@ -141,6 +141,7 @@ class SolicitudProcesoController extends Controller
 
         if ($firmaFinal) {
             $this->oficioPdf->invalidarCache($solicitud);
+            $this->oficioPdf->generar($solicitud->fresh(['firmante', 'creador']));
         }
 
         $this->audit->log('UPDATE', $solicitud, $old);
@@ -192,6 +193,7 @@ class SolicitudProcesoController extends Controller
 
         if ($aprobado) {
             $this->oficioPdf->invalidarCache($solicitud);
+            $this->oficioPdf->generar($solicitud->fresh(['firmante', 'creador']));
         }
 
         $this->audit->log('UPDATE', $solicitud, $old);

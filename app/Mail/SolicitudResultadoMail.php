@@ -4,7 +4,8 @@ namespace App\Mail;
 
 use App\Enums\SolicitudEstado;
 use App\Models\Solicitud;
-use App\Services\OficioPdfService;
+use App\Services\OficioCorreoAdjuntoResultado;
+use App\Services\OficioCorreoAdjuntoService;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
@@ -14,6 +15,8 @@ use Illuminate\Queue\SerializesModels;
 class SolicitudResultadoMail extends Mailable
 {
     use SerializesModels;
+
+    private ?OficioCorreoAdjuntoResultado $adjuntoResultado = null;
 
     public function __construct(public readonly Solicitud $solicitud) {}
 
@@ -37,6 +40,8 @@ class SolicitudResultadoMail extends Mailable
             ? ($solicitud->observaciones_decano ?: $solicitud->observaciones_secretaria)
             : ($solicitud->observaciones_decano ?: $solicitud->observaciones_secretaria);
 
+        $adjunto = $this->adjuntoResuelto();
+
         return new Content(
             htmlString: view('mail.solicitud-resultado', [
                 'fullName' => $solicitud->creador->nombreCompleto(),
@@ -47,6 +52,7 @@ class SolicitudResultadoMail extends Mailable
                 'motivo' => $solicitud->motivo,
                 'observaciones' => $observaciones,
                 'detalleUrl' => route('solicitudes.show', $solicitud, absolute: false),
+                'formatoAdjunto' => $adjunto->formato,
             ])->render(),
         );
     }
@@ -54,20 +60,16 @@ class SolicitudResultadoMail extends Mailable
     /** @return list<Attachment> */
     public function attachments(): array
     {
-        if ($this->solicitud->estado !== SolicitudEstado::Aprobada) {
-            return [];
+        return $this->adjuntoResuelto()->attachments;
+    }
+
+    private function adjuntoResuelto(): OficioCorreoAdjuntoResultado
+    {
+        if ($this->adjuntoResultado === null) {
+            $this->adjuntoResultado = app(OficioCorreoAdjuntoService::class)
+                ->resolver($this->solicitud->loadMissing(['firmante', 'creador']));
         }
 
-        $pdf = app(OficioPdfService::class)->generar($this->solicitud);
-        if (! is_string($pdf) || $pdf === '') {
-            return [];
-        }
-
-        $detalle = $this->solicitud->detalle ?? [];
-        $nombre = ($detalle['codigo_tramite'] ?? 'oficio').'.pdf';
-
-        return [
-            Attachment::fromData(fn (): string => $pdf, $nombre)->withMime('application/pdf'),
-        ];
+        return $this->adjuntoResultado;
     }
 }

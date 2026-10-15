@@ -8,8 +8,10 @@ use App\Enums\SolicitudTipo;
 use App\Mail\SolicitudResultadoMail;
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Services\OficioPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class SolicitudResultadoNotificationTest extends TestCase
@@ -42,6 +44,31 @@ class SolicitudResultadoNotificationTest extends TestCase
             $preview->assertSee('data-oficio-docx-url', false);
             $preview->assertDontSee('No se pudo cargar la vista previa del oficio', false);
         }
+    }
+
+    public function test_correo_aprobacion_adjunta_pdf_firmado_cuando_existe(): void
+    {
+        $this->mock(OficioPdfService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('invalidarCache')->andReturnNull();
+            $mock->shouldReceive('generar')->andReturn('%PDF-1.4 contenido-prueba');
+        });
+
+        Mail::fake();
+
+        $solicitante = $this->solicitante();
+        $decano = $this->usuario(AppRole::Decano, '1312000010');
+        $solicitud = $this->solicitudPendienteDecano($solicitante);
+
+        $this->actingAs($decano)
+            ->post(route('solicitudes.aprobar', $solicitud), [
+                'aprobado' => '1',
+            ])
+            ->assertRedirect();
+
+        Mail::assertSent(SolicitudResultadoMail::class, function (SolicitudResultadoMail $mail): bool {
+            return count($mail->attachments()) === 1
+                && str_ends_with($mail->attachments()[0]->as, '-firmado.pdf');
+        });
     }
 
     public function test_decano_approval_emails_the_solicitante(): void
