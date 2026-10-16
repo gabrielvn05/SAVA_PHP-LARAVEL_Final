@@ -24,19 +24,16 @@ class ViajeSolicitudTest extends TestCase
             'celular' => '0991234567',
         ]);
 
-        $inicioFalta = now()->addDays(5)->toDateString();
-        $finFalta = now()->addDays(10)->toDateString();
-
         $this->actingAs($user)
             ->post(route('solicitudes.store'), [
                 'tipo' => SolicitudTipo::Viaje->value,
-                'fecha_inicio_viaje' => $inicioFalta,
-                'fecha_fin_viaje' => $finFalta,
+                'fecha_inicio_viaje' => '2026-10-14',
+                'fecha_fin_viaje' => '2026-10-23',
                 'evento_inicio_dia' => 15,
-                'evento_inicio_mes' => 9,
+                'evento_inicio_mes' => 10,
                 'evento_inicio_anio' => 2026,
-                'evento_fin_dia' => 20,
-                'evento_fin_mes' => 9,
+                'evento_fin_dia' => 22,
+                'evento_fin_mes' => 10,
                 'evento_fin_anio' => 2026,
                 'tipo_viaje_evento' => 'congreso_expositor',
                 'nombre_evento' => 'Congreso SAVA',
@@ -48,10 +45,43 @@ class ViajeSolicitudTest extends TestCase
         $solicitud = Solicitud::query()->first();
         $this->assertNotNull($solicitud);
         $this->assertSame('Visita de campo: Congreso SAVA', $solicitud->motivo);
-        $this->assertSame('2026-09-15', $solicitud->detalle['fecha_evento_desde'] ?? null);
-        $this->assertSame('2026-09-20', $solicitud->detalle['fecha_evento_hasta'] ?? null);
+        $this->assertSame('2026-10-14', $solicitud->fecha_inicio->toDateString());
+        $this->assertSame('2026-10-23', $solicitud->fecha_fin->toDateString());
+        $this->assertSame('2026-10-15', $solicitud->detalle['fecha_evento_desde'] ?? null);
+        $this->assertSame('2026-10-22', $solicitud->detalle['fecha_evento_hasta'] ?? null);
         $this->assertSame(15, $solicitud->detalle['evento_inicio_dia'] ?? null);
-        $this->assertSame(9, $solicitud->detalle['evento_inicio_mes'] ?? null);
+        $this->assertSame(10, $solicitud->detalle['evento_inicio_mes'] ?? null);
+    }
+
+    public function test_viaje_rechaza_evento_fuera_del_periodo_de_visita(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1712345676',
+            'carrera' => 'software',
+            'celular' => '0991234568',
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('solicitudes.wizard'))
+            ->post(route('solicitudes.store'), [
+                'tipo' => SolicitudTipo::Viaje->value,
+                'fecha_inicio_viaje' => '2026-10-14',
+                'fecha_fin_viaje' => '2026-10-23',
+                'evento_inicio_dia' => 13,
+                'evento_inicio_mes' => 10,
+                'evento_inicio_anio' => 2026,
+                'evento_fin_dia' => 22,
+                'evento_fin_mes' => 10,
+                'evento_fin_anio' => 2026,
+                'tipo_viaje_evento' => 'estudio',
+                'nombre_evento' => 'Curso',
+                'lugar_evento' => 'Quito',
+            ])
+            ->assertRedirect(route('solicitudes.wizard'))
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, Solicitud::query()->count());
     }
 
     public function test_viaje_rechaza_fecha_evento_invalida(): void

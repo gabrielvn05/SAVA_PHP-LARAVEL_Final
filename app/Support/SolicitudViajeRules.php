@@ -41,6 +41,14 @@ class SolicitudViajeRules
             return ['error' => 'La fecha de fin del evento no puede ser anterior a la de inicio.'];
         }
 
+        if (strcmp($eventoDesde['iso'], $fechaInicioFalta) < 0) {
+            return ['error' => 'El inicio del evento no puede ser anterior a la fecha de inicio de la visita de campo.'];
+        }
+
+        if (strcmp($eventoHasta['iso'], $fechaFinFalta) > 0) {
+            return ['error' => 'El fin del evento no puede ser posterior a la fecha de retorno de la visita.'];
+        }
+
         $tipoViaje = trim((string) ($validated['tipo_viaje_evento'] ?? ''));
         if ($tipoViaje === '') {
             return ['error' => 'Seleccione el tipo de visita de campo.'];
@@ -85,12 +93,22 @@ class SolicitudViajeRules
      */
     private static function composeFechaEvento(array $validated, string $prefix): array
     {
-        $dia = (int) ($validated[$prefix.'_dia'] ?? 0);
-        $mes = (int) ($validated[$prefix.'_mes'] ?? 0);
-        $anio = (int) ($validated[$prefix.'_anio'] ?? 0);
+        $etiqueta = $prefix === 'evento_inicio' ? 'inicio del evento' : 'fin del evento';
 
-        if ($dia < 1 || $dia > 31 || $mes < 1 || $mes > 12 || $anio < 2000 || $anio > 2100) {
-            return ['error' => 'Complete día, mes y año válidos para las fechas del evento.'];
+        $dia = self::enteroCampo($validated[$prefix.'_dia'] ?? null);
+        $mes = self::enteroCampo($validated[$prefix.'_mes'] ?? null);
+        $anio = self::enteroCampo($validated[$prefix.'_anio'] ?? null);
+
+        if ($dia === null || $dia < 1 || $dia > 31) {
+            return ['error' => "Indique un día válido para el {$etiqueta}."];
+        }
+
+        if ($mes === null || $mes < 1 || $mes > 12) {
+            return ['error' => "Seleccione el mes del {$etiqueta}."];
+        }
+
+        if ($anio === null || $anio < 2000 || $anio > 2100) {
+            return ['error' => "Indique un año válido para el {$etiqueta}."];
         }
 
         if (! checkdate($mes, $dia, $anio)) {
@@ -105,6 +123,19 @@ class SolicitudViajeRules
             'anio' => $anio,
             'iso' => $iso,
         ];
+    }
+
+    private static function enteroCampo(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return null;
     }
 
     public static function mesLabel(int $mes): string
