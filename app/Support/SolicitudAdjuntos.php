@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Solicitud;
+use App\Services\SolicitudOficioFirmadoService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -64,6 +65,19 @@ class SolicitudAdjuntos
     }
 
     /**
+     * Justificativos y respaldos. El oficio firmado por el solicitante no es un adjunto.
+     *
+     * @return list<array{path: string, nombre: string, rol?: string}>
+     */
+    public static function anexosDeRespaldo(Solicitud $solicitud): array
+    {
+        return array_values(array_filter(
+            self::anexosActuales($solicitud),
+            static fn (array $anexo): bool => ($anexo['rol'] ?? null) !== SolicitudOficioFirmadoService::ROL_ANEXO,
+        ));
+    }
+
+    /**
      * @param  list<array{path: string, nombre: string}>  $anexos
      * @return list<array{path: string, nombre: string}>
      */
@@ -85,7 +99,7 @@ class SolicitudAdjuntos
     {
         $documentos = [];
 
-        foreach (self::filtrarAnexosConArchivo(self::anexosActuales($solicitud)) as $anexo) {
+        foreach (self::filtrarAnexosConArchivo(self::anexosDeRespaldo($solicitud)) as $anexo) {
             $path = (string) $anexo['path'];
             $nombre = (string) ($anexo['nombre'] ?? 'Documento');
 

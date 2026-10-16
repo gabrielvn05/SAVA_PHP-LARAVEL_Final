@@ -359,6 +359,7 @@ class SolicitudController extends Controller
         $solicitud->load(['creador', 'revisor', 'firmante']);
 
         $documentos = SolicitudAdjuntos::documentosParaVista($solicitud);
+        $documentoPrincipal = $this->documentoPrincipalFirmado($solicitud);
 
         $user = auth()->user();
         $esStaff = in_array($user->rol, [AppRole::Secretaria, AppRole::Decano, AppRole::Superusuario], true)
@@ -379,6 +380,7 @@ class SolicitudController extends Controller
             'solicitud' => $solicitud,
             'timeline' => SolicitudTimeline::for($solicitud),
             'documentos' => $documentos,
+            'documentoPrincipal' => $documentoPrincipal,
             'esStaff' => $esStaff,
             'mostrarOficioInstitucional' => $mostrarOficioInstitucional,
             'puedeActuarSecretaria' => $user->can('revisar', $solicitud) && $solicitud->creado_por !== $user->id,
@@ -408,6 +410,37 @@ class SolicitudController extends Controller
             'oficioDescargarUrl' => $oficioDescargarUrl,
             'oficioDocxUrl' => route('solicitudes.oficio-documento', $solicitud),
             'oficioUsaDocx' => $oficioUsaDocx,
+        ];
+    }
+
+    /**
+     * El oficio que el solicitante firmó y envió. Sustituye al oficio generado.
+     *
+     * @return array{nombre: string, url: string, kind: string}|null
+     */
+    private function documentoPrincipalFirmado(Solicitud $solicitud): ?array
+    {
+        if ($solicitud->estado === SolicitudEstado::EnBorrador) {
+            return null;
+        }
+
+        $firmado = SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud);
+        if ($firmado === null) {
+            return null;
+        }
+
+        $path = (string) ($firmado['path'] ?? '');
+        if ($path === '' || SolicitudAdjuntos::diskConArchivo($path) === null) {
+            return null;
+        }
+
+        $nombre = (string) ($firmado['nombre'] ?? 'oficio-firmado.pdf');
+        $kind = AdjuntoPreview::kind($nombre);
+
+        return [
+            'nombre' => $nombre,
+            'url' => SolicitudAdjuntos::urlVista($solicitud, $path),
+            'kind' => $kind === 'image' ? 'image' : 'pdf',
         ];
     }
 
@@ -454,7 +487,7 @@ class SolicitudController extends Controller
         return view('solicitudes.edit', [
             'solicitud' => $solicitud,
             'tipos' => SolicitudTipo::cases(),
-            'anexos' => SolicitudAdjuntos::anexosActuales($solicitud),
+            'anexos' => SolicitudAdjuntos::anexosDeRespaldo($solicitud),
             'mostrarFirmaDocente' => $this->mostrarFlujoFirmaDocente($solicitud),
             ...$this->urlsOficio($solicitud),
         ]);

@@ -110,7 +110,18 @@
 
     <article class="card stack solicitud-preview">
         <h2 class="solicitud-preview__title">Vista previa de la solicitud</h2>
-        @if($mostrarOficioInstitucional ?? true)
+        @if($documentoPrincipal ?? null)
+            <x-doc-viewer
+                title="Oficio firmado"
+                :file-name="$documentoPrincipal['nombre']"
+                :src="$documentoPrincipal['url']"
+                :download-href="$documentoPrincipal['url']"
+                :kind="$documentoPrincipal['kind']"
+            />
+            <div class="solicitud-preview__downloads">
+                <a href="{{ $documentoPrincipal['url'] }}" class="btn btn--primary btn--sm">Descargar oficio firmado</a>
+            </div>
+        @elseif($mostrarOficioInstitucional ?? true)
             <x-doc-viewer
                 title="{{ $estado === \App\Enums\SolicitudEstado::Aprobada ? 'Oficio firmado' : 'Oficio institucional' }}"
                 :file-name="$estado === \App\Enums\SolicitudEstado::Aprobada
