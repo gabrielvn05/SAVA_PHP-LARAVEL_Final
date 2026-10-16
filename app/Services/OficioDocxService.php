@@ -156,7 +156,7 @@ class OficioDocxService
         $xml = preg_replace('/<w:highlight w:val="[^"]*"\/>/u', '', $xml) ?? $xml;
         $xml = preg_replace('/<w:shd\b[^>]*\/>/u', '', $xml) ?? $xml;
 
-        return $this->normalizarTablaFirma($xml);
+        return $this->mantenerCorreoEnUnaLinea($this->normalizarTablaFirma($xml));
     }
 
     /**
@@ -220,6 +220,75 @@ class OficioDocxService
         );
 
         return is_string($result) ? $result : $xml;
+    }
+
+    /**
+     * La fila de firma es estrecha y está justificada, así que «Correo Institucional»
+     * se abre y la dirección baja a la línea siguiente.
+     */
+    private function mantenerCorreoEnUnaLinea(string $xml): string
+    {
+        $ancho = $this->anchoUtilPagina($xml);
+
+        $result = preg_replace_callback(
+            '/<w:tbl\b[^>]*>(?:(?!<\/w:tbl>).)*Correo Institucional:(?:(?!<\/w:tbl>).)*<\/w:tbl>/su',
+            function (array $matches) use ($ancho): string {
+                $tabla = $matches[0];
+                if ($ancho !== null) {
+                    $tabla = preg_replace(
+                        '/<w:gridCol w:w="\d+"\/>/',
+                        '<w:gridCol w:w="'.$ancho.'"/>',
+                        $tabla,
+                    ) ?? $tabla;
+                    $tabla = preg_replace(
+                        '/<w:tcW w:w="\d+" w:type="dxa"\/>/',
+                        '<w:tcW w:w="'.$ancho.'" w:type="dxa"/>',
+                        $tabla,
+                    ) ?? $tabla;
+                }
+
+                $parrafo = preg_replace_callback(
+                    '/<w:p\b[^>]*>(?:(?!<\/w:p>).)*Correo Institucional:(?:(?!<\/w:p>).)*<\/w:p>/su',
+                    static function (array $coincidencias): string {
+                        $bloque = $coincidencias[0];
+                        if (str_contains($bloque, '<w:jc ')) {
+                            $bloque = preg_replace('/<w:jc w:val="[^"]*"\/>/', '<w:jc w:val="left"/>', $bloque) ?? $bloque;
+                        }
+
+                        return preg_replace(
+                            '/Correo Institucional:\s*/u',
+                            "Correo\u{00A0}Institucional:\u{00A0}",
+                            $bloque,
+                            1,
+                        ) ?? $bloque;
+                    },
+                    $tabla,
+                );
+
+                return is_string($parrafo) ? $parrafo : $tabla;
+            },
+            $xml,
+        );
+
+        return is_string($result) ? $result : $xml;
+    }
+
+    private function anchoUtilPagina(string $xml): ?int
+    {
+        if (! preg_match('/<w:pgSz\b[^>]*\bw:w="(\d+)"/', $xml, $pagina)) {
+            return null;
+        }
+
+        if (! preg_match('/<w:pgMar\b[^>]*>/', $xml, $margen)) {
+            return null;
+        }
+
+        preg_match('/\bw:left="(\d+)"/', $margen[0], $izquierdo);
+        preg_match('/\bw:right="(\d+)"/', $margen[0], $derecho);
+
+        $ancho = (int) $pagina[1] - (int) ($izquierdo[1] ?? 0) - (int) ($derecho[1] ?? 0);
+
+        return $ancho > 0 ? $ancho : null;
     }
 
     private function xmlEscape(string $value): string

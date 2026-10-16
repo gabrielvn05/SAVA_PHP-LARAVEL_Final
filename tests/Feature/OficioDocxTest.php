@@ -28,6 +28,7 @@ class OficioDocxTest extends TestCase
             'apellidos' => 'García',
             'cedula' => '1312000099',
             'carrera' => 'software',
+            'email' => 'e1314977255@live.uleam.edu.ec',
         ]);
 
         $solicitud = Solicitud::query()->create([
@@ -67,8 +68,12 @@ class OficioDocxTest extends TestCase
         $this->assertStringNotContainsString('____', $xml);
         $this->assertStringContainsString('Fecha de generación del documento', $xml);
 
-        $this->assertStringContainsString('Correo Institucional:', $xml);
-        $this->assertStringContainsString($user->email, $xml);
+        $this->assertStringContainsString("Correo\u{00A0}Institucional:\u{00A0}".$user->email, $xml);
+        $this->assertStringContainsString('<w:gridCol w:w="8838"/>', $xml);
+        $this->assertMatchesRegularExpression(
+            '/<w:jc w:val="left"\/>(?:(?!<\/w:p>).)*Correo\x{00A0}Institucional:/su',
+            $xml,
+        );
         $this->assertStringNotContainsString('[Correo]', $xml);
         $this->assertStringContainsString('visita t', $xml);
         $this->assertStringNotContainsString('[Tipo de visita de campo]', $xml);
