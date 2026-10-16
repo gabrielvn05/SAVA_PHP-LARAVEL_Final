@@ -9,8 +9,10 @@ use App\Services\NotificacionFaltaCorreoService;
 use App\Services\NotificacionFaltaDocxService;
 use App\Services\NotificacionFaltaImportService;
 use App\Services\NotificacionFaltaService;
+use App\Support\CorreoEnvioResultado;
 use App\Support\NotificacionFaltaMarcacion;
 use App\Support\ViteManifest;
+use Illuminate\Support\Str;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -79,11 +81,12 @@ class NotificacionFaltaController extends Controller
         $notificacion = $this->service->crear($request->user(), $validated);
         $correo = $this->correoService->enviarAvisoColaborador($notificacion);
 
-        $mensaje = 'Notificación registrada. Puede previsualizar y descargar el oficio. '.$correo->mensajeUsuario;
+        $mensaje = $this->mensajeFlashNotificacionCorreo($correo);
+        $flash = $correo->enviadoAlBuzon ? 'success' : 'warning';
 
         return redirect()
             ->route('notificaciones-faltas.index')
-            ->with($correo->flashTipo(), $mensaje);
+            ->with($flash, $mensaje);
     }
 
     public function import(Request $request): RedirectResponse
@@ -181,5 +184,16 @@ class NotificacionFaltaController extends Controller
             'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
             'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
         ]);
+    }
+
+    private function mensajeFlashNotificacionCorreo(CorreoEnvioResultado $correo): string
+    {
+        $mensaje = 'Notificación registrada. Puede previsualizar y descargar el oficio. '.$correo->mensajeUsuario;
+
+        if (! $correo->enviadoAlBuzon && filled($correo->errorTecnico)) {
+            $mensaje .= ' Detalle: '.Str::limit($correo->errorTecnico, 220);
+        }
+
+        return $mensaje;
     }
 }

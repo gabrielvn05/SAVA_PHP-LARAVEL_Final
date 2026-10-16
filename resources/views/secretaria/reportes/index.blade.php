@@ -43,7 +43,9 @@
                 <input type="search" name="q" class="field__input" value="{{ $filtros['q'] ?? '' }}" placeholder="Nombre, correo, motivo…">
             </label>
             <button type="submit" class="btn btn--secondary btn--sm">Filtrar</button>
-            <a href="{{ route('reportes.export', request()->query()) }}" class="btn btn--primary btn--sm">Exportar CSV</a>
+            @php($exportQuery = request()->query())
+            <a href="{{ route('reportes.export', array_merge($exportQuery, ['format' => 'xlsx'])) }}" class="btn btn--primary btn--sm">Exportar Excel</a>
+            <a href="{{ route('reportes.export', array_merge($exportQuery, ['format' => 'csv'])) }}" class="btn btn--secondary btn--sm">Exportar CSV</a>
         </form>
 
         @if($solicitudes->isEmpty())
@@ -73,7 +75,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="field-hint">Mostrando hasta 50 registros. Exporta CSV para el listado completo.</p>
+            <p class="field-hint">Mostrando hasta 50 registros. Use Exportar Excel o CSV para el listado completo con los filtros actuales.</p>
         @endif
     </article>
 </section>

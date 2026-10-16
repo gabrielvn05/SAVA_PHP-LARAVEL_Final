@@ -9,6 +9,7 @@ use App\Models\Solicitud;
 use App\Services\ReporteExportService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReporteController extends Controller
@@ -40,14 +41,19 @@ class ReporteController extends Controller
         ]);
     }
 
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): StreamedResponse|BinaryFileResponse
     {
         $solicitudes = $this->filteredQuery($request)
             ->with('creador')
             ->orderByDesc('created_at')
             ->get();
 
-        return $this->exportService->exportGeneral($solicitudes);
+        $format = strtolower($request->string('format')->toString());
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            $format = 'xlsx';
+        }
+
+        return $this->exportService->exportGeneral($solicitudes, $format);
     }
 
     private function filteredQuery(Request $request)
