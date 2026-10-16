@@ -79,7 +79,7 @@
                     <col style="width: 22%;">
                     <col style="width: 12%;">
                     <col style="width: 10%;">
-                    @if($puedeCrear)
+                    @if($puedeDelegar)
                         <col style="width: 18%;">
                     @endif
                     <col style="width: 16%;">
@@ -90,8 +90,8 @@
                         <th>Correo</th>
                         <th>Rol</th>
                         <th>Estado</th>
-                        @if($puedeCrear)
-                            <th>Capacidades extra</th>
+                        @if($puedeDelegar)
+                            <th>Funciones</th>
                         @endif
                         <th class="data-table__cell--actions">Acciones</th>
                     </tr>
@@ -122,14 +122,25 @@
                                     {{ $usuario->activo ? 'Activo' : 'Inactivo' }}
                                 </span>
                             </td>
-                            @if($puedeCrear)
-                                <td class="data-table__cell--capabilities" data-label="Capacidades extra">
+                            @if($puedeDelegar)
+                                <td class="data-table__cell--capabilities" data-label="Funciones">
+                                    @php
+                                        $propiasDelRol = array_map(
+                                            static fn (\App\Enums\CapabilityType $capability): string => $capability->value,
+                                            $usuario->rol->defaultCapabilities(),
+                                        );
+                                    @endphp
                                     @if($usuario->capabilities->isEmpty())
                                         <span class="field-hint" style="margin: 0;">—</span>
                                     @else
                                         <ul class="capability-list">
                                             @foreach($usuario->capabilities as $cap)
-                                                <li>{{ $cap->capability->label() }}</li>
+                                                <li>
+                                                    {{ $cap->capability->label() }}
+                                                    @if(! in_array($cap->capability->value, $propiasDelRol, true))
+                                                        <span class="capability-list__tag">Delegada</span>
+                                                    @endif
+                                                </li>
                                             @endforeach
                                         </ul>
                                     @endif
@@ -140,8 +151,10 @@
                                     $tieneMenuRolEstado = $puedeEditar && ($rutas['rol'] ?? false) && ($rutas['estado'] ?? false);
                                     $tieneMenuLegacy = $puedeEditar && ($rutas['updateLegacy'] ?? false);
                                     $puedeResetClave = ($esSuperusuario ?? false) && ($rutas['resetClave'] ?? false) && $usuario->rol !== \App\Enums\AppRole::Superusuario;
-                                    $puedeDelegar = $puedeCrear && $usuario->rol !== \App\Enums\AppRole::Superusuario;
-                                    $tieneAcciones = $tieneMenuRolEstado || $tieneMenuLegacy || $puedeResetClave || $puedeDelegar;
+                                    $puedeDelegarFila = $puedeDelegar
+                                        && $usuario->id !== auth()->id()
+                                        && $usuario->rol !== \App\Enums\AppRole::Superusuario;
+                                    $tieneAcciones = $tieneMenuRolEstado || $tieneMenuLegacy || $puedeResetClave || $puedeDelegarFila;
                                 @endphp
 
                                 @if($usuario->rol === \App\Enums\AppRole::Superusuario)
@@ -168,7 +181,7 @@
                                         @if($puedeResetClave)
                                             <option value="reset-clave">Restablecer clave</option>
                                         @endif
-                                        @if($puedeDelegar)
+                                        @if($puedeDelegarFila)
                                             <option value="delegar">Delegar capacidad</option>
                                         @endif
                                     </select>
@@ -190,7 +203,9 @@
                 $tieneMenuRolEstadoStore = $puedeEditarStore && ($rutas['rol'] ?? false) && ($rutas['estado'] ?? false);
                 $tieneMenuLegacyStore = $puedeEditarStore && ($rutas['updateLegacy'] ?? false);
                 $puedeResetClaveStore = ($esSuperusuario ?? false) && ($rutas['resetClave'] ?? false) && $usuario->rol !== \App\Enums\AppRole::Superusuario;
-                $puedeDelegarStore = $puedeCrear && $usuario->rol !== \App\Enums\AppRole::Superusuario;
+                $puedeDelegarStore = $puedeDelegar
+                    && $usuario->id !== auth()->id()
+                    && $usuario->rol !== \App\Enums\AppRole::Superusuario;
             @endphp
                 @if($tieneMenuRolEstadoStore)
                     <template
@@ -291,24 +306,64 @@
                 @endif
 
                 @if($puedeDelegarStore)
+                    @php
+                        $propiasDelRolStore = array_map(
+                            static fn (\App\Enums\CapabilityType $capability): string => $capability->value,
+                            $usuario->rol->defaultCapabilities(),
+                        );
+                        $asignadasStore = $usuario->capabilities
+                            ->map(static fn ($cap): string => $cap->capability->value)
+                            ->all();
+                        $otorgablesStore = array_values(array_filter(
+                            $capabilities,
+                            static fn (\App\Enums\CapabilityType $capability): bool => ! in_array($capability->value, $propiasDelRolStore, true),
+                        ));
+                    @endphp
                     <template
                         data-user-admin-template="{{ $usuario->id }}-delegar"
                         data-modal-title="Delegar capacidad"
                         data-modal-subtitle="{{ $usuario->nombreCompleto() }} · {{ $usuario->email }}"
                     >
-                        <form method="POST" action="{{ route('admin.usuarios.delegate', $usuario) }}" class="user-admin-modal-form stack" data-loading-label="Delegando capacidad…">
+                        <form method="POST" action="{{ route('admin.usuarios.delegate', $usuario) }}" class="user-admin-modal-form stack" data-loading-label="Guardando funciones…">
                             @csrf
-                            <label class="field">
-                                <span class="field__label">Capacidad a delegar</span>
-                                <select name="capability" class="field__input" required>
-                                    @foreach($capabilities as $capability)
-                                        <option value="{{ $capability->value }}">{{ $capability->label() }}</option>
+                            <p class="logout-modal__text" style="margin: 0;">
+                                Active las funciones que esta persona puede ejercer.
+                                Firmar solicitudes o enviar faltas de Talento Humano queda a nombre del Decano.
+                            </p>
+                            @if($otorgablesStore === [])
+                                <p class="field-hint" style="margin: 0;">Este rol ya incluye las funciones que puede delegar.</p>
+                            @else
+                                <fieldset class="capability-picker">
+                                    <legend class="field__label">Funciones delegables</legend>
+                                    @foreach($otorgablesStore as $capability)
+                                        <label class="capability-picker__option">
+                                            <input
+                                                type="checkbox"
+                                                name="capabilities[]"
+                                                value="{{ $capability->value }}"
+                                                @checked(in_array($capability->value, $asignadasStore, true))
+                                            >
+                                            <span>
+                                                <strong>{{ $capability->label() }}</strong>
+                                                @if($capability === \App\Enums\CapabilityType::AprobarSolicitudes)
+                                                    <span class="field-hint">Visto bueno o firma de las solicitudes. El trámite queda firmado por el Decano.</span>
+                                                @elseif($capability === \App\Enums\CapabilityType::EmitirNotificacionesFaltas)
+                                                    <span class="field-hint">Envío de faltas de Talento Humano. El oficio sale del usuario del Decano.</span>
+                                                @endif
+                                            </span>
+                                        </label>
                                     @endforeach
-                                </select>
-                            </label>
+                                </fieldset>
+                            @endif
+                            @if($propiasDelRolStore !== [])
+                                <p class="field-hint" style="margin: 0;">
+                                    Ya incluidas en el rol:
+                                    {{ collect($usuario->rol->defaultCapabilities())->map(static fn (\App\Enums\CapabilityType $capability): string => $capability->label())->join(', ') }}.
+                                </p>
+                            @endif
                             <div class="logout-modal__actions">
                                 <button type="button" class="btn btn--ghost" data-user-admin-modal-close>Cancelar</button>
-                                <button type="submit" class="btn btn--primary">Delegar</button>
+                                <button type="submit" class="btn btn--primary" @disabled($otorgablesStore === [])>Guardar funciones</button>
                             </div>
                         </form>
                     </template>
@@ -339,7 +394,10 @@
         gap: 0.4rem;
     }
     .capability-list li {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.4rem;
         margin: 0;
         padding: 0.3rem 0.55rem;
         font-size: 0.72rem;
@@ -349,6 +407,39 @@
         background: #f1f5f9;
         border: 1px solid #e2e8f0;
         border-radius: 6px;
+    }
+    .capability-list__tag {
+        flex: none;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: #1e4f8a;
+    }
+    .capability-picker {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+    .capability-picker__option {
+        display: flex;
+        gap: 0.65rem;
+        align-items: flex-start;
+        margin: 0;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+    }
+    .capability-picker__option input {
+        margin-top: 0.2rem;
+    }
+    .capability-picker__option strong,
+    .capability-picker__option .field-hint {
+        display: block;
     }
     .user-action-picker {
         width: 100%;

@@ -166,7 +166,7 @@
         @if($user->rol === \App\Enums\AppRole::Decano)
             <article class="card dashboard-tile stack" style="border-left-color: var(--color-accent);">
                 <h2 style="margin: 0;">Usuarios</h2>
-                <p class="field-hint">Cambia el rol de docentes, administrativos y Secretaría.</p>
+                <p class="field-hint">Cambia el rol y delega la firma o el envío de faltas. Esas acciones quedan a nombre del Decano.</p>
                 <a href="{{ route('admin.usuarios.index') }}" class="btn btn--primary btn--sm" style="width: fit-content;">Gestionar usuarios</a>
             </article>
             <article class="card dashboard-tile stack" style="border-left-color: var(--color-accent);">

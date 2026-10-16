@@ -193,9 +193,9 @@
                                         @endif
                                     </td>
                                     <td data-label="Emisión">
-                                        <span class="text-truncate">{{ $item->emitidoPor?->nombreCompleto() }}</span>
+                                        <span class="text-truncate">{{ ($item->emitido_delegado ? $item->decano : $item->emitidoPor)?->nombreCompleto() }}</span>
                                         @if($item->emitido_delegado)
-                                            <span class="badge badge--muted badge--xs">Delegado</span>
+                                            <span class="field-hint">A nombre del Decano</span>
                                         @endif
                                     </td>
                                     <td data-label="Acciones">

@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Enums\AppRole;
+use App\Enums\CapabilityType;
 use App\Enums\SolicitudEstado;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Models\UserCapability;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -207,6 +209,42 @@ class SolicitudProcesoTest extends TestCase
         $this->assertSame($decano->id, $solicitud->firmado_por);
         $this->assertSame('Aprobado en revisión de Secretaría.', $solicitud->observaciones_secretaria);
         $this->assertSame('Aprobado y firmado por Decano.', $solicitud->observaciones_decano);
+    }
+
+    public function test_secretaria_delegada_firma_a_nombre_del_decano(): void
+    {
+        $solicitante = $this->usuario(AppRole::Administrativo, '1312000130');
+        $decano = $this->usuario(AppRole::Decano, '1312000131');
+        $secretaria = $this->usuario(AppRole::Secretaria, '1312000132');
+        UserCapability::query()->create([
+            'user_id' => $secretaria->id,
+            'capability' => CapabilityType::AprobarSolicitudes,
+            'otorgado_por' => $decano->id,
+            'created_at' => now(),
+        ]);
+        $solicitud = $this->crearSolicitud($solicitante, SolicitudEstado::PendienteAprobacionDecano);
+
+        $this->actingAs($secretaria)
+            ->get(route('solicitudes.show', $solicitud))
+            ->assertOk()
+            ->assertSee('El visto bueno y la firma quedarán a nombre del Decano')
+            ->assertSee(route('solicitudes.aprobar', $solicitud), false);
+
+        $this->actingAs($secretaria)
+            ->post(route('solicitudes.aprobar', $solicitud), [
+                'aprobado' => '1',
+            ])
+            ->assertRedirect();
+
+        $solicitud->refresh();
+        $this->assertSame(SolicitudEstado::Aprobada, $solicitud->estado);
+        $this->assertSame($decano->id, $solicitud->firmado_por);
+        $this->assertSame('Aprobado y firmado por Decano.', $solicitud->observaciones_decano);
+
+        $this->actingAs($solicitante)
+            ->get(route('solicitudes.show', $solicitud))
+            ->assertOk()
+            ->assertSee($decano->nombreCompleto(), false);
     }
 
     public function test_inbox_pagination_uses_compact_text_controls_instead_of_svg_chevrons(): void

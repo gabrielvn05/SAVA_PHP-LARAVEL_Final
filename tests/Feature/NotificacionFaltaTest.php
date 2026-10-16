@@ -66,7 +66,12 @@ class NotificacionFaltaTest extends TestCase
 
     public function test_secretaria_delegada_emite_como_decano_s(): void
     {
-        $decano = User::factory()->create(['rol' => AppRole::Decano, 'activo' => true]);
+        $decano = User::factory()->create([
+            'rol' => AppRole::Decano,
+            'activo' => true,
+            'nombres' => 'Alex',
+            'apellidos' => 'Santamaria',
+        ]);
         $secretaria = User::factory()->create(['rol' => AppRole::Secretaria]);
         UserCapability::query()->create([
             'user_id' => $secretaria->id,
@@ -90,6 +95,25 @@ class NotificacionFaltaTest extends TestCase
         $notificacion = NotificacionFalta::query()->first();
         $this->assertTrue($notificacion->emitido_delegado);
         $this->assertSame($decano->id, $notificacion->decano_id);
+        $this->assertSame($secretaria->id, $notificacion->emitido_por_id);
+
+        $this->actingAs($secretaria)
+            ->get(route('notificaciones-faltas.show', $notificacion))
+            ->assertOk()
+            ->assertSee('Salió del usuario de '.$decano->nombreCompleto(), false)
+            ->assertSee('Decano de FACIVITEC', false);
+
+        $binary = app(NotificacionFaltaDocxService::class)->generar($notificacion);
+        $temp = tempnam(sys_get_temp_dir(), 'notif-delegada-');
+        file_put_contents($temp, $binary);
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($temp));
+        $xml = $zip->getFromName('word/document.xml') ?: '';
+        $zip->close();
+        @unlink($temp);
+
+        $this->assertStringContainsString($decano->nombreCompleto(), $xml);
+        $this->assertStringNotContainsString('Decano (s)', $xml);
     }
 
     public function test_genera_docx_con_datos_del_colaborador(): void

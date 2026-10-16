@@ -15,7 +15,7 @@ enum CapabilityType: string
         return match ($this) {
             self::GestionarUsuarios => 'Gestionar usuarios',
             self::RevisarSolicitudes => 'Revisar solicitudes',
-            self::AprobarSolicitudes => 'Aprobar solicitudes',
+            self::AprobarSolicitudes => 'Firmar o dar visto bueno',
             self::GenerarSolicitudes => 'Generar solicitudes',
             self::EmitirNotificacionesFaltas => 'Emitir notificaciones de faltas (TH)',
         };

@@ -82,9 +82,13 @@
                 <dt>Registro en SAVA</dt>
                 <dd>{{ $notificacion->created_at->format('d/m/Y H:i') }}</dd>
                 <p class="detail-list__meta">
-                    Emitido por {{ $notificacion->emitidoPor?->nombreCompleto() }}
                     @if($notificacion->emitido_delegado)
-                        (secretaría delegada · Decano s)
+                        Salió del usuario de {{ $notificacion->decano?->nombreCompleto() }} (Decano)
+                        @if($notificacion->emitidoPor && $notificacion->emitidoPor->id !== $notificacion->decano_id)
+                            · registrado por {{ $notificacion->emitidoPor->nombreCompleto() }}
+                        @endif
+                    @else
+                        Emitido por {{ $notificacion->emitidoPor?->nombreCompleto() }}
                     @endif
                 </p>
             </div>

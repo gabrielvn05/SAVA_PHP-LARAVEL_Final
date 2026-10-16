@@ -75,6 +75,13 @@ class AppNotificationService
                 "Secretaría aprobó la solicitud {$codigo}; requiere su firma.",
                 route('solicitudes.show', $solicitud),
             );
+            $this->notifyCapacidadDelegada(
+                CapabilityType::AprobarSolicitudes,
+                AppNotificationKind::SolicitudPendienteDecano,
+                'Solicitud pendiente de visto bueno',
+                "La solicitud {$codigo} espera firma. Si la registra, quedará a nombre del Decano.",
+                route('solicitudes.show', $solicitud),
+            );
         }
 
         $creador = $solicitud->creador;
@@ -163,6 +170,23 @@ class AppNotificationService
             ->get();
 
         $this->notifyUsers($decanos, $kind, $title, $message, $url);
+    }
+
+    private function notifyCapacidadDelegada(
+        CapabilityType $capability,
+        AppNotificationKind $kind,
+        string $title,
+        string $message,
+        ?string $url = null,
+    ): void {
+        $users = User::query()
+            ->where('activo', true)
+            ->whereNotIn('rol', [AppRole::Decano, AppRole::Superusuario])
+            ->whereHas('capabilities', fn ($query) => $query->where('capability', $capability->value))
+            ->get()
+            ->filter(fn (User $user): bool => ! in_array($capability, $user->rol->defaultCapabilities(), true));
+
+        $this->notifyUsers($users, $kind, $title, $message, $url);
     }
 
     private function notifyCapacidad(

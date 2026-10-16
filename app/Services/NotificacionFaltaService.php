@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Enums\AppRole;
+use App\Enums\CapabilityType;
 use App\Enums\SolicitudEstado;
 use App\Models\NotificacionFalta;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Support\Carreras;
+use App\Support\DelegacionDecano;
 use App\Support\NotificacionFaltaCodigo;
 use App\Support\NotificacionFaltaMarcacion;
 use Carbon\CarbonInterface;
@@ -60,6 +62,13 @@ class NotificacionFaltaService
         $delegado = $emitidoPor->id !== $decano->id
             && $emitidoPor->rol !== AppRole::Decano
             && $emitidoPor->rol !== AppRole::Superusuario;
+
+        if ($delegado) {
+            $titular = DelegacionDecano::decanoTitular($emitidoPor, CapabilityType::EmitirNotificacionesFaltas);
+            if ($titular !== null) {
+                $decano = $titular;
+            }
+        }
 
         return DB::transaction(function () use ($destinatario, $decano, $emitidoPor, $fecha, $tipo, $delegado, $datos): NotificacionFalta {
             $codigo = NotificacionFaltaCodigo::siguiente();

@@ -90,7 +90,7 @@ class NotificacionFaltaDocxService
             '[Fecha de la falta]' => $notificacion->fecha_falta->locale('es')->translatedFormat('j \d\e F \d\e Y'),
             '[Tipo de marcación faltante]' => NotificacionFaltaMarcacion::enOracion($notificacion->tipo_marcacion),
             '[Nombre del decano]' => $decano->nombreCompleto(),
-            '[Título del firmante]' => $notificacion->emitido_delegado ? 'Decano (s)' : 'Decano',
+            '[Título del firmante]' => 'Decano',
             '[Fecha automática del sistema]' => now()->locale('es')->translatedFormat('d \d\e F \d\e Y'),
             '_correo_decano' => $decano->email ?? '—',
         ];

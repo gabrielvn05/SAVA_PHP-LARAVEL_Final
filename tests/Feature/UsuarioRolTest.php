@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\AppRole;
+use App\Enums\CapabilityType;
 use App\Models\User;
+use App\Models\UserCapability;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,6 +22,9 @@ class UsuarioRolTest extends TestCase
             ->get(route('admin.usuarios.index'))
             ->assertOk()
             ->assertSee('Cambiar rol')
+            ->assertSee('Delegar capacidad')
+            ->assertSee('Firmar o dar visto bueno')
+            ->assertSee('Emitir notificaciones de faltas (TH)')
             ->assertSee($docente->email)
             ->assertDontSee('Superusuario', false);
 
@@ -97,9 +102,59 @@ class UsuarioRolTest extends TestCase
 
         $this->actingAs($super)
             ->post(route('admin.usuarios.delegate', $docente), [
-                'capability' => 'hackear_sistema',
+                'capabilities' => ['hackear_sistema'],
             ])
-            ->assertSessionHasErrors('capability');
+            ->assertSessionHasErrors('capabilities.0');
+    }
+
+    public function test_decano_delega_firma_y_faltas_a_secretaria_y_puede_quitarlas(): void
+    {
+        $decano = $this->usuario(AppRole::Decano, '1313000021');
+        $secretaria = $this->usuario(AppRole::Secretaria, '1313000022');
+
+        $this->actingAs($decano)
+            ->post(route('admin.usuarios.delegate', $secretaria), [
+                'capabilities' => [
+                    CapabilityType::AprobarSolicitudes->value,
+                    CapabilityType::EmitirNotificacionesFaltas->value,
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertTrue($secretaria->fresh()->hasCapability(CapabilityType::AprobarSolicitudes));
+        $this->assertTrue($secretaria->fresh()->hasCapability(CapabilityType::EmitirNotificacionesFaltas));
+        $this->assertSame(
+            $decano->id,
+            UserCapability::query()
+                ->where('user_id', $secretaria->id)
+                ->where('capability', CapabilityType::AprobarSolicitudes->value)
+                ->value('otorgado_por'),
+        );
+
+        $this->actingAs($decano)
+            ->post(route('admin.usuarios.delegate', $secretaria), [
+                'capabilities' => [],
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse($secretaria->fresh()->hasCapability(CapabilityType::AprobarSolicitudes));
+        $this->assertFalse($secretaria->fresh()->hasCapability(CapabilityType::EmitirNotificacionesFaltas));
+        $this->assertTrue($secretaria->fresh()->hasCapability(CapabilityType::RevisarSolicitudes));
+    }
+
+    public function test_decano_no_puede_delegar_gestion_de_usuarios(): void
+    {
+        $decano = $this->usuario(AppRole::Decano, '1313000023');
+        $secretaria = $this->usuario(AppRole::Secretaria, '1313000024');
+
+        $this->actingAs($decano)
+            ->post(route('admin.usuarios.delegate', $secretaria), [
+                'capabilities' => [CapabilityType::GestionarUsuarios->value],
+            ])
+            ->assertSessionHasErrors('capabilities.0');
+
+        $this->assertFalse($secretaria->fresh()->hasCapability(CapabilityType::GestionarUsuarios));
     }
 
     public function test_secretaria_cannot_manage_users(): void

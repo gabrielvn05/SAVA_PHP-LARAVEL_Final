@@ -12,6 +12,7 @@ use App\Rules\StrongPassword;
 use App\Services\AuditService;
 use App\Services\UsuarioImportService;
 use App\Support\AssignableAppRoles;
+use App\Support\DelegacionDecano;
 use App\Support\InstitutionalEmail;
 use App\Support\TemporaryPasswordGenerator;
 use Illuminate\Http\RedirectResponse;
@@ -46,9 +47,10 @@ class UsuarioController extends Controller
         return view('admin.usuarios.index', [
             'usuarios' => $usuarios,
             'roles' => $rolesAsignables,
-            'capabilities' => CapabilityType::cases(),
+            'capabilities' => DelegacionDecano::capacidadesQuePuedeOtorgar($actor),
             'puedeCrear' => $actor->rol === AppRole::Superusuario,
             'puedeCambiarRol' => $actor->hasCapability(CapabilityType::GestionarUsuarios),
+            'puedeDelegar' => $actor->rol === AppRole::Superusuario || $actor->rol === AppRole::Decano,
             'esSuperusuario' => $actor->rol === AppRole::Superusuario,
             'rutas' => [
                 'importCsv' => Route::has('admin.usuarios.import-csv'),
@@ -197,23 +199,74 @@ class UsuarioController extends Controller
     {
         $this->authorize('delegate', $usuario);
 
-        $validated = $request->validate([
-            'capability' => ['required', Rule::enum(CapabilityType::class)],
-        ], [
-            'capability.enum' => 'Selecciona una capacidad válida.',
-        ]);
-
-        UserCapability::query()->updateOrCreate(
-            [
-                'user_id' => $usuario->id,
-                'capability' => $validated['capability'],
-            ],
-            [
-                'otorgado_por' => auth()->id(),
-                'created_at' => now(),
-            ]
+        $actor = $request->user();
+        $permitidas = array_map(
+            static fn (CapabilityType $capability): string => $capability->value,
+            DelegacionDecano::capacidadesQuePuedeOtorgar($actor),
         );
 
-        return back()->with('success', 'Capacidad delegada correctamente.');
+        $validated = $request->validate([
+            'capabilities' => ['nullable', 'array'],
+            'capabilities.*' => ['string', Rule::in($permitidas)],
+        ], [
+            'capabilities.*.in' => 'Selecciona una capacidad válida.',
+        ]);
+
+        $seleccionadas = collect($validated['capabilities'] ?? [])
+            ->map(static fn (string $value): CapabilityType => CapabilityType::from($value))
+            ->unique(static fn (CapabilityType $capability): string => $capability->value)
+            ->values();
+
+        $defaults = array_map(
+            static fn (CapabilityType $capability): string => $capability->value,
+            $usuario->rol->defaultCapabilities(),
+        );
+        $alcance = array_values(array_filter(
+            $permitidas,
+            static fn (string $value): bool => ! in_array($value, $defaults, true),
+        ));
+        $mantener = $seleccionadas
+            ->map(static fn (CapabilityType $capability): string => $capability->value)
+            ->reject(static fn (string $value): bool => in_array($value, $defaults, true))
+            ->values()
+            ->all();
+
+        if ($alcance !== []) {
+            $quitar = UserCapability::query()
+                ->where('user_id', $usuario->id)
+                ->whereIn('capability', $alcance);
+
+            if ($mantener !== []) {
+                $quitar->whereNotIn('capability', $mantener);
+            }
+
+            $quitar->delete();
+        }
+
+        foreach ($seleccionadas as $capability) {
+            if (in_array($capability->value, $defaults, true)) {
+                continue;
+            }
+
+            $yaExiste = UserCapability::query()
+                ->where('user_id', $usuario->id)
+                ->where('capability', $capability->value)
+                ->exists();
+
+            if ($yaExiste) {
+                continue;
+            }
+
+            UserCapability::query()->create([
+                'user_id' => $usuario->id,
+                'capability' => $capability,
+                'otorgado_por' => $actor->id,
+                'created_at' => now(),
+            ]);
+        }
+
+        $this->audit->log('UPDATE', $usuario);
+
+        return back()->with('success', 'Funciones actualizadas. Lo que esta persona haga con una función del Decano quedará a nombre del Decano.');
     }
 }

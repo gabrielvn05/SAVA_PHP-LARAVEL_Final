@@ -185,7 +185,13 @@
         <article class="card stack" data-proceso-acciones>
             <h2 class="solicitud-section-title">Acciones</h2>
             @if($puedeActuarDecano)
-                <p class="field-hint" style="margin: 0;">Aprueba o rechaza con firma de Decano.</p>
+                <p class="field-hint" style="margin: 0;">
+                    @if($firmaEnNombreDelDecano ?? false)
+                        El visto bueno y la firma quedarán a nombre del Decano.
+                    @else
+                        Aprueba o rechaza con firma de Decano.
+                    @endif
+                </p>
             @endif
             <div class="proceso-actions">
                 <form method="POST" action="{{ $accionUrl }}" data-loading-label="Aprobando…">

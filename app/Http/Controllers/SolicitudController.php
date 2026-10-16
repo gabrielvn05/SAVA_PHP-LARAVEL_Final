@@ -14,6 +14,7 @@ use App\Services\OficioPdfService;
 use App\Services\SolicitudOficioFirmadoService;
 use App\Services\SolicitudWorkflowService;
 use App\Support\AdjuntoPreview;
+use App\Support\DelegacionDecano;
 use App\Support\SolicitudAdjuntos;
 use App\Support\SolicitudTimeline;
 use App\Support\SolicitudValidator;
@@ -382,6 +383,7 @@ class SolicitudController extends Controller
             'mostrarOficioInstitucional' => $mostrarOficioInstitucional,
             'puedeActuarSecretaria' => $user->can('revisar', $solicitud) && $solicitud->creado_por !== $user->id,
             'puedeActuarDecano' => $user->can('aprobar', $solicitud) && $solicitud->creado_por !== $user->id,
+            'firmaEnNombreDelDecano' => DelegacionDecano::esDelegada($user, CapabilityType::AprobarSolicitudes),
             'oficioUsaPlantillaDocx' => $oficioUsaPlantillaDocx,
             'oficioVistaPdf' => $this->oficioPdf->puedeMostrarPdfEnVisor($solicitud),
             'oficioPreviewUrl' => $oficioPreviewUrl,

@@ -13,6 +13,7 @@ use App\Services\AuditService;
 use App\Services\SolicitudNotificacionService;
 use App\Services\SolicitudWorkflowService;
 use App\Support\Carreras;
+use App\Support\DelegacionDecano;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -115,7 +116,7 @@ class SolicitudProcesoController extends Controller
 
         $old = $solicitud->toArray();
         $revisor = auth()->user();
-        $revisorFirmaComoDecano = $revisor->hasCapability(CapabilityType::AprobarSolicitudes);
+        $revisorFirmaComoDecano = in_array($revisor->rol, [AppRole::Decano, AppRole::Superusuario], true);
         $nuevoEstado = $this->workflow->estadoTrasRevisionSecretaria(
             $solicitud->creador->rol,
             $aprobado,
@@ -182,11 +183,20 @@ class SolicitudProcesoController extends Controller
             return back()->with('error', 'Debe indicar el motivo del rechazo.');
         }
 
+        $actor = auth()->user();
+        $firmante = $actor;
+        if (DelegacionDecano::esDelegada($actor, CapabilityType::AprobarSolicitudes)) {
+            $firmante = DelegacionDecano::decanoTitular($actor, CapabilityType::AprobarSolicitudes);
+            if ($firmante === null) {
+                return back()->with('error', 'No hay un Decano activo. El visto bueno debe quedar a nombre del Decano.');
+            }
+        }
+
         $old = $solicitud->toArray();
 
         $solicitud->update([
             'estado' => $aprobado ? SolicitudEstado::Aprobada : SolicitudEstado::Rechazada,
-            'firmado_por' => auth()->id(),
+            'firmado_por' => $firmante->id,
             'observaciones_decano' => $validated['observaciones_decano'] ?? null,
             'fecha_firma' => now(),
         ]);

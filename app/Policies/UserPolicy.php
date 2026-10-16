@@ -25,7 +25,11 @@ class UserPolicy
 
     public function delegate(User $user, User $model): bool
     {
-        return $user->rol === AppRole::Superusuario;
+        if ($model->rol === AppRole::Superusuario || $model->id === $user->id) {
+            return false;
+        }
+
+        return $user->rol === AppRole::Superusuario || $user->rol === AppRole::Decano;
     }
 
     public function resetPassword(User $user, User $model): bool
