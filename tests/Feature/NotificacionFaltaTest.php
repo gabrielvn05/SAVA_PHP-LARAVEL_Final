@@ -54,6 +54,18 @@ class NotificacionFaltaTest extends TestCase
             ->get(route('notificaciones-faltas.descargar', $notificacion))
             ->assertOk()
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+        $vista = $this->actingAs($decano)
+            ->get(route('notificaciones-faltas.preview', $notificacion));
+
+        $vista->assertOk();
+        $tipo = (string) $vista->headers->get('content-type');
+        if (str_contains($tipo, 'application/pdf')) {
+            $this->assertStringStartsWith('%PDF', $vista->getContent());
+        } else {
+            $vista->assertSee('data-oficio-docx-url', false)
+                ->assertSee($notificacion->codigo_oficio, false);
+        }
     }
 
     public function test_secretaria_sin_delegacion_no_accede(): void

@@ -9,9 +9,11 @@ use App\Services\NotificacionFaltaCorreoService;
 use App\Services\NotificacionFaltaDocxService;
 use App\Services\NotificacionFaltaImportService;
 use App\Services\NotificacionFaltaService;
+use App\Services\OficioPdfService;
 use App\Support\CorreoEnvioResultado;
 use App\Support\NotificacionFaltaMarcacion;
 use App\Support\ViteManifest;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +27,7 @@ class NotificacionFaltaController extends Controller
         private readonly NotificacionFaltaImportService $importService,
         private readonly NotificacionFaltaDocxService $docxService,
         private readonly NotificacionFaltaCorreoService $correoService,
+        private readonly OficioPdfService $pdfService,
     ) {}
 
     public function index(Request $request): View
@@ -140,17 +143,30 @@ class NotificacionFaltaController extends Controller
 
         return view('notificaciones-faltas.show', [
             'notificacion' => $notificacionFalta,
+            'vistaPdf' => $this->pdfOriginal($notificacionFalta) !== null,
         ]);
     }
 
-    public function preview(NotificacionFalta $notificacionFalta): View
+    public function preview(NotificacionFalta $notificacionFalta): View|Response
     {
         $this->authorize('view', $notificacionFalta);
+
+        $pdf = $this->pdfOriginal($notificacionFalta);
+        if (is_string($pdf) && $pdf !== '') {
+            $nombre = $notificacionFalta->codigo_oficio.'.pdf';
+
+            return response($pdf, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.$nombre.'"',
+                'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
+            ]);
+        }
 
         return view('certificado.oficio-preview-shell', [
             'solicitud' => null,
             'docxUrl' => route('notificaciones-faltas.documento', $notificacionFalta),
             'descargarUrl' => route('notificaciones-faltas.descargar', $notificacionFalta),
+            'htmlFallbackUrl' => '',
             'codigo' => $notificacionFalta->codigo_oficio,
             'avisoAproximado' => true,
             'pdfNoDisponible' => true,
@@ -184,6 +200,37 @@ class NotificacionFaltaController extends Controller
             'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
             'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
         ]);
+    }
+
+    private function pdfOriginal(NotificacionFalta $notificacion): ?string
+    {
+        $cache = storage_path('app/oficios/pdf/notificacion-'.$notificacion->id.'.'.OficioPdfService::PLANTILLA_VERSION.'.pdf');
+        $plantilla = $this->docxService->plantillaPath();
+        $actualizado = $notificacion->updated_at?->getTimestamp() ?? 0;
+
+        if (is_file($cache) && filemtime($cache) >= $actualizado && ($plantilla === null || filemtime($plantilla) <= filemtime($cache))) {
+            $desdeCache = file_get_contents($cache);
+
+            return is_string($desdeCache) && $desdeCache !== '' ? $desdeCache : null;
+        }
+
+        try {
+            $docx = $this->docxService->generar($notificacion);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
+
+        $pdf = $this->pdfService->convertir($docx);
+        if (! is_string($pdf) || $pdf === '') {
+            return null;
+        }
+
+        File::ensureDirectoryExists(dirname($cache));
+        file_put_contents($cache, $pdf);
+
+        return $pdf;
     }
 
     private function mensajeFlashNotificacionCorreo(CorreoEnvioResultado $correo): string

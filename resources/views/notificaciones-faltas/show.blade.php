@@ -29,10 +29,10 @@
         <h2 class="solicitud-preview__title">Vista previa del oficio</h2>
         <x-doc-viewer
             title="Oficio de notificación"
-            :file-name="$notificacion->codigo_oficio.'.docx'"
+            :file-name="$notificacion->codigo_oficio.(($vistaPdf ?? false) ? '.pdf' : '.docx')"
             :src="route('notificaciones-faltas.preview', $notificacion)"
             :download-href="route('notificaciones-faltas.descargar', $notificacion)"
-            kind="docx"
+            :kind="($vistaPdf ?? false) ? 'pdf' : 'docx'"
         />
     </article>
 

@@ -26,7 +26,7 @@
 </head>
 <body
     data-oficio-docx-url="{{ $docxUrl }}"
-    data-oficio-html-url="{{ $htmlFallbackUrl }}"
+    data-oficio-html-url="{{ $htmlFallbackUrl ?? '' }}"
     data-oficio-codigo="{{ $codigo }}"
 >
     <div class="oficio-preview-root">
@@ -79,9 +79,13 @@
 
             init().catch(function (error) {
                 console.error(error);
-                status.textContent = 'Mostrando el oficio con sello institucional…';
+                if (htmlUrl) {
+                    status.textContent = 'Mostrando el oficio con sello institucional…';
+                    showHtmlFallback();
+                    return;
+                }
+                status.textContent = 'No se pudo mostrar el documento original. Usa Descargar para abrir el archivo Word.';
                 status.classList.add('oficio-preview-status--error');
-                showHtmlFallback();
             });
         })();
     </script>

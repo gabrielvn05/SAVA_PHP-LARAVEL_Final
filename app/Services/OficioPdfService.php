@@ -13,6 +13,11 @@ class OficioPdfService
 {
     public function __construct(private readonly OficioDocxService $docx) {}
 
+    public function convertir(string $docxBinary): ?string
+    {
+        return $this->convertirDocx($docxBinary);
+    }
+
     public function puedeConvertir(): bool
     {
         $path = config('oficio.libreoffice_path');
