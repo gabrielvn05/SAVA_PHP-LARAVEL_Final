@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\Auth\PasswordRecoveryController;
 use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\SolicitarCuentaController;
@@ -23,6 +24,10 @@ Route::get('/', function () {
         ? redirect()->route('dashboard')
         : redirect()->route('login');
 });
+
+Route::get('/legal/{documento}', [LegalDocumentController::class, 'show'])
+    ->whereIn('documento', ['terminos', 'privacidad'])
+    ->name('legal.show');
 
 Route::get('/login', [LoginController::class, 'create'])->name('login');
 Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:5,1')->name('login.store');

@@ -178,7 +178,7 @@
                             <label class="field">
                                 <span class="field__label">Nueva contraseña</span>
                                 <div class="password-input-wrap">
-                                    <input type="password" name="new_password" class="password-input-wrap__input field__input profile-field__input" required minlength="8" autocomplete="new-password">
+                                    <input id="profile_new_password" type="password" name="new_password" class="password-input-wrap__input field__input profile-field__input" required minlength="9" autocomplete="new-password" aria-describedby="password-strength-profile">
                                     <button type="button" class="password-input-wrap__toggle" data-password-toggle aria-label="Mostrar contraseña" aria-pressed="false">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                             <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
@@ -186,11 +186,14 @@
                                         </svg>
                                     </button>
                                 </div>
+                                <div id="password-strength-profile">
+                                    @include('partials.password-strength', ['inputId' => 'profile_new_password'])
+                                </div>
                             </label>
                             <label class="field">
                                 <span class="field__label">Confirmar nueva contraseña</span>
                                 <div class="password-input-wrap">
-                                    <input type="password" name="new_password_confirmation" class="password-input-wrap__input field__input profile-field__input" required minlength="8" autocomplete="new-password">
+                                    <input type="password" name="new_password_confirmation" class="password-input-wrap__input field__input profile-field__input" required minlength="9" autocomplete="new-password">
                                     <button type="button" class="password-input-wrap__toggle" data-password-toggle aria-label="Mostrar contraseña" aria-pressed="false">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                             <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
@@ -202,7 +205,7 @@
                             </label>
                         </div>
 
-                        <p class="field-hint" style="margin: 0;">Mínimo 8 caracteres, con mayúscula, minúscula, número y carácter especial.</p>
+                        <p class="field-hint" style="margin: 0;">Más de 8 caracteres, con mayúscula, minúscula, número y carácter especial.</p>
 
                         <div class="profile-contact__actions">
                             <button type="submit" class="btn btn--primary">Actualizar contraseña</button>

@@ -17,6 +17,7 @@
         'rol_invalido' => 'Selecciona un rol válido.',
         'correo_invalido' => 'Indica un correo electrónico válido.',
         'correo_no_institucional' => 'Use su correo institucional ULEAM. No se aceptan correos temporales.',
+        'declaraciones_pendientes' => 'Debes marcar todas las declaraciones para enviar la solicitud.',
     ];
     $mensaje = $mensajes[$aviso ?? ''] ?? null;
 @endphp
@@ -104,6 +105,27 @@
                         </select>
                     </label>
                 </div>
+
+                <fieldset class="legal-declarations">
+                    <legend>Declaraciones obligatorias</legend>
+                    <label class="legal-check">
+                        <input type="checkbox" name="declaracion_veraz" value="1" required @checked(old('declaracion_veraz'))>
+                        <span>Declaro que la información proporcionada para la creación de mi cuenta es veraz, completa y actualizada, según mi leal saber y entender.</span>
+                    </label>
+                    <label class="legal-check">
+                        <input type="checkbox" name="declaracion_terminos" value="1" required @checked(old('declaracion_terminos'))>
+                        <span>Declaro que he leído y tenido acceso a los <a href="{{ route('legal.show', 'terminos') }}" target="_blank" rel="noopener">Términos y Condiciones de Uso de SAVA ULEAM</a>.</span>
+                    </label>
+                    <label class="legal-check">
+                        <input type="checkbox" name="declaracion_privacidad" value="1" required @checked(old('declaracion_privacidad'))>
+                        <span>Declaro que he leído y tenido acceso al <a href="{{ route('legal.show', 'privacidad') }}" target="_blank" rel="noopener">Aviso de Privacidad y Protección de Datos Personales</a>.</span>
+                    </label>
+                    <label class="legal-check">
+                        <input type="checkbox" name="acepto_terminos" value="1" required @checked(old('acepto_terminos'))>
+                        <span>Acepto los <a href="{{ route('legal.show', 'terminos') }}" target="_blank" rel="noopener">Términos y Condiciones de Uso de SAVA ULEAM</a>.</span>
+                    </label>
+                </fieldset>
+
                 <div class="row" style="gap: 8px; flex-wrap: wrap;">
                     <button type="submit" class="btn btn--primary">Enviar solicitud</button>
                     <a href="{{ route('login') }}" class="btn btn--secondary">Volver al login</a>

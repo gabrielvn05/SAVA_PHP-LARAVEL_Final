@@ -20,7 +20,7 @@
     @if($puedeCrear)
         <article class="card stack">
             <h2 style="margin: 0; font-size: 1.1rem;">Crear usuario interno</h2>
-            <p class="field-hint" style="margin: 0;">Correo institucional ULEAM. Contraseña: mínimo 8 caracteres, mayúscula, minúscula, número y carácter especial.</p>
+            <p class="field-hint" style="margin: 0;">Correo institucional ULEAM. Contraseña: más de 8 caracteres, mayúscula, minúscula, número y carácter especial.</p>
             <form method="POST" action="{{ route('admin.usuarios.store') }}" class="form-grid">
                 @csrf
                 <label class="field">
@@ -29,7 +29,8 @@
                 </label>
                 <label class="field">
                     <span class="field__label">Contraseña *</span>
-                    <input type="password" name="password" required minlength="8" class="field__input" autocomplete="new-password">
+                    <input id="admin_password" type="password" name="password" required minlength="9" class="field__input" autocomplete="new-password">
+                    @include('partials.password-strength', ['inputId' => 'admin_password'])
                 </label>
                 <label class="field">
                     <span class="field__label">Nombres *</span>

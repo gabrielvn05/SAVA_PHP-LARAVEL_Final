@@ -34,7 +34,9 @@ class SolicitarCuentaController extends Controller
         $result = $this->validator->validate($request->all());
 
         if (! $result['ok']) {
-            return redirect()->route('solicitar-cuenta.create', ['aviso' => $result['aviso']]);
+            $redirect = redirect()->route('solicitar-cuenta.create', ['aviso' => $result['aviso']]);
+
+            return $result['aviso'] === 'declaraciones_pendientes' ? $redirect->withInput() : $redirect;
         }
 
         $data = $result['data'];

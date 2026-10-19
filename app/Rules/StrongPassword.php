@@ -11,8 +11,8 @@ class StrongPassword implements ValidationRule
     {
         $password = (string) $value;
 
-        if (strlen($password) < 8) {
-            $fail('La contraseña debe tener al menos 8 caracteres.');
+        if (strlen($password) <= 8) {
+            $fail('La contraseña debe tener más de 8 caracteres.');
 
             return;
         }

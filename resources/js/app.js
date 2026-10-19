@@ -1,6 +1,7 @@
 import './bootstrap';
 import { initSolicitudAdjuntos } from './solicitud-adjuntos.js';
 import { initOficioFirmaNavegador } from './oficio-firma-navegador.js';
+import { initPasswordStrength } from './password-strength.js';
 
 function registerPwa() {
     if (!('serviceWorker' in navigator)) return;
@@ -540,6 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTopbarMenus();
     initSidebar();
     initPasswordToggles();
+    initPasswordStrength();
     initLoadingForms();
     initWizard();
     initSolicitudAdjuntos();

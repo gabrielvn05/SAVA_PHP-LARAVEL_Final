@@ -14,6 +14,35 @@ class SolicitarCuentaTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_muestra_declaraciones_obligatorias_y_los_documentos(): void
+    {
+        $this->get(route('solicitar-cuenta.create'))
+            ->assertOk()
+            ->assertSee('Declaro que la información proporcionada', false)
+            ->assertSee('Acepto los', false)
+            ->assertSee(route('legal.show', 'terminos'), false)
+            ->assertSee(route('legal.show', 'privacidad'), false);
+
+        $this->get(route('legal.show', 'terminos'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->get(route('legal.show', 'privacidad'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_rechaza_solicitud_sin_declaraciones(): void
+    {
+        $this->post(route('solicitar-cuenta.store'), $this->payload([
+            'declaracion_veraz' => '0',
+            'acepto_terminos' => null,
+        ]))
+            ->assertRedirect(route('solicitar-cuenta.create', ['aviso' => 'declaraciones_pendientes'], false));
+
+        $this->assertSame(0, AccountRequest::query()->count());
+    }
+
     public function test_rechaza_correo_temporal(): void
     {
         $this->post(route('solicitar-cuenta.store'), $this->payload([
@@ -132,6 +161,10 @@ class SolicitarCuentaTest extends TestCase
             'email' => 'nuevo.docente@uleam.edu.ec',
             'carrera' => 'software',
             'rol_solicitado' => 'docente',
+            'declaracion_veraz' => '1',
+            'declaracion_terminos' => '1',
+            'declaracion_privacidad' => '1',
+            'acepto_terminos' => '1',
         ], $overrides);
     }
 }

@@ -3008,6 +3008,129 @@ nav[aria-label="Pagination Navigation"] {
   outline-offset: 2px;
 }
 
+.password-strength {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.password-strength__meter {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #e6ebf2;
+  overflow: hidden;
+}
+
+.password-strength__bar {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: #9aa6b5;
+  transition: width 0.35s ease, background-color 0.35s ease;
+  transform-origin: left center;
+}
+
+.password-strength[data-tone="weak"] .password-strength__bar { background: #c2410c; }
+.password-strength[data-tone="fair"] .password-strength__bar { background: #b45309; }
+.password-strength[data-tone="good"] .password-strength__bar { background: #0f766e; }
+.password-strength[data-tone="strong"] .password-strength__bar {
+  background: #0d7a4f;
+  animation: password-strength-pulse 1.1s ease;
+}
+
+.password-strength__label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.password-strength[data-tone="weak"] .password-strength__label { color: #c2410c; }
+.password-strength[data-tone="fair"] .password-strength__label { color: #b45309; }
+.password-strength[data-tone="good"] .password-strength__label { color: #0f766e; }
+.password-strength[data-tone="strong"] .password-strength__label { color: #0d7a4f; }
+
+.password-strength__rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.password-strength__rules li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #667085;
+}
+
+.password-strength__rules li::before {
+  content: "";
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 1.5px solid #c5ced9;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.password-strength__rules li.is-met {
+  color: #0d7a4f;
+}
+
+.password-strength__rules li.is-met::before {
+  content: "✓";
+  width: auto;
+  height: auto;
+  border: none;
+  color: #0d7a4f;
+  font-size: 0.85rem;
+  font-weight: 700;
+  animation: password-rule-in 0.28s ease;
+}
+
+@keyframes password-strength-pulse {
+  0% { transform: scaleX(0.92); }
+  60% { transform: scaleX(1); }
+  100% { transform: scaleX(1); }
+}
+
+@keyframes password-rule-in {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.legal-declarations {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0.9rem 1rem 1rem;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.legal-declarations legend {
+  font-weight: 700;
+  padding: 0 0.25rem;
+}
+
+.legal-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  line-height: 1.45;
+}
+
+.legal-check input {
+  margin-top: 0.2rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--color-primary);
+  flex: 0 0 auto;
+}
+
 .loading-overlay {
   position: fixed;
   inset: 0;

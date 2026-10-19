@@ -26,6 +26,12 @@ class AccountRequestValidator
             return ['ok' => false, 'aviso' => 'datos_incompletos'];
         }
 
+        foreach (['declaracion_veraz', 'declaracion_terminos', 'declaracion_privacidad', 'acepto_terminos'] as $declaracion) {
+            if (! filter_var($raw[$declaracion] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                return ['ok' => false, 'aviso' => 'declaraciones_pendientes'];
+            }
+        }
+
         if (CedulaEcuador::containsLetters($cedulaRaw)) {
             return ['ok' => false, 'aviso' => 'cedula_letras'];
         }
