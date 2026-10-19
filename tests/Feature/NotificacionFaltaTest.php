@@ -34,12 +34,31 @@ class NotificacionFaltaTest extends TestCase
         ]);
 
         $this->actingAs($decano)
+            ->get(route('notificaciones-faltas.index'))
+            ->assertOk()
+            ->assertSee('Buscar por nombre o cédula', false)
+            ->assertSee('1312000777', false);
+
+        $this->actingAs($decano)
             ->post(route('notificaciones-faltas.store'), [
                 'destinatario_id' => $colaborador->id,
                 'fecha_falta' => '2026-09-10',
                 'tipo_marcacion' => 'entrada',
             ])
             ->assertRedirect(route('notificaciones-faltas.index'));
+
+        $this->actingAs($decano)
+            ->from(route('notificaciones-faltas.index'))
+            ->post(route('notificaciones-faltas.store'), [
+                'destinatario_id' => $colaborador->id,
+                'fecha_falta' => '2026-09-10',
+                'tipo_marcacion' => 'entrada',
+                'notas' => 'no entraste',
+            ])
+            ->assertRedirect(route('notificaciones-faltas.index'))
+            ->assertSessionHasErrors('fecha_falta');
+
+        $this->assertSame(1, NotificacionFalta::query()->count());
 
         $notificacion = NotificacionFalta::query()->first();
         $this->assertNotNull($notificacion);

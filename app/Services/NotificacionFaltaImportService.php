@@ -7,6 +7,7 @@ use App\Support\CedulaEcuador;
 use App\Support\NotificacionFaltaMarcacion;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class NotificacionFaltaImportService
 {
@@ -94,6 +95,13 @@ class NotificacionFaltaImportService
                     } else {
                         $emailsFallidos++;
                     }
+                }
+            } catch (ValidationException $e) {
+                $mensaje = collect($e->errors())->flatten()->implode(' ');
+                if (str_contains($mensaje, 'Ya existe una notificación')) {
+                    $skipped++;
+                } else {
+                    $errors[] = "Línea {$lineNumber}: {$mensaje}";
                 }
             } catch (\Illuminate\Database\QueryException $e) {
                 if (str_contains($e->getMessage(), 'notificacion_faltas_unica')) {

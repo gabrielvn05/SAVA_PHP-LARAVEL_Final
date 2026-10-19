@@ -40,48 +40,200 @@
 
     <div class="notif-th-grid">
         <div class="notif-th-sidebar stack">
-            <article class="card card-section">
+            <article class="card card-section card-section--overflow">
                 <div class="card-section__head">
                     <h2 class="card-section__title">Registro manual</h2>
                     <p class="card-section__desc">Un colaborador y una fecha de falta de marcación.</p>
                 </div>
-                <form method="POST" action="{{ route('notificaciones-faltas.store') }}" class="card-section__body stack">
+                <form method="POST" action="{{ route('notificaciones-faltas.store') }}" class="card-section__body stack" id="notif-th-registro">
                     @csrf
-                    <label class="field">
-                        <span class="field__label">Usuario notificado (recibe el correo de aviso)</span>
-                        <select name="destinatario_id" class="field__input" required id="notif-th-colaborador-select">
-                            <option value="">Seleccione…</option>
-                            @foreach($colaboradores as $persona)
-                                <option
-                                    value="{{ $persona->id }}"
-                                    data-email="{{ $persona->email }}"
-                                    @selected(old('destinatario_id') === $persona->id)
-                                >
-                                    {{ $persona->nombreCompleto() }}
-                                    · {{ $persona->cedula ?: 'sin cédula' }}
-                                    · {{ $persona->rol->label() }}
-                                    @unless($persona->activo) (inactivo) @endunless
-                                </option>
-                            @endforeach
-                        </select>
+                    @php
+                        $personasBusqueda = $colaboradores->map(fn ($persona) => [
+                            'id' => $persona->id,
+                            'nombre' => $persona->nombreCompleto(),
+                            'cedula' => (string) ($persona->cedula ?? ''),
+                            'rol' => $persona->rol->label(),
+                            'email' => (string) $persona->email,
+                            'activo' => (bool) $persona->activo,
+                        ])->values();
+                    @endphp
+                    <div class="field">
+                        <label class="field__label" for="notif-th-colaborador-buscar">Usuario notificado (recibe el correo de aviso)</label>
+                        <div class="user-search" id="notif-th-colaborador">
+                            <input
+                                type="text"
+                                id="notif-th-colaborador-buscar"
+                                class="field__input"
+                                placeholder="Buscar por nombre o cédula…"
+                                autocomplete="off"
+                                role="combobox"
+                                aria-autocomplete="list"
+                                aria-expanded="false"
+                                aria-controls="notif-th-colaborador-lista"
+                            >
+                            <input type="hidden" name="destinatario_id" id="notif-th-colaborador-id" value="{{ old('destinatario_id') }}">
+                            <ul class="user-search__list" id="notif-th-colaborador-lista" role="listbox" hidden></ul>
+                        </div>
                         <p class="field-hint" id="notif-th-colaborador-email" style="margin-top: 0.35rem;">
-                            El aviso se enviará al correo del colaborador seleccionado.
+                            Escriba el nombre o la cédula y elija al colaborador.
                         </p>
-                    </label>
+                    </div>
                     <script>
                         (function () {
-                            var sel = document.getElementById('notif-th-colaborador-select');
+                            var root = document.getElementById('notif-th-colaborador');
+                            var input = document.getElementById('notif-th-colaborador-buscar');
+                            var hidden = document.getElementById('notif-th-colaborador-id');
+                            var list = document.getElementById('notif-th-colaborador-lista');
                             var hint = document.getElementById('notif-th-colaborador-email');
-                            if (!sel || !hint) return;
-                            function sync() {
-                                var opt = sel.options[sel.selectedIndex];
-                                var email = opt && opt.dataset ? opt.dataset.email : '';
-                                hint.textContent = email
-                                    ? 'Correo de aviso: ' + email
-                                    : 'El aviso se enviará al correo del colaborador seleccionado.';
+                            var form = document.getElementById('notif-th-registro');
+                            var personas = @json($personasBusqueda);
+                            var activo = -1;
+                            var seleccionado = null;
+
+                            if (!root || !input || !hidden || !list || !hint) return;
+
+                            function normalizar(texto) {
+                                return (texto || '')
+                                    .toLocaleLowerCase('es')
+                                    .normalize('NFD')
+                                    .replace(/[\u0300-\u036f]/g, '');
                             }
-                            sel.addEventListener('change', sync);
-                            sync();
+
+                            function etiqueta(persona) {
+                                var cedula = persona.cedula || 'sin cédula';
+                                var texto = persona.nombre + ' · ' + cedula + ' · ' + persona.rol;
+                                if (!persona.activo) texto += ' (inactivo)';
+                                return texto;
+                            }
+
+                            function coincide(persona, consulta) {
+                                var q = normalizar(consulta).trim();
+                                if (!q) return true;
+                                var nombre = normalizar(persona.nombre + ' ' + persona.rol);
+                                var cedula = (persona.cedula || '').replace(/\D/g, '');
+                                var qDigitos = q.replace(/\D/g, '');
+                                if (nombre.indexOf(q) !== -1) return true;
+                                if (normalizar(persona.cedula).indexOf(q) !== -1) return true;
+                                return qDigitos.length > 0 && cedula.indexOf(qDigitos) !== -1;
+                            }
+
+                            function pintarCorreo(persona) {
+                                hint.textContent = persona && persona.email
+                                    ? 'Correo de aviso: ' + persona.email
+                                    : 'Escriba el nombre o la cédula y elija al colaborador.';
+                            }
+
+                            function cerrar() {
+                                list.hidden = true;
+                                input.setAttribute('aria-expanded', 'false');
+                                activo = -1;
+                            }
+
+                            function abrir() {
+                                list.hidden = false;
+                                input.setAttribute('aria-expanded', 'true');
+                            }
+
+                            function elegir(persona) {
+                                seleccionado = persona;
+                                hidden.value = persona.id;
+                                input.value = etiqueta(persona);
+                                input.setCustomValidity('');
+                                pintarCorreo(persona);
+                                cerrar();
+                            }
+
+                            function consultaActual() {
+                                if (seleccionado && input.value === etiqueta(seleccionado)) return '';
+                                return input.value;
+                            }
+
+                            function render() {
+                                var visibles = personas.filter(function (persona) {
+                                    return coincide(persona, consultaActual());
+                                }).slice(0, 40);
+                                list.innerHTML = '';
+                                activo = -1;
+                                if (visibles.length === 0) {
+                                    var vacio = document.createElement('li');
+                                    vacio.className = 'user-search__empty';
+                                    vacio.textContent = 'Ningún colaborador coincide con esa búsqueda.';
+                                    list.appendChild(vacio);
+                                    abrir();
+                                    return;
+                                }
+                                visibles.forEach(function (persona, indice) {
+                                    var item = document.createElement('li');
+                                    var boton = document.createElement('button');
+                                    boton.type = 'button';
+                                    boton.className = 'user-search__option';
+                                    boton.setAttribute('role', 'option');
+                                    boton.textContent = etiqueta(persona);
+                                    boton.addEventListener('mousedown', function (evento) {
+                                        evento.preventDefault();
+                                        elegir(persona);
+                                    });
+                                    item.appendChild(boton);
+                                    list.appendChild(item);
+                                    persona._indice = indice;
+                                });
+                                abrir();
+                            }
+
+                            function marcarActivo(delta) {
+                                var opciones = list.querySelectorAll('.user-search__option');
+                                if (!opciones.length) return;
+                                activo = (activo + delta + opciones.length) % opciones.length;
+                                opciones.forEach(function (opcion, indice) {
+                                    opcion.classList.toggle('is-active', indice === activo);
+                                });
+                                opciones[activo].scrollIntoView({ block: 'nearest' });
+                            }
+
+                            input.addEventListener('focus', render);
+                            input.addEventListener('input', function () {
+                                seleccionado = null;
+                                hidden.value = '';
+                                input.setCustomValidity('');
+                                pintarCorreo(null);
+                                render();
+                            });
+                            input.addEventListener('keydown', function (evento) {
+                                if (evento.key === 'ArrowDown') {
+                                    evento.preventDefault();
+                                    if (list.hidden) render();
+                                    marcarActivo(1);
+                                } else if (evento.key === 'ArrowUp') {
+                                    evento.preventDefault();
+                                    marcarActivo(-1);
+                                } else if (evento.key === 'Enter' && !list.hidden) {
+                                    var opciones = list.querySelectorAll('.user-search__option');
+                                    if (opciones.length) {
+                                        evento.preventDefault();
+                                        var indice = activo >= 0 ? activo : 0;
+                                        opciones[indice].dispatchEvent(new MouseEvent('mousedown'));
+                                    }
+                                } else if (evento.key === 'Escape') {
+                                    cerrar();
+                                }
+                            });
+                            document.addEventListener('click', function (evento) {
+                                if (!root.contains(evento.target)) cerrar();
+                            });
+                            if (form) {
+                                form.addEventListener('submit', function (evento) {
+                                    if (!hidden.value) {
+                                        evento.preventDefault();
+                                        input.setCustomValidity('Seleccione un colaborador de la lista.');
+                                        input.reportValidity();
+                                    }
+                                });
+                            }
+
+                            if (hidden.value) {
+                                var previa = personas.find(function (persona) { return persona.id === hidden.value; });
+                                if (previa) elegir(previa);
+                            }
                         })();
                     </script>
                     <div class="form-grid form-grid--2">

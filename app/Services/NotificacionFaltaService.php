@@ -13,6 +13,7 @@ use App\Support\DelegacionDecano;
 use App\Support\NotificacionFaltaCodigo;
 use App\Support\NotificacionFaltaMarcacion;
 use Carbon\CarbonInterface;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -70,21 +71,49 @@ class NotificacionFaltaService
             }
         }
 
-        return DB::transaction(function () use ($destinatario, $decano, $emitidoPor, $fecha, $tipo, $delegado, $datos): NotificacionFalta {
-            $codigo = NotificacionFaltaCodigo::siguiente();
-
-            return NotificacionFalta::query()->create([
-                'destinatario_id' => $destinatario->id,
-                'decano_id' => $decano->id,
-                'emitido_por_id' => $emitidoPor->id,
-                'fecha_falta' => $fecha,
-                'tipo_marcacion' => $tipo,
-                'codigo_oficio' => $codigo,
-                'emitido_delegado' => $delegado,
-                'tiene_justificacion_aprobada' => $this->tieneJustificacionAprobada($destinatario, $fecha),
-                'notas' => $datos['notas'] ?? null,
+        if ($this->yaRegistrada($destinatario->id, $fecha, $tipo)) {
+            throw ValidationException::withMessages([
+                'fecha_falta' => $this->mensajeDuplicada($tipo, $fecha),
             ]);
-        });
+        }
+
+        try {
+            return DB::transaction(function () use ($destinatario, $decano, $emitidoPor, $fecha, $tipo, $delegado, $datos): NotificacionFalta {
+                $codigo = NotificacionFaltaCodigo::siguiente();
+
+                return NotificacionFalta::query()->create([
+                    'destinatario_id' => $destinatario->id,
+                    'decano_id' => $decano->id,
+                    'emitido_por_id' => $emitidoPor->id,
+                    'fecha_falta' => $fecha,
+                    'tipo_marcacion' => $tipo,
+                    'codigo_oficio' => $codigo,
+                    'emitido_delegado' => $delegado,
+                    'tiene_justificacion_aprobada' => $this->tieneJustificacionAprobada($destinatario, $fecha),
+                    'notas' => $datos['notas'] ?? null,
+                ]);
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'fecha_falta' => $this->mensajeDuplicada($tipo, $fecha),
+            ]);
+        }
+    }
+
+    private function yaRegistrada(string $destinatarioId, \Carbon\CarbonInterface $fecha, string $tipo): bool
+    {
+        return NotificacionFalta::query()
+            ->where('destinatario_id', $destinatarioId)
+            ->whereDate('fecha_falta', $fecha->toDateString())
+            ->where('tipo_marcacion', $tipo)
+            ->exists();
+    }
+
+    private function mensajeDuplicada(string $tipo, \Carbon\CarbonInterface $fecha): string
+    {
+        $marcacion = NotificacionFaltaMarcacion::enOracion($tipo);
+
+        return "Ya existe una notificación de {$marcacion} para este colaborador el {$fecha->format('d/m/Y')}. No se registra otra con la misma marcación y la misma fecha.";
     }
 
     public function cargoColaborador(User $user): string
