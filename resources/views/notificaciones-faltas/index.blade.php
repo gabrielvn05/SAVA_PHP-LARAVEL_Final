@@ -47,6 +47,9 @@
                 </div>
                 <form method="POST" action="{{ route('notificaciones-faltas.store') }}" class="card-section__body stack" id="notif-th-registro">
                     @csrf
+                    @if($errors->any())
+                        <div class="alert alert--warning" role="alert">{{ $errors->first() }}</div>
+                    @endif
                     @php
                         $personasBusqueda = $colaboradores->map(fn ($persona) => [
                             'id' => $persona->id,

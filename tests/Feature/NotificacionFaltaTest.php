@@ -49,14 +49,15 @@ class NotificacionFaltaTest extends TestCase
 
         $this->actingAs($decano)
             ->from(route('notificaciones-faltas.index'))
+            ->followingRedirects()
             ->post(route('notificaciones-faltas.store'), [
                 'destinatario_id' => $colaborador->id,
                 'fecha_falta' => '2026-09-10',
                 'tipo_marcacion' => 'entrada',
                 'notas' => 'no entraste',
             ])
-            ->assertRedirect(route('notificaciones-faltas.index'))
-            ->assertSessionHasErrors('fecha_falta');
+            ->assertOk()
+            ->assertSee('Ya existe una notificación de entrada para este colaborador el 10/09/2026', false);
 
         $this->assertSame(1, NotificacionFalta::query()->count());
 
