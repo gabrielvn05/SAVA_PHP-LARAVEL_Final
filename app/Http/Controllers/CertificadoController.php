@@ -7,6 +7,7 @@ use App\Models\Solicitud;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
 use App\Services\OficioPreviewService;
+use App\Services\SolicitudOficioFirmadoService;
 use App\Support\OficioNombreArchivo;
 use App\Support\OficioSelloFaltanteException;
 use Illuminate\Http\Request;
@@ -19,14 +20,15 @@ class CertificadoController extends Controller
         private readonly OficioPreviewService $previewService,
         private readonly OficioDocxService $docxService,
         private readonly OficioPdfService $pdfService,
+        private readonly SolicitudOficioFirmadoService $oficioFirmado,
     ) {}
 
     public function preview(Request $request, Solicitud $solicitud): View|Response
     {
         $this->authorize('view', $solicitud);
 
-        if ($request->query('html') !== '1' && $this->pdfService->usaVistaPdf($solicitud)) {
-            $pdf = $this->pdfService->generar($solicitud);
+        if ($request->query('html') !== '1') {
+            $pdf = $this->pdfParaMostrar($solicitud, exigirConversion: true);
             if ($pdf !== null) {
                 $nombre = $this->nombreOficio($solicitud, 'pdf');
 
@@ -76,7 +78,7 @@ class CertificadoController extends Controller
     {
         $this->authorize('view', $solicitud);
 
-        $pdf = $this->pdfService->generar($solicitud);
+        $pdf = $this->pdfParaMostrar($solicitud, exigirConversion: false);
         if (is_string($pdf) && $pdf !== '') {
             $nombre = $this->nombreOficio($solicitud, 'pdf');
 
@@ -99,6 +101,22 @@ class CertificadoController extends Controller
             'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
             'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
         ]);
+    }
+
+    private function pdfParaMostrar(Solicitud $solicitud, bool $exigirConversion): ?string
+    {
+        if ($solicitud->estado === SolicitudEstado::Aprobada) {
+            $firmado = $this->oficioFirmado->pdfAprobadoConFirmaSolicitante($solicitud);
+            if (is_string($firmado) && $firmado !== '') {
+                return $firmado;
+            }
+        }
+
+        if ($exigirConversion && ! $this->pdfService->usaVistaPdf($solicitud)) {
+            return null;
+        }
+
+        return $this->pdfService->generar($solicitud);
     }
 
     private function generarDocxOAbortar(Solicitud $solicitud): string

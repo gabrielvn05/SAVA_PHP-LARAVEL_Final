@@ -8,9 +8,13 @@ use App\Enums\SolicitudTipo;
 use App\Mail\SolicitudResultadoMail;
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Services\OficioCorreoAdjuntoService;
 use App\Services\OficioPdfService;
+use App\Services\SolicitudOficioFirmadoService;
+use App\Support\SolicitudAdjuntos;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -69,6 +73,42 @@ class SolicitudResultadoNotificationTest extends TestCase
             return count($mail->attachments()) === 1
                 && str_ends_with($mail->attachments()[0]->as, '-firmado.pdf');
         });
+    }
+
+    public function test_correo_aprobacion_conserva_la_firma_del_solicitante(): void
+    {
+        Storage::fake('local');
+
+        $tcpdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        $tcpdf->setPrintHeader(false);
+        $tcpdf->setPrintFooter(false);
+        $tcpdf->AddPage();
+        $tcpdf->SetFont('helvetica', '', 12);
+        $tcpdf->Text(20, 40, 'FIRMA-SOLICITANTE-XYZ');
+        $binario = $tcpdf->Output('', 'S');
+
+        $path = SolicitudAdjuntos::guardarContenido($binario, 'pdf');
+        $solicitud = $this->crearSolicitud($this->solicitante(), SolicitudEstado::Aprobada);
+        $detalle = $solicitud->detalle ?? [];
+        $detalle['anexos'] = [[
+            'path' => $path,
+            'nombre' => 'oficio-firmado-navegador.pdf',
+            'rol' => SolicitudOficioFirmadoService::ROL_ANEXO,
+        ]];
+        $solicitud->update(['detalle' => $detalle]);
+
+        $this->mock(OficioPdfService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('generar')->never();
+        });
+
+        $adjunto = app(OficioCorreoAdjuntoService::class)->resolver($solicitud->fresh());
+
+        $this->assertSame('pdf', $adjunto->formato);
+        $this->assertCount(1, $adjunto->attachments);
+        $contenido = $this->contenidoAdjunto($adjunto->attachments[0]);
+        $this->assertStringStartsWith('%PDF', $contenido);
+        $this->assertNotSame($binario, $contenido);
+        $this->assertStringContainsString("\xFF\xD8\xFF", $contenido);
     }
 
     public function test_decano_approval_emails_the_solicitante(): void
@@ -151,6 +191,16 @@ class SolicitudResultadoNotificationTest extends TestCase
         Mail::assertSent(SolicitudResultadoMail::class, function (SolicitudResultadoMail $mail) use ($solicitante): bool {
             return $mail->hasTo($solicitante->email);
         });
+    }
+
+    private function contenidoAdjunto(\Illuminate\Mail\Mailables\Attachment $attachment): string
+    {
+        $datos = $attachment->attachWith(
+            fn () => null,
+            fn (callable $data) => $data(),
+        );
+
+        return is_string($datos) ? $datos : '';
     }
 
     private function solicitante(): User

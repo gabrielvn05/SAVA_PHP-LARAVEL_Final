@@ -14,6 +14,7 @@ class OficioCorreoAdjuntoService
     public function __construct(
         private readonly OficioPdfService $pdf,
         private readonly OficioDocxService $docx,
+        private readonly SolicitudOficioFirmadoService $oficioFirmado,
     ) {}
 
     public function resolver(Solicitud $solicitud): OficioCorreoAdjuntoResultado
@@ -23,6 +24,15 @@ class OficioCorreoAdjuntoService
         }
 
         $solicitud->loadMissing(['firmante', 'creador']);
+
+        $firmado = $this->oficioFirmado->pdfAprobadoConFirmaSolicitante($solicitud);
+        if (is_string($firmado) && $firmado !== '') {
+            $nombre = OficioNombreArchivo::firmado($solicitud, 'pdf');
+
+            return new OficioCorreoAdjuntoResultado([
+                Attachment::fromData(fn (): string => $firmado, $nombre)->withMime('application/pdf'),
+            ], 'pdf');
+        }
 
         $pdf = $this->pdf->generar($solicitud);
         if (is_string($pdf) && $pdf !== '') {

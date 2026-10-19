@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\SolicitudEstado;
 use App\Models\Solicitud;
 use App\Support\OficioNombreArchivo;
 use App\Support\OficioSelloAutorizado;
 use App\Support\SolicitudAdjuntos;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use setasign\Fpdi\PdfParser\StreamReader;
 use setasign\Fpdi\Tcpdf\Fpdi;
@@ -95,6 +97,48 @@ class SolicitudOficioFirmadoService
     public static function tieneFirmaDocente(Solicitud $solicitud): bool
     {
         return self::oficioFirmadoEnAnexos($solicitud) !== null;
+    }
+
+    /**
+     * Oficio que el solicitante firmó, con el sello de autorizado encima.
+     * El PDF regenerado desde la plantilla no conserva esa firma.
+     */
+    public function pdfAprobadoConFirmaSolicitante(Solicitud $solicitud): ?string
+    {
+        if ($solicitud->estado !== SolicitudEstado::Aprobada) {
+            return null;
+        }
+
+        $anexo = self::oficioFirmadoEnAnexos($solicitud);
+        if ($anexo === null) {
+            return null;
+        }
+
+        $nombre = strtolower((string) ($anexo['nombre'] ?? ''));
+        $path = (string) ($anexo['path'] ?? '');
+        if ($path === '' || ! str_ends_with($nombre, '.pdf')) {
+            return null;
+        }
+
+        $disk = SolicitudAdjuntos::diskConArchivo($path);
+        if ($disk === null) {
+            return null;
+        }
+
+        $bytes = Storage::disk($disk)->get($path);
+        if (! is_string($bytes) || ! str_starts_with($bytes, '%PDF')) {
+            return null;
+        }
+
+        try {
+            $sellado = $this->superponerSelloAutorizado($bytes);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $bytes;
+        }
+
+        return $sellado !== '' ? $sellado : $bytes;
     }
 
     /**
