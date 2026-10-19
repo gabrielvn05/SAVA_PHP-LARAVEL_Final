@@ -43,6 +43,7 @@
         <img src="{{ asset('templates/oficio-media/marca-uleam.png') }}" alt="ULEAM">
     </header>
     <p class="meta__codigo">OFICIO N° {{ $codigo }}</p>
+    <p class="meta">{{ \App\Services\OficioDatosService::fechaLugarGeneracion() }}</p>
 
     <div class="destinatario">
         <p style="margin: 0;">Dr.<br>

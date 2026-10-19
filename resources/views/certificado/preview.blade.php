@@ -30,7 +30,7 @@
 
     <div class="meta">
         <p><strong>Oficio N.º {{ $codigo }}</strong></p>
-        <p>Manta, {{ now()->translatedFormat('d \d\e F \d\e Y') }}</p>
+        <p>{{ \App\Services\OficioDatosService::fechaLugarGeneracion() }}</p>
     </div>
 
     <p>Señor(a)<br>

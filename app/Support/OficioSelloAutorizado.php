@@ -110,21 +110,21 @@ class OficioSelloAutorizado
     private static function drawingConImagen(string $original, string $relId): string
     {
         preg_match('/<wp:anchor\b([^>]*)>/', $original, $anchorAttrs);
-        preg_match('/<wp:posOffset>(\d+)<\/wp:posOffset>/', $original, $posH);
-        preg_match_all('/<wp:posOffset>(\d+)<\/wp:posOffset>/', $original, $posOffsets);
+        preg_match('/<wp:positionH\b[^>]*>.*?<\/wp:positionH>/s', $original, $posH);
+        preg_match('/<wp:positionV\b[^>]*>.*?<\/wp:positionV>/s', $original, $posV);
         preg_match('/<wp:extent cx="(\d+)" cy="(\d+)"/', $original, $extent);
 
-        $posHVal = $posOffsets[1][0] ?? '3706327';
-        $posVVal = $posOffsets[1][1] ?? '13359';
         $cx = $extent[1] ?? '1454150';
         $cy = $extent[2] ?? '984250';
+        $positionH = $posH[0] ?? '<wp:positionH relativeFrom="margin"><wp:align>right</wp:align></wp:positionH>';
+        $positionV = $posV[0] ?? '<wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>';
         $anchorExtra = $anchorAttrs[1] ?? ' distT="0" distB="0" distL="114300" distR="114300" simplePos="0" relativeHeight="251659264" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"';
 
         return '<w:drawing>'
             .'<wp:anchor'.$anchorExtra.'>'
             .'<wp:simplePos x="0" y="0"/>'
-            .'<wp:positionH relativeFrom="column"><wp:posOffset>'.$posHVal.'</wp:posOffset></wp:positionH>'
-            .'<wp:positionV relativeFrom="paragraph"><wp:posOffset>'.$posVVal.'</wp:posOffset></wp:positionV>'
+            .$positionH
+            .$positionV
             .'<wp:extent cx="'.$cx.'" cy="'.$cy.'"/>'
             .'<wp:effectExtent l="0" t="0" r="0" b="0"/>'
             .'<wp:wrapNone/>'

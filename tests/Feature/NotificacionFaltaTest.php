@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserCapability;
 use App\Mail\NotificacionFaltaColaboradorMail;
 use App\Services\NotificacionFaltaDocxService;
+use App\Services\OficioDatosService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -155,6 +156,13 @@ class NotificacionFaltaTest extends TestCase
         $this->assertStringContainsString('María López', $xml);
         $this->assertStringContainsString('FACIVITEC-ADM-0005', $xml);
         $this->assertStringContainsString('Alex Santamaria', $xml);
+        $this->assertStringContainsString('Decano', $xml);
+        $this->assertStringContainsString(OficioDatosService::FACULTAD_NOMBRE, $xml);
+        $this->assertStringContainsString(OficioDatosService::fechaLugarGeneracion(), $xml);
+        $this->assertStringContainsString('decano@uleam.edu.ec', $xml);
+        $this->assertStringNotContainsString('[facultad]', $xml);
+        $this->assertStringNotContainsString('[Nombre del decano]', $xml);
+        $this->assertStringNotContainsString('15 de septiembre del 2026', $xml);
         $this->assertStringNotContainsString('[Nombre completo del colaborador]', $xml);
     }
 }

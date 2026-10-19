@@ -477,6 +477,26 @@ class SolicitudController extends Controller
             }
         }
 
+        $firmado = SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud);
+        $esOficioFirmado = is_array($firmado) && ($firmado['path'] ?? null) === $path;
+        if ($solicitud->estado === SolicitudEstado::Aprobada && $esOficioFirmado && str_ends_with(strtolower($nombre), '.pdf')) {
+            $bytes = $disk->get($path);
+            if (is_string($bytes) && $bytes !== '') {
+                try {
+                    $sellado = app(SolicitudOficioFirmadoService::class)->superponerSelloAutorizado($bytes);
+                } catch (\Throwable $e) {
+                    report($e);
+                    $sellado = $bytes;
+                }
+
+                return response($sellado, 200, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="'.$nombre.'"',
+                    'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
+                ]);
+            }
+        }
+
         return $disk->response($path, $nombre);
     }
 

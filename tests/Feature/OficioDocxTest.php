@@ -7,6 +7,7 @@ use App\Enums\SolicitudEstado;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Services\OficioDatosService;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
 use App\Support\OficioSelloAutorizado;
@@ -67,6 +68,8 @@ class OficioDocxTest extends TestCase
         $this->assertStringNotContainsString('[Nombre completo del docente]', $xml);
         $this->assertStringNotContainsString('____', $xml);
         $this->assertStringContainsString('Fecha de generación del documento', $xml);
+        $this->assertStringContainsString(OficioDatosService::fechaLugarGeneracion(), $xml);
+        $this->assertStringNotContainsString('15 de septiembre del 2026', $xml);
 
         $this->assertStringContainsString("Correo\u{00A0}Institucional:\u{00A0}".$user->email, $xml);
         $this->assertStringContainsString('<w:gridCol w:w="8838"/>', $xml);
@@ -118,6 +121,34 @@ class OficioDocxTest extends TestCase
 
         $this->assertStringContainsString('Sello AUTORIZADO', $xml);
         $this->assertStringNotContainsString('Sello de APROBADO O RECHAZADO CON FIRMA DEL DECANO', $xml);
+        $this->assertStringContainsString('<wp:align>right</wp:align>', $xml);
+        $this->assertStringContainsString('r:embed="', $xml);
+    }
+
+    public function test_fecha_de_generacion_reemplaza_el_15_de_septiembre_en_todos_los_oficios(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Administrativo,
+            'cedula' => '1312000077',
+            'carrera' => 'software',
+        ]);
+
+        foreach (SolicitudTipo::cases() as $tipo) {
+            $solicitud = Solicitud::query()->create([
+                'creado_por' => $user->id,
+                'tipo' => $tipo,
+                'fecha_inicio' => '2026-10-19',
+                'fecha_fin' => '2026-10-19',
+                'motivo' => 'Prueba de fecha',
+                'estado' => SolicitudEstado::EnRevisionSecretaria,
+                'detalle' => ['codigo_tramite' => 'FACIVITEC-FECHA-'.$tipo->value],
+            ]);
+
+            $xml = $this->xmlDelOficio(app(OficioDocxService::class)->generar($solicitud));
+
+            $this->assertStringContainsString(OficioDatosService::fechaLugarGeneracion(), $xml, $tipo->value);
+            $this->assertStringNotContainsString('15 de septiembre del 2026', $xml, $tipo->value);
+        }
     }
 
     public function test_oficio_aprobado_falla_si_falta_el_sello(): void
@@ -299,5 +330,18 @@ class OficioDocxTest extends TestCase
             ->assertHeader('content-type', 'application/pdf')
             ->assertHeader('content-disposition', 'attachment; filename="FACIVITEC-07102026-PER-MZ-firmado.pdf"')
             ->assertSee('%PDF-1.4', false);
+    }
+
+    private function xmlDelOficio(string $binary): string
+    {
+        $temp = tempnam(sys_get_temp_dir(), 'oficio-xml-');
+        file_put_contents($temp, $binary);
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($temp));
+        $xml = $zip->getFromName('word/document.xml') ?: '';
+        $zip->close();
+        @unlink($temp);
+
+        return $xml;
     }
 }

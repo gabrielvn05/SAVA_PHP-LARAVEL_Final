@@ -16,6 +16,25 @@ class OficioDatosService
 
     public const FACULTAD_ETIQUETA = 'FACIVITEC';
 
+    /** Fecha de lugar del encabezado. Las plantillas traen «Manta, 15 de septiembre del 2026» fijo. */
+    public static function fechaLugarGeneracion(?\DateTimeInterface $momento = null): string
+    {
+        $fecha = ($momento instanceof \Carbon\CarbonInterface ? $momento : \Carbon\Carbon::parse($momento ?? now()))
+            ->copy()
+            ->locale('es');
+
+        return 'Manta, '.$fecha->translatedFormat('j').' de '.$fecha->translatedFormat('F').' del '.$fecha->format('Y');
+    }
+
+    public static function aplicarFechaLugar(string $xml, ?\DateTimeInterface $momento = null): string
+    {
+        $lugar = self::fechaLugarGeneracion($momento);
+        $soloFecha = preg_replace('/^Manta, /u', '', $lugar) ?? $lugar;
+        $xml = str_replace('Manta, 15 de septiembre del 2026', $lugar, $xml);
+
+        return str_replace('15 de septiembre del 2026', $soloFecha, $xml);
+    }
+
     /**
      * @return array<string, string>
      */

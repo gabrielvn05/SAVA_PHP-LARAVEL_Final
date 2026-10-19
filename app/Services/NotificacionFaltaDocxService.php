@@ -91,6 +91,8 @@ class NotificacionFaltaDocxService
             '[Tipo de marcación faltante]' => NotificacionFaltaMarcacion::enOracion($notificacion->tipo_marcacion),
             '[Nombre del decano]' => $decano->nombreCompleto(),
             '[Título del firmante]' => 'Decano',
+            '[facultad]' => OficioDatosService::FACULTAD_NOMBRE,
+            '[Facultad]' => OficioDatosService::FACULTAD_ETIQUETA,
             '[Fecha automática del sistema]' => now()->locale('es')->translatedFormat('d \d\e F \d\e Y'),
             '_correo_decano' => $decano->email ?? '—',
         ];
@@ -117,6 +119,8 @@ class NotificacionFaltaDocxService
             ) ?? $xml;
         }
 
+        $xml = OficioDatosService::aplicarFechaLugar($xml);
+
         $codigo = $valores['[Código del oficio]'] ?? '';
         if ($codigo !== '') {
             $xml = str_replace('[Código del oficio]', $codigo, $xml);
@@ -128,7 +132,27 @@ class NotificacionFaltaDocxService
         $buscar = array_keys($valores);
         $reemplazar = array_map(fn (string $v): string => $this->xmlEscape($v), array_values($valores));
 
-        return str_replace($buscar, $reemplazar, $xml);
+        $xml = str_replace($buscar, $reemplazar, $xml);
+
+        return $this->alinearFirma($xml);
+    }
+
+    /**
+     * La firma es un párrafo corto justificado. En el visor eso abre el nombre
+     * del decano de punta a punta; a la izquierda se lee como en la plantilla.
+     */
+    private function alinearFirma(string $xml): string
+    {
+        $pos = strpos($xml, 'Atentamente,');
+        if ($pos === false) {
+            return $xml;
+        }
+
+        $cola = substr($xml, $pos);
+        $cola = str_replace('<w:jc w:val="both"/>', '<w:jc w:val="left"/>', $cola);
+        $cola = preg_replace('/<w:u\b[^>]*\/>/u', '', $cola) ?? $cola;
+
+        return substr($xml, 0, $pos).$cola;
     }
 
     private function xmlEscape(string $value): string

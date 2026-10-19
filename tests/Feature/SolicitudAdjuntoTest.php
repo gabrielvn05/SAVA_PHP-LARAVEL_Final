@@ -7,6 +7,8 @@ use App\Enums\SolicitudEstado;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Services\SolicitudOficioFirmadoService;
+use setasign\Fpdi\Tcpdf\Fpdi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -42,6 +44,54 @@ class SolicitudAdjuntoTest extends TestCase
             ->get(route('solicitudes.adjunto', ['solicitud' => $solicitud, 'f' => $path]))
             ->assertOk()
             ->assertHeader('content-type', 'image/png');
+    }
+
+    public function test_oficio_aprobado_superpone_el_sello_en_el_pdf_firmado(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create(['rol' => AppRole::Docente, 'cedula' => '1312000041', 'carrera' => 'software']);
+        $pdf = new Fpdi;
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->AddPage();
+        $pdf->SetFont('helvetica', '', 12);
+        $pdf->Cell(0, 10, 'Sello de APROBADO O RECHAZADO CON FIRMA DEL DECANO');
+        $bytes = $pdf->Output('', 'S');
+
+        $path = 'justificativos/oficio-firmado.pdf';
+        Storage::disk('local')->put($path, $bytes);
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::EnRevisionSecretaria,
+            'detalle' => [
+                'anexos' => [[
+                    'path' => $path,
+                    'nombre' => 'oficio-firmado.pdf',
+                    'rol' => SolicitudOficioFirmadoService::ROL_ANEXO,
+                ]],
+            ],
+        ]);
+
+        $sinSello = $this->actingAs($user)
+            ->get(route('solicitudes.adjunto', ['solicitud' => $solicitud, 'f' => $path]))
+            ->assertOk();
+        $this->assertSame($bytes, $sinSello->streamedContent());
+
+        $solicitud->update(['estado' => SolicitudEstado::Aprobada]);
+
+        $sellado = $this->actingAs($user)
+            ->get(route('solicitudes.adjunto', ['solicitud' => $solicitud, 'f' => $path]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->assertStringStartsWith('%PDF', $sellado->getContent());
+        $this->assertNotSame($bytes, $sellado->getContent());
     }
 
     public function test_rechaza_adjunto_con_tipo_no_permitido(): void

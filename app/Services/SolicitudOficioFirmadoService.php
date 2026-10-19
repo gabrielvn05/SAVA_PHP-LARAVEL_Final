@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Solicitud;
 use App\Support\OficioNombreArchivo;
+use App\Support\OficioSelloAutorizado;
 use App\Support\SolicitudAdjuntos;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
@@ -413,6 +414,108 @@ class SolicitudOficioFirmadoService
         $lineas[] = 'Fecha: '.now()->toIso8601String();
 
         return implode("\n", $lineas);
+    }
+
+    /**
+     * Cubre el recuadro «Sello de APROBADO…» del PDF firmado por el solicitante.
+     * Ese archivo se generó antes de la autorización, así que el sello no iba dentro.
+     */
+    public function superponerSelloAutorizado(string $pdfBytes): string
+    {
+        $this->assertManipulacionPdfDisponible();
+        $imagen = OficioSelloAutorizado::assetPath();
+        if (! is_readable($imagen)) {
+            return $pdfBytes;
+        }
+
+        $pdf = $this->nuevoPdfFpdi();
+        $reader = StreamReader::createByString($pdfBytes);
+        $pageCount = $pdf->setSourceFile($reader);
+
+        $recorte = $this->recorteSelloSinMargen($imagen);
+        $ancho = 46.0;
+        $alto = 46.0;
+        $x = 142.5;
+        $y = 34.0;
+
+        try {
+            for ($page = 1; $page <= $pageCount; $page++) {
+                $this->importarPaginaPdf($pdf, $page);
+                if ($page !== 1) {
+                    continue;
+                }
+
+                $pageW = $pdf->GetPageWidth();
+                $pageH = $pdf->GetPageHeight();
+                $xPagina = max(4.0, min($x, $pageW - $ancho - 4));
+                $yPagina = max(4.0, min($y, $pageH - $alto - 4));
+                $pdf->Image($recorte, $xPagina, $yPagina, $ancho, $alto, 'JPEG');
+            }
+        } finally {
+            if ($recorte !== $imagen) {
+                @unlink($recorte);
+            }
+        }
+
+        return $pdf->Output('', 'S');
+    }
+
+    private function recorteSelloSinMargen(string $imagen): string
+    {
+        if (! function_exists('imagecreatefromjpeg')) {
+            return $imagen;
+        }
+
+        $origen = @imagecreatefromjpeg($imagen);
+        if ($origen === false) {
+            return $imagen;
+        }
+
+        $ancho = imagesx($origen);
+        $alto = imagesy($origen);
+        $minX = $ancho;
+        $minY = $alto;
+        $maxX = 0;
+        $maxY = 0;
+
+        for ($y = 0; $y < $alto; $y += 2) {
+            for ($x = 0; $x < $ancho; $x += 2) {
+                $color = imagecolorat($origen, $x, $y);
+                $rojo = ($color >> 16) & 0xFF;
+                $verde = ($color >> 8) & 0xFF;
+                $azul = $color & 0xFF;
+                if ($rojo > 245 && $verde > 245 && $azul > 245) {
+                    continue;
+                }
+                $minX = min($minX, $x);
+                $minY = min($minY, $y);
+                $maxX = max($maxX, $x);
+                $maxY = max($maxY, $y);
+            }
+        }
+
+        if ($maxX <= $minX || $maxY <= $minY) {
+            imagedestroy($origen);
+
+            return $imagen;
+        }
+
+        $recorte = imagecrop($origen, [
+            'x' => $minX,
+            'y' => $minY,
+            'width' => $maxX - $minX + 2,
+            'height' => $maxY - $minY + 2,
+        ]);
+        imagedestroy($origen);
+        if ($recorte === false) {
+            return $imagen;
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'sello-').'.jpg';
+        imagejpeg($recorte, $tmp, 92);
+        imagedestroy($recorte);
+
+        return $tmp;
     }
 
     private function superponerSelloEnPdf(

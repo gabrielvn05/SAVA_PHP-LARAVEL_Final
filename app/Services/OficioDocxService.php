@@ -126,6 +126,7 @@ class OficioDocxService
      */
     private function rellenarXml(string $xml, array $valores, string $correoDocente, string $correoDecano): string
     {
+        $xml = OficioDatosService::aplicarFechaLugar($xml);
         $xml = $this->insertarCorreosInstitucionales($xml, $correoDocente, $correoDecano);
 
         $codigo = $valores['[Código del oficio]'] ?? '';
