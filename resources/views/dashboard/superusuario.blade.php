@@ -30,6 +30,10 @@
             <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Reportes</h2>
             <p class="field-hint" style="margin: 0;">Exportación y consulta agregada.</p>
         </a>
+        <a href="{{ route('biblioteca.index') }}" class="card" style="text-decoration: none; color: inherit;">
+            <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Biblioteca</h2>
+            <p class="field-hint" style="margin: 0;">Oficios institucionales de consulta.</p>
+        </a>
     </div>
 
     <article class="card stack" style="gap: 0.65rem;">

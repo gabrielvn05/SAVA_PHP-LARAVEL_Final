@@ -164,6 +164,7 @@
             <aside class="sidebar-panel" data-sidebar-panel aria-label="Menú lateral">
                 <nav class="sidebar-nav" aria-label="Menú principal">
                     <a href="{{ route('dashboard') }}" class="sidebar-nav__link {{ request()->routeIs('dashboard') ? 'is-active' : '' }}">Inicio</a>
+                    <a href="{{ route('biblioteca.index') }}" class="sidebar-nav__link {{ request()->routeIs('biblioteca.*') ? 'is-active' : '' }}">Biblioteca</a>
 
                     @if($esSuper)
                         <a href="{{ route('admin.usuarios.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.usuarios.*') ? 'is-active' : '' }}">Usuarios</a>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\MicrosoftAuthController;
 use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\Auth\PasswordRecoveryController;
+use App\Http\Controllers\BibliotecaController;
 use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LegalDocumentController;
@@ -55,6 +56,11 @@ Route::middleware(['auth', 'active'])->group(function (): void {
     Route::put('/perfil/clave', [PasswordChangeController::class, 'updateFromProfile'])->name('perfil.clave.update');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/biblioteca', [BibliotecaController::class, 'index'])->name('biblioteca.index');
+    Route::post('/biblioteca', [BibliotecaController::class, 'store'])->name('biblioteca.store');
+    Route::get('/biblioteca/{documento}/descargar', [BibliotecaController::class, 'descargar'])->name('biblioteca.descargar');
+    Route::get('/biblioteca/{documento}', [BibliotecaController::class, 'ver'])->name('biblioteca.ver');
+    Route::delete('/biblioteca/{documento}', [BibliotecaController::class, 'destroy'])->name('biblioteca.destroy');
     Route::post('/logout', [MicrosoftAuthController::class, 'logout'])->name('logout');
 
     Route::get('/app-notificaciones/{appNotification}/abrir', [AppNotificationController::class, 'open'])
