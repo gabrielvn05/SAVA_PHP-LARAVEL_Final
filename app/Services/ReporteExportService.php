@@ -3,22 +3,28 @@
 namespace App\Services;
 
 use App\Models\Solicitud;
+use App\Support\MatrizNovedades;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
-use OpenSpout\Common\Entity\Row;
-use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReporteExportService
 {
+    public function __construct(private readonly MatrizNovedadesXlsxWriter $matriz) {}
+
     /**
      * @param  Collection<int, Solicitud>  $solicitudes
      */
-    public function exportGeneral(Collection $solicitudes, string $format = 'xlsx'): StreamedResponse|BinaryFileResponse
-    {
+    public function exportGeneral(
+        Collection $solicitudes,
+        string $format = 'xlsx',
+        ?CarbonInterface $desde = null,
+        ?CarbonInterface $hasta = null,
+    ): StreamedResponse|BinaryFileResponse {
         return match ($format) {
             'csv' => $this->exportCsv($solicitudes),
-            default => $this->exportXlsx($solicitudes),
+            default => $this->exportXlsx($solicitudes, $desde, $hasta),
         };
     }
 
@@ -31,10 +37,13 @@ class ReporteExportService
 
         return response()->streamDownload(function () use ($solicitudes): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, $this->columnHeaders());
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, MatrizNovedades::encabezadosCsv());
 
+            $numero = 1;
             foreach ($solicitudes as $solicitud) {
-                fputcsv($handle, $this->solicitudRow($solicitud));
+                fputcsv($handle, MatrizNovedades::filaCsv($solicitud, $numero));
+                $numero++;
             }
 
             fclose($handle);
@@ -46,76 +55,17 @@ class ReporteExportService
     /**
      * @param  Collection<int, Solicitud>  $solicitudes
      */
-    private function exportXlsx(Collection $solicitudes): BinaryFileResponse
+    private function exportXlsx(Collection $solicitudes, ?CarbonInterface $desde, ?CarbonInterface $hasta): BinaryFileResponse
     {
-        $filename = $this->baseFilename().'.xlsx';
-        $tempBase = tempnam(sys_get_temp_dir(), 'reporte-xlsx-');
-        if ($tempBase === false) {
-            abort(500, 'No se pudo generar el archivo Excel.');
-        }
+        $path = $this->matriz->generar($solicitudes, $desde, $hasta);
 
-        $path = $tempBase.'.xlsx';
-        @unlink($tempBase);
-
-        $writer = new XlsxWriter;
-        $writer->openToFile($path);
-        $writer->addRow(Row::fromValues($this->columnHeaders()));
-
-        foreach ($solicitudes as $solicitud) {
-            $writer->addRow(Row::fromValues($this->solicitudRow($solicitud)));
-        }
-
-        $writer->close();
-
-        return response()->download($path, $filename, [
+        return response()->download($path, $this->baseFilename().'.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ])->deleteFileAfterSend(true);
     }
 
     private function baseFilename(): string
     {
-        return 'reporte-solicitudes-'.now()->format('Y-m-d-His');
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function columnHeaders(): array
-    {
-        return [
-            'ID',
-            'Solicitante',
-            'Correo',
-            'Rol',
-            'Tipo',
-            'Estado',
-            'Fecha inicio',
-            'Fecha fin',
-            'Motivo',
-            'Código trámite',
-            'Creada',
-        ];
-    }
-
-    /**
-     * @return list<int|string>
-     */
-    private function solicitudRow(Solicitud $solicitud): array
-    {
-        $detalle = $solicitud->detalle ?? [];
-
-        return [
-            $solicitud->id,
-            $solicitud->creador?->nombreCompleto() ?? '',
-            $solicitud->creador?->email ?? '',
-            $solicitud->creador?->rol?->label() ?? '',
-            $solicitud->tipo->label(),
-            $solicitud->estado->label(),
-            $solicitud->fecha_inicio->format('Y-m-d'),
-            $solicitud->fecha_fin->format('Y-m-d'),
-            $solicitud->motivo,
-            $detalle['codigo_tramite'] ?? '',
-            $solicitud->created_at->format('Y-m-d H:i'),
-        ];
+        return 'PHM-08-F-002-matriz-novedades-'.now()->format('Y-m-d-His');
     }
 }

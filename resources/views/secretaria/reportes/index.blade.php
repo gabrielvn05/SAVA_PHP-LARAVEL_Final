@@ -47,6 +47,10 @@
             <a href="{{ route('reportes.export', array_merge($exportQuery, ['format' => 'xlsx'])) }}" class="btn btn--primary btn--sm">Exportar Excel</a>
             <a href="{{ route('reportes.export', array_merge($exportQuery, ['format' => 'csv'])) }}" class="btn btn--secondary btn--sm">Exportar CSV</a>
         </form>
+        <p class="field-hint" style="margin: 0;">
+            Exportar Excel descarga la matriz oficial PHM-08-F-002 con los filtros actuales. El CSV trae las mismas columnas.
+            Vacaciones, feriados, salidas injustificadas y la observación no los completa el sistema.
+        </p>
 
         @if($solicitudes->isEmpty())
             <p class="field-hint">No hay registros con los filtros seleccionados.</p>
@@ -75,7 +79,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="field-hint">Mostrando hasta 50 registros. Use Exportar Excel o CSV para el listado completo con los filtros actuales.</p>
+            <p class="field-hint">Mostrando hasta 50 registros. La descarga incluye el listado completo de esos filtros.</p>
         @endif
     </article>
 </section>

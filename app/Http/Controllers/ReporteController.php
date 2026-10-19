@@ -53,7 +53,12 @@ class ReporteController extends Controller
             $format = 'xlsx';
         }
 
-        return $this->exportService->exportGeneral($solicitudes, $format);
+        return $this->exportService->exportGeneral(
+            $solicitudes,
+            $format,
+            $request->date('desde'),
+            $request->date('hasta'),
+        );
     }
 
     private function filteredQuery(Request $request)
