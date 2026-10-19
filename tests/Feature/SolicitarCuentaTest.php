@@ -86,6 +86,48 @@ class SolicitarCuentaTest extends TestCase
             ->assertRedirect(route('login', ['solicitud' => 'ok'], false));
 
         $this->assertSame(1, AccountRequest::query()->count());
+        $this->assertSame('GABRIEL', AccountRequest::query()->value('nombres'));
+        $this->assertSame('VELEZ', AccountRequest::query()->value('apellidos'));
+    }
+
+    public function test_guarda_nombres_y_apellidos_en_mayusculas_sin_tildes_perdidas(): void
+    {
+        $this->post(route('solicitar-cuenta.store'), $this->payload([
+            'nombres' => 'maría elena',
+            'apellidos' => 'núñez pérez',
+            'email' => 'maria.elena@uleam.edu.ec',
+            'cedula' => '0926687856',
+        ]))
+            ->assertRedirect(route('login', ['solicitud' => 'ok'], false));
+
+        $solicitud = AccountRequest::query()->first();
+        $this->assertNotNull($solicitud);
+        $this->assertSame('MARÍA ELENA', $solicitud->nombres);
+        $this->assertSame('NÚÑEZ PÉREZ', $solicitud->apellidos);
+    }
+
+    public function test_rechaza_numeros_o_caracteres_especiales_en_nombres_y_apellidos(): void
+    {
+        $this->post(route('solicitar-cuenta.store'), $this->payload([
+            'nombres' => 'GABRIEL2',
+        ]))
+            ->assertRedirect(route('solicitar-cuenta.create', ['aviso' => 'nombres_invalidos'], false));
+
+        $this->post(route('solicitar-cuenta.store'), $this->payload([
+            'apellidos' => 'VELEZ-NUÑEZ',
+        ]))
+            ->assertRedirect(route('solicitar-cuenta.create', ['aviso' => 'apellidos_invalidos'], false));
+
+        $this->assertSame(0, AccountRequest::query()->count());
+    }
+
+    public function test_formulario_indica_mayusculas_y_solo_letras_en_nombres(): void
+    {
+        $this->get(route('solicitar-cuenta.create'))
+            ->assertOk()
+            ->assertSee('data-solo-letras', false)
+            ->assertSee('Ingrese los dos nombres en mayúsculas', false)
+            ->assertSee('Ingrese los dos apellidos en mayúsculas', false);
     }
 
     public function test_rechaza_rol_privilegiado_en_formulario_publico(): void

@@ -3950,6 +3950,10 @@ button:focus-visible {
   background: #fff;
 }
 
+.field__input--mayusculas {
+  text-transform: uppercase;
+}
+
 .field__input--sm {
   padding: 0.35rem 0.5rem;
   font-size: 0.82rem;

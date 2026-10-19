@@ -14,8 +14,8 @@ class AccountRequestValidator
     public function validate(array $raw): array
     {
         $email = strtolower(trim($raw['email'] ?? ''));
-        $nombres = trim($raw['nombres'] ?? '');
-        $apellidos = trim($raw['apellidos'] ?? '');
+        $nombres = $this->nombreEnMayusculas($raw['nombres'] ?? '');
+        $apellidos = $this->nombreEnMayusculas($raw['apellidos'] ?? '');
         $cedulaRaw = trim((string) ($raw['cedula'] ?? ''));
         $cedula = CedulaEcuador::normalizeDigits($cedulaRaw);
         $celular = preg_replace('/[^\d+]/', '', ltrim($raw['celular'] ?? '', '+')) ?? '';
@@ -24,6 +24,14 @@ class AccountRequestValidator
 
         if ($email === '' || $nombres === '' || $apellidos === '' || $cedulaRaw === '' || $celular === '' || $carrera === '') {
             return ['ok' => false, 'aviso' => 'datos_incompletos'];
+        }
+
+        if (! $this->esNombrePermitido($nombres)) {
+            return ['ok' => false, 'aviso' => 'nombres_invalidos'];
+        }
+
+        if (! $this->esNombrePermitido($apellidos)) {
+            return ['ok' => false, 'aviso' => 'apellidos_invalidos'];
         }
 
         foreach (['declaracion_veraz', 'declaracion_terminos', 'declaracion_privacidad', 'acepto_terminos'] as $declaracion) {
@@ -73,5 +81,17 @@ class AccountRequestValidator
                 'rol_solicitado' => $rol,
             ],
         ];
+    }
+
+    private function nombreEnMayusculas(string $valor): string
+    {
+        $valor = trim(preg_replace('/\s+/u', ' ', $valor) ?? '');
+
+        return mb_strtoupper($valor, 'UTF-8');
+    }
+
+    private function esNombrePermitido(string $valor): bool
+    {
+        return preg_match('/^\p{L}+(?: \p{L}+)*$/u', $valor) === 1;
     }
 }

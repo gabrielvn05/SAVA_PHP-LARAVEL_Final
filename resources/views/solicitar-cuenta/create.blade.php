@@ -18,6 +18,8 @@
         'correo_invalido' => 'Indica un correo electrónico válido.',
         'correo_no_institucional' => 'Use su correo institucional ULEAM. No se aceptan correos temporales.',
         'declaraciones_pendientes' => 'Debes marcar todas las declaraciones para enviar la solicitud.',
+        'nombres_invalidos' => 'Los nombres solo pueden contener letras. No se permiten números ni caracteres especiales.',
+        'apellidos_invalidos' => 'Los apellidos solo pueden contener letras. No se permiten números ni caracteres especiales.',
     ];
     $mensaje = $mensajes[$aviso ?? ''] ?? null;
 @endphp
@@ -50,11 +52,41 @@
                 <div class="form-grid">
                     <label class="field">
                         <span class="field__label">Nombres *</span>
-                        <input type="text" name="nombres" required class="field__input" value="{{ old('nombres') }}" autocomplete="given-name">
+                        <input
+                            type="text"
+                            name="nombres"
+                            id="nombres-input"
+                            required
+                            class="field__input field__input--mayusculas"
+                            value="{{ old('nombres') }}"
+                            autocomplete="given-name"
+                            autocapitalize="characters"
+                            spellcheck="false"
+                            data-solo-letras
+                            aria-describedby="nombres-hint"
+                        >
+                        <p class="field-hint" id="nombres-hint" style="margin: 0.35rem 0 0;">
+                            Ingrese los dos nombres en mayúsculas. Solo letras y espacios, sin números ni caracteres especiales.
+                        </p>
                     </label>
                     <label class="field">
                         <span class="field__label">Apellidos *</span>
-                        <input type="text" name="apellidos" required class="field__input" value="{{ old('apellidos') }}" autocomplete="family-name">
+                        <input
+                            type="text"
+                            name="apellidos"
+                            id="apellidos-input"
+                            required
+                            class="field__input field__input--mayusculas"
+                            value="{{ old('apellidos') }}"
+                            autocomplete="family-name"
+                            autocapitalize="characters"
+                            spellcheck="false"
+                            data-solo-letras
+                            aria-describedby="apellidos-hint"
+                        >
+                        <p class="field-hint" id="apellidos-hint" style="margin: 0.35rem 0 0;">
+                            Ingrese los dos apellidos en mayúsculas. Solo letras y espacios, sin números ni caracteres especiales.
+                        </p>
                     </label>
                     <label class="field">
                         <span class="field__label">Cédula de identidad *</span>
@@ -152,6 +184,38 @@
 
         input.addEventListener('input', sanitize);
         input.addEventListener('blur', sanitize);
+    })();
+
+    (function () {
+        const campos = document.querySelectorAll('[data-solo-letras]');
+        if (!campos.length) {
+            return;
+        }
+
+        const limpiar = (valor) => valor
+            .toLocaleUpperCase('es')
+            .replace(/[^\p{L}\s]/gu, '')
+            .replace(/^\s+/, '')
+            .replace(/\s{2,}/g, ' ');
+
+        campos.forEach((input) => {
+            const sanitize = (recortar) => {
+                const next = recortar ? limpiar(input.value).trim() : limpiar(input.value);
+                if (input.value === next) {
+                    return;
+                }
+
+                const alFinal = input.selectionStart === input.value.length;
+                input.value = next;
+                if (alFinal && typeof input.setSelectionRange === 'function') {
+                    input.setSelectionRange(next.length, next.length);
+                }
+            };
+
+            input.addEventListener('input', () => sanitize(false));
+            input.addEventListener('blur', () => sanitize(true));
+            sanitize(false);
+        });
     })();
 </script>
 @endsection
