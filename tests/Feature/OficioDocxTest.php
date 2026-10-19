@@ -73,6 +73,9 @@ class OficioDocxTest extends TestCase
 
         $this->assertStringContainsString("Correo\u{00A0}Institucional:\u{00A0}".$user->email, $xml);
         $this->assertStringContainsString('<w:gridCol w:w="8838"/>', $xml);
+        $this->assertStringContainsString('<w:ind w:right="4018"/>', $xml);
+        $this->assertStringContainsString('<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="000000"/></w:pBdr>', $xml);
+        $this->assertStringNotContainsString('<w:tcBorders>', $xml);
         $this->assertMatchesRegularExpression(
             '/<w:jc w:val="left"\/>(?:(?!<\/w:p>).)*Correo\x{00A0}Institucional:/su',
             $xml,

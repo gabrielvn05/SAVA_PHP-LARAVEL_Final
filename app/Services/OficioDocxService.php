@@ -266,12 +266,32 @@ class OficioDocxService
                     $tabla,
                 );
 
-                return is_string($parrafo) ? $parrafo : $tabla;
+                $tabla = is_string($parrafo) ? $parrafo : $tabla;
+
+                return $this->acortarLineaFirma($tabla, $ancho);
             },
             $xml,
         );
 
         return is_string($result) ? $result : $xml;
+    }
+
+    /**
+     * La línea de firma es el borde de la celda. Al ensanchar la celda para el
+     * correo, ese borde ocupaba todo el renglón; aquí queda en unos 8,5 cm.
+     */
+    private function acortarLineaFirma(string $tabla, ?int $ancho): string
+    {
+        $largoLinea = 4820;
+        $sangria = $ancho !== null ? max(0, $ancho - $largoLinea) : 4018;
+        $tabla = preg_replace('/<w:tcBorders\b[^>]*>.*?<\/w:tcBorders>/su', '', $tabla) ?? $tabla;
+
+        return preg_replace(
+            '/<w:pPr>/',
+            '<w:pPr><w:ind w:right="'.$sangria.'"/><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="000000"/></w:pBdr>',
+            $tabla,
+            1,
+        ) ?? $tabla;
     }
 
     private function anchoUtilPagina(string $xml): ?int
