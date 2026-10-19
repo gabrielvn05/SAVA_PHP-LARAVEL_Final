@@ -12,6 +12,7 @@ use App\Rules\StrongPassword;
 use App\Services\AuditService;
 use App\Services\UsuarioImportService;
 use App\Support\AssignableAppRoles;
+use App\Support\CedulaEcuador;
 use App\Support\DelegacionDecano;
 use App\Support\InstitutionalEmail;
 use App\Support\TemporaryPasswordGenerator;
@@ -67,6 +68,17 @@ class UsuarioController extends Controller
         $this->authorize('create', User::class);
 
         $roles = array_map(static fn (AppRole $rol): string => $rol->value, AssignableAppRoles::forAssignment());
+        $cedulaRaw = trim((string) $request->input('cedula', ''));
+
+        if (CedulaEcuador::containsLetters($cedulaRaw)) {
+            return back()->withInput()->withErrors([
+                'cedula' => 'La cédula solo debe contener números (sin letras).',
+            ]);
+        }
+
+        $request->merge([
+            'cedula' => CedulaEcuador::normalizeDigits($cedulaRaw),
+        ]);
 
         $validated = $request->validate([
             'email' => ['required', 'email', 'unique:users,email', function ($attribute, $value, $fail): void {
@@ -77,7 +89,12 @@ class UsuarioController extends Controller
             'password' => ['required', 'string', new StrongPassword],
             'nombres' => 'required|string|max:120',
             'apellidos' => 'required|string|max:120',
+            'cedula' => ['required', 'digits:10', Rule::unique('users', 'cedula')],
             'rol' => ['required', 'string', Rule::in($roles)],
+        ], [
+            'cedula.required' => 'Indica la cédula de identidad.',
+            'cedula.digits' => 'La cédula ecuatoriana debe tener exactamente 10 dígitos.',
+            'cedula.unique' => 'Esta cédula ya está registrada en una cuenta.',
         ]);
 
         $user = User::create([
@@ -85,6 +102,7 @@ class UsuarioController extends Controller
             'password' => $validated['password'],
             'nombres' => $validated['nombres'],
             'apellidos' => $validated['apellidos'],
+            'cedula' => $validated['cedula'],
             'rol' => $validated['rol'],
             'activo' => true,
             'email_verified_at' => now(),

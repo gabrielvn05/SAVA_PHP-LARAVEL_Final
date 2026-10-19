@@ -41,6 +41,28 @@
                     <input type="text" name="apellidos" required class="field__input" value="{{ old('apellidos') }}">
                 </label>
                 <label class="field">
+                    <span class="field__label">Cédula de identidad *</span>
+                    <input
+                        type="text"
+                        name="cedula"
+                        id="admin-cedula-input"
+                        required
+                        class="field__input"
+                        value="{{ old('cedula') }}"
+                        inputmode="numeric"
+                        maxlength="10"
+                        pattern="\d{10}"
+                        autocomplete="off"
+                        aria-describedby="admin-cedula-hint"
+                    >
+                    <p class="field-hint" id="admin-cedula-hint" style="margin: 0.35rem 0 0;">
+                        Ingrese los 10 dígitos numéricos de la cédula ecuatoriana, sin letras ni caracteres especiales.
+                    </p>
+                    @error('cedula')
+                        <p class="field-hint" style="color: var(--color-danger);">{{ $message }}</p>
+                    @enderror
+                </label>
+                <label class="field">
                     <span class="field__label">Rol *</span>
                     <select name="rol" required class="field__input">
                         @foreach($roles as $rol)
@@ -52,6 +74,24 @@
                     <button type="submit" class="btn btn--primary">Crear usuario</button>
                 </div>
             </form>
+            <script>
+                (function () {
+                    const input = document.getElementById('admin-cedula-input');
+                    if (!input) {
+                        return;
+                    }
+
+                    const sanitize = () => {
+                        const digits = input.value.replace(/\D/g, '').slice(0, 10);
+                        if (input.value !== digits) {
+                            input.value = digits;
+                        }
+                    };
+
+                    input.addEventListener('input', sanitize);
+                    input.addEventListener('blur', sanitize);
+                })();
+            </script>
         </article>
 
         @if($rutas['importCsv'] ?? false)

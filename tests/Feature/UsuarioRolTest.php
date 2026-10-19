@@ -157,6 +157,79 @@ class UsuarioRolTest extends TestCase
         $this->assertFalse($secretaria->fresh()->hasCapability(CapabilityType::GestionarUsuarios));
     }
 
+    public function test_superusuario_crea_usuario_interno_con_cedula(): void
+    {
+        $super = $this->usuario(AppRole::Superusuario, '1313000098');
+
+        $this->actingAs($super)
+            ->get(route('admin.usuarios.index'))
+            ->assertOk()
+            ->assertSee('Cédula de identidad', false)
+            ->assertSee('admin-cedula-input', false);
+
+        $this->actingAs($super)
+            ->post(route('admin.usuarios.store'), [
+                'email' => 'nuevo.interno@uleam.edu.ec',
+                'password' => 'ClaveSegura1!',
+                'nombres' => 'Ana',
+                'apellidos' => 'Perez',
+                'cedula' => '1712345675',
+                'rol' => AppRole::Docente->value,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $creado = User::query()->where('email', 'nuevo.interno@uleam.edu.ec')->first();
+        $this->assertNotNull($creado);
+        $this->assertSame('1712345675', $creado->cedula);
+    }
+
+    public function test_superusuario_rechaza_cedula_invalida_o_repetida(): void
+    {
+        $super = $this->usuario(AppRole::Superusuario, '1313000097');
+
+        $this->actingAs($super)
+            ->from(route('admin.usuarios.index'))
+            ->post(route('admin.usuarios.store'), [
+                'email' => 'sin.cedula@uleam.edu.ec',
+                'password' => 'ClaveSegura1!',
+                'nombres' => 'Ana',
+                'apellidos' => 'Perez',
+                'cedula' => '17123ABC75',
+                'rol' => AppRole::Docente->value,
+            ])
+            ->assertRedirect(route('admin.usuarios.index'))
+            ->assertSessionHasErrors('cedula');
+
+        $this->actingAs($super)
+            ->from(route('admin.usuarios.index'))
+            ->post(route('admin.usuarios.store'), [
+                'email' => 'cedula.corta@uleam.edu.ec',
+                'password' => 'ClaveSegura1!',
+                'nombres' => 'Ana',
+                'apellidos' => 'Perez',
+                'cedula' => '17123',
+                'rol' => AppRole::Docente->value,
+            ])
+            ->assertRedirect(route('admin.usuarios.index'))
+            ->assertSessionHasErrors('cedula');
+
+        $this->actingAs($super)
+            ->from(route('admin.usuarios.index'))
+            ->post(route('admin.usuarios.store'), [
+                'email' => 'cedula.repetida@uleam.edu.ec',
+                'password' => 'ClaveSegura1!',
+                'nombres' => 'Ana',
+                'apellidos' => 'Perez',
+                'cedula' => '1313000097',
+                'rol' => AppRole::Docente->value,
+            ])
+            ->assertRedirect(route('admin.usuarios.index'))
+            ->assertSessionHasErrors('cedula');
+
+        $this->assertNull(User::query()->where('email', 'cedula.repetida@uleam.edu.ec')->first());
+    }
+
     public function test_secretaria_cannot_manage_users(): void
     {
         $secretaria = $this->usuario(AppRole::Secretaria, '1313000010');
