@@ -8,7 +8,6 @@ use App\Support\OficioNombreArchivo;
 use App\Support\OficioSelloAutorizado;
 use App\Support\PdfFirmaDigital;
 use App\Support\PdfFirmador;
-use App\Support\PdfSelloIncremental;
 use App\Support\SolicitudAdjuntos;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -103,8 +102,8 @@ class SolicitudOficioFirmadoService
     }
 
     /**
-     * Oficio que el solicitante firmó, con el sello de autorizado.
-     * Si el PDF tiene firma digital, el sello se anexa al final y no se reescribe la firma.
+     * Oficio que el solicitante firmó.
+     * Si ya trae firma digital, se devuelve tal cual: el sello tiene que haber quedado dentro de esa firma.
      */
     public function pdfAprobadoConFirmaSolicitante(Solicitud $solicitud): ?string
     {
@@ -162,9 +161,11 @@ class SolicitudOficioFirmadoService
         array $anexos,
     ): array {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
+        $conSello = $solicitud->estado === SolicitudEstado::Aprobada;
+        $imagenSello = $conSello ? $this->prepararRecorteSello() : null;
 
         try {
-            $pdf = $this->pdfService->generarParaFirma($solicitud);
+            $pdf = $this->pdfService->generarParaFirma($solicitud, ! $conSello);
             if (! is_string($pdf) || $pdf === '') {
                 throw ValidationException::withMessages([
                     'p12' => 'No se pudo preparar el PDF del oficio.',
@@ -180,10 +181,12 @@ class SolicitudOficioFirmadoService
                     $pagina,
                     $xPorcentaje,
                     $yPorcentaje,
+                    $imagenSello,
                 ),
             );
         } finally {
             $this->descartarClave($material);
+            $this->descartarRecorteSello($imagenSello);
         }
 
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-p12.pdf';
@@ -211,6 +214,8 @@ class SolicitudOficioFirmadoService
     ): array {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
         $pngPath = null;
+        $conSello = $solicitud->estado === SolicitudEstado::Aprobada;
+        $imagenSello = $conSello ? $this->prepararRecorteSello() : null;
 
         try {
             $tmpPng = tempnam(sys_get_temp_dir(), 'firma-png-');
@@ -223,7 +228,7 @@ class SolicitudOficioFirmadoService
             file_put_contents($pngPath, file_get_contents($imagenFirma->getRealPath()) ?: '');
 
             $this->assertManipulacionPdfDisponible();
-            $pdf = $this->pdfService->generarParaFirma($solicitud);
+            $pdf = $this->pdfService->generarParaFirma($solicitud, ! $conSello);
             if (! is_string($pdf) || $pdf === '') {
                 throw ValidationException::withMessages([
                     'firma_imagen' => 'No se pudo preparar el PDF del oficio.',
@@ -238,6 +243,7 @@ class SolicitudOficioFirmadoService
                     $pagina,
                     $xPorcentaje,
                     $yPorcentaje,
+                    $imagenSello,
                 ),
             );
         } finally {
@@ -245,6 +251,7 @@ class SolicitudOficioFirmadoService
                 @unlink($pngPath);
             }
             $this->descartarClave($material);
+            $this->descartarRecorteSello($imagenSello);
         }
 
         if (! is_string($pdfFirmado) || $pdfFirmado === '') {
@@ -299,9 +306,11 @@ class SolicitudOficioFirmadoService
     public function firmarConP12(Solicitud $solicitud, UploadedFile $p12, string $contrasena, array $anexos): array
     {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
+        $conSello = $solicitud->estado === SolicitudEstado::Aprobada;
+        $imagenSello = $conSello ? $this->prepararRecorteSello() : null;
 
         try {
-            $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
+            $pdf = $this->pdfService->generarParaFirma($solicitud, ! $conSello);
             if (! is_string($pdf) || $pdf === '') {
                 throw ValidationException::withMessages([
                     'p12' => 'No se pudo generar el PDF del oficio en el servidor. Descarga Word o PDF, fírmalo externamente y súbelo.',
@@ -313,10 +322,12 @@ class SolicitudOficioFirmadoService
                     $pdf,
                     $material,
                     now()->locale('es')->translatedFormat('d \d\e F \d\e Y H:i'),
+                    $imagenSello,
                 ),
             );
         } finally {
             $this->descartarClave($material);
+            $this->descartarRecorteSello($imagenSello);
         }
 
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-electronico.pdf';
@@ -458,7 +469,7 @@ class SolicitudOficioFirmadoService
     /**
      * @param  array{titular: string, serial: string, cert: string, pkey: string, extracerts: string}  $material
      */
-    private function agregarHojaFirmaElectronica(string $pdfBytes, array $material, string $fecha): string
+    private function agregarHojaFirmaElectronica(string $pdfBytes, array $material, string $fecha, ?string $imagenSello = null): string
     {
         $titular = $material['titular'];
         $serial = $material['serial'];
@@ -466,7 +477,13 @@ class SolicitudOficioFirmadoService
         return PdfFirmaDigital::aplicar(
             $pdfBytes,
             $material,
-            static fn (): null => null,
+            function (PdfFirmador $pdf, int $page) use ($imagenSello): null {
+                if ($page === 1) {
+                    $this->estamparSelloAutorizado($pdf, $imagenSello);
+                }
+
+                return null;
+            },
             $this->infoFirma($material),
             function (PdfFirmador $pdf) use ($titular, $fecha, $serial): array {
                 $pdf->AddPage();
@@ -491,6 +508,7 @@ class SolicitudOficioFirmadoService
         int $paginaObjetivo,
         float $xPorcentaje,
         float $yPorcentaje,
+        ?string $imagenSello = null,
     ): string {
         $titular = $material['titular'];
         $serial = $material['serial'];
@@ -515,7 +533,12 @@ class SolicitudOficioFirmadoService
                 $qrPayload,
                 $nombreLinea1,
                 $nombreLinea2,
+                $imagenSello,
             ): ?array {
+                if ($page === 1) {
+                    $this->estamparSelloAutorizado($pdf, $imagenSello);
+                }
+
                 $pagina = max(1, min($paginaObjetivo, $pageCount));
                 if ($page !== $pagina) {
                     return null;
@@ -600,30 +623,19 @@ class SolicitudOficioFirmadoService
     }
 
     /**
-     * Cubre el recuadro «Sello de APROBADO…» del PDF firmado por el solicitante.
-     * Ese archivo se generó antes de la autorización, así que el sello no iba dentro.
+     * Cubre el recuadro «Sello de APROBADO…».
+     * Un PDF ya firmado no se toca: cualquier cambio posterior hace que FirmaEC marque problemas de integridad.
      */
     public function superponerSelloAutorizado(string $pdfBytes): string
     {
+        if (PdfFirmaDigital::contieneFirmaDigital($pdfBytes)) {
+            return $pdfBytes;
+        }
+
         $this->assertManipulacionPdfDisponible();
         $imagen = OficioSelloAutorizado::assetPath();
         if (! is_readable($imagen)) {
             return $pdfBytes;
-        }
-
-        if (PdfFirmaDigital::contieneFirmaDigital($pdfBytes)) {
-            $recorte = $this->recorteSelloSinMargen($imagen);
-            try {
-                return PdfSelloIncremental::aplicar($pdfBytes, $recorte, 142.5, 34.0, 46.0, 46.0);
-            } catch (\Throwable $e) {
-                report($e);
-
-                return $pdfBytes;
-            } finally {
-                if ($recorte !== $imagen) {
-                    @unlink($recorte);
-                }
-            }
         }
 
         $pdf = $this->nuevoPdfFpdi();
@@ -656,6 +668,40 @@ class SolicitudOficioFirmadoService
         }
 
         return $pdf->Output('', 'S');
+    }
+
+    private function prepararRecorteSello(): ?string
+    {
+        $imagen = OficioSelloAutorizado::assetPath();
+        if (! is_readable($imagen)) {
+            return null;
+        }
+
+        return $this->recorteSelloSinMargen($imagen);
+    }
+
+    private function descartarRecorteSello(?string $recorte): void
+    {
+        if ($recorte !== null && $recorte !== OficioSelloAutorizado::assetPath() && is_file($recorte)) {
+            @unlink($recorte);
+        }
+    }
+
+    private function estamparSelloAutorizado(PdfFirmador $pdf, ?string $imagen): void
+    {
+        if ($imagen === null || ! is_readable($imagen)) {
+            return;
+        }
+
+        $ancho = 46.0;
+        $alto = 46.0;
+        $x = 142.5;
+        $y = 34.0;
+        $pageW = $pdf->GetPageWidth();
+        $pageH = $pdf->GetPageHeight();
+        $xPagina = max(4.0, min($x, $pageW - $ancho - 4));
+        $yPagina = max(4.0, min($y, $pageH - $alto - 4));
+        $pdf->Image($imagen, $xPagina, $yPagina, $ancho, $alto, 'JPEG');
     }
 
     private function recorteSelloSinMargen(string $imagen): string
@@ -754,11 +800,16 @@ class SolicitudOficioFirmadoService
         int $paginaObjetivo,
         float $xPorcentaje,
         float $yPorcentaje,
+        ?string $imagenSello = null,
     ): string {
         return PdfFirmaDigital::aplicar(
             $pdfBytes,
             $material,
-            function (PdfFirmador $pdf, int $page, int $pageCount) use ($pngPath, $paginaObjetivo, $xPorcentaje, $yPorcentaje): ?array {
+            function (PdfFirmador $pdf, int $page, int $pageCount) use ($pngPath, $paginaObjetivo, $xPorcentaje, $yPorcentaje, $imagenSello): ?array {
+                if ($page === 1) {
+                    $this->estamparSelloAutorizado($pdf, $imagenSello);
+                }
+
                 $pagina = max(1, min($paginaObjetivo, $pageCount));
                 if ($page !== $pagina) {
                     return null;

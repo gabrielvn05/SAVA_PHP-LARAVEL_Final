@@ -273,6 +273,7 @@ class SolicitudOficioFirmadoTest extends TestCase
         $guardado = Storage::disk('local')->get($path);
         $this->assertIsString($guardado);
         $this->assertTrue(PdfFirmaDigital::contieneFirmaDigital($guardado));
+        $this->assertStringNotContainsString('/DCTDecode', $guardado);
         $this->assertStringContainsString('adbe.pkcs7.detached', $guardado);
         $this->assertStringContainsString('/FT /Sig', $guardado);
         $this->assertSame(1, preg_match('/\/Contents<([0-9A-Fa-f]+)>/', $guardado, $contenido));
@@ -291,11 +292,66 @@ class SolicitudOficioFirmadoTest extends TestCase
         ]);
 
         $aprobado = $service->pdfAprobadoConFirmaSolicitante($solicitud->fresh());
-        $this->assertIsString($aprobado);
-        $this->assertStringStartsWith($guardado, $aprobado);
-        $this->assertNotSame($guardado, $aprobado);
-        $this->assertStringContainsString('/SelloSAVA', $aprobado);
+        $this->assertSame($guardado, $aprobado);
         $this->assertTrue($this->firmaCubreElPdf($aprobado, $contenido[1]));
+        $this->assertSame(1, preg_match('/\/ByteRange\[0 (\d+) (\d+) (\d+)\]/', $aprobado, $rangoFirma));
+        $this->assertSame(strlen($aprobado), (int) $rangoFirma[2] + (int) $rangoFirma[3]);
+    }
+
+    public function test_firma_p12_de_oficio_aprobado_deja_el_sello_dentro_de_la_firma(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000198',
+            'carrera' => 'software',
+        ]);
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::Aprobada,
+            'detalle' => ['codigo_tramite' => 'FACVITEC-TEST-SELLO'],
+        ]);
+
+        $base = new Fpdi;
+        $base->setPrintHeader(false);
+        $base->setPrintFooter(false);
+        $base->AddPage();
+        $base->SetFont('helvetica', '', 12);
+        $base->Cell(0, 10, 'Oficio de prueba');
+        $pdfBytes = $base->Output('', 'S');
+
+        $pdfService = $this->createMock(OficioPdfService::class);
+        $pdfService->method('generarParaFirma')->willReturn($pdfBytes);
+
+        $p12 = UploadedFile::fake()->createWithContent('docente.p12', $this->certificadoP12('secreta'));
+        $service = new SolicitudOficioFirmadoService($pdfService);
+        $resultado = $service->firmarConP12EnPosicion($solicitud, $p12, 'secreta', 1, 70, 80, []);
+
+        $path = (string) ($resultado['anexos'][0]['path'] ?? '');
+        $guardado = Storage::disk('local')->get($path);
+        $this->assertIsString($guardado);
+        $this->assertStringContainsString('/DCTDecode', $guardado);
+        $this->assertSame(1, preg_match('/\/Contents<([0-9A-Fa-f]+)>/', $guardado, $contenido));
+        $this->assertTrue($this->firmaCubreElPdf($guardado, $contenido[1]));
+        $this->assertSame(1, preg_match('/\/ByteRange\[0 (\d+) (\d+) (\d+)\]/', $guardado, $rango));
+        $this->assertSame(strlen($guardado), (int) $rango[2] + (int) $rango[3]);
+
+        $solicitud->update([
+            'detalle' => [
+                'codigo_tramite' => 'FACVITEC-TEST-SELLO',
+                'anexos' => $resultado['anexos'],
+                'firma_docente' => $resultado['firma_docente'],
+            ],
+        ]);
+
+        $aprobado = $service->pdfAprobadoConFirmaSolicitante($solicitud->fresh());
+        $this->assertSame($guardado, $aprobado);
     }
 
     private function certificadoP12(string $password): string

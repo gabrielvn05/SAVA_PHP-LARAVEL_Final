@@ -36,7 +36,7 @@ class SolicitudFirmaDocenteController extends Controller
 
     public function show(Request $request, Solicitud $solicitud): View
     {
-        $this->authorize('update', $solicitud);
+        $this->authorize('firmarOficio', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
         $solicitud->refresh();
 
@@ -91,7 +91,7 @@ class SolicitudFirmaDocenteController extends Controller
 
     public function firmarNavegador(Request $request, Solicitud $solicitud): RedirectResponse
     {
-        $this->authorize('update', $solicitud);
+        $this->authorize('firmarOficio', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
 
         $validated = $request->validate([
@@ -131,7 +131,7 @@ class SolicitudFirmaDocenteController extends Controller
 
     public function iniciarFirmaEc(Request $request, Solicitud $solicitud): JsonResponse
     {
-        $this->authorize('update', $solicitud);
+        $this->authorize('firmarOficio', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
 
         $validated = $request->validate([
@@ -165,7 +165,7 @@ class SolicitudFirmaDocenteController extends Controller
 
     public function estadoFirmaEc(Solicitud $solicitud, FirmaEcEnvio $envio): JsonResponse
     {
-        $this->authorize('update', $solicitud);
+        $this->authorize('firmarOficio', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
 
         if ($envio->solicitud_id !== $solicitud->id || $envio->user_id !== auth()->id()) {
@@ -188,7 +188,7 @@ class SolicitudFirmaDocenteController extends Controller
 
     public function firmarP12Documento(Request $request, Solicitud $solicitud): RedirectResponse
     {
-        $this->authorize('update', $solicitud);
+        $this->authorize('firmarOficio', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
 
         $request->validate([
@@ -220,7 +220,7 @@ class SolicitudFirmaDocenteController extends Controller
                 $anexos,
             );
 
-            return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Oficio firmado con certificado .p12. Revisa el documento y envía a Secretaría.');
+            return $this->redirectTrasGuardarFirma($solicitud, $firmado, $this->mensajeTrasFirmaP12($solicitud));
         }
 
         $firmado = $this->oficioFirmado->firmarConP12EnPosicion(
@@ -236,13 +236,13 @@ class SolicitudFirmaDocenteController extends Controller
         return $this->redirectTrasGuardarFirma(
             $solicitud,
             $firmado,
-            'Oficio firmado con certificado .p12. Revisa la vista previa y, si está correcto, envía a Secretaría.',
+            $this->mensajeTrasFirmaP12($solicitud),
         );
     }
 
     public function subirManual(Request $request, Solicitud $solicitud): RedirectResponse
     {
-        $this->authorize('update', $solicitud);
+        $this->authorize('firmarOficio', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
 
         $request->validate([
@@ -262,6 +262,15 @@ class SolicitudFirmaDocenteController extends Controller
             $firmado,
             'Oficio firmado guardado. Revisa la vista previa y envía a Secretaría cuando esté listo.',
         );
+    }
+
+    private function mensajeTrasFirmaP12(Solicitud $solicitud): string
+    {
+        if ($solicitud->estado === SolicitudEstado::Aprobada) {
+            return 'Oficio firmado. El sello de autorizado quedó dentro de la firma. Descárgalo de nuevo y valídalo en FirmaEC.';
+        }
+
+        return 'Oficio firmado con certificado .p12. Revisa la vista previa y, si está correcto, envía a Secretaría. El sello se estampa en otra firma, después de que el decano apruebe.';
     }
 
     /**
@@ -332,7 +341,11 @@ class SolicitudFirmaDocenteController extends Controller
             abort(403);
         }
 
-        if (! in_array($solicitud->estado, [SolicitudEstado::EnBorrador, SolicitudEstado::EnRevisionSecretaria], true)) {
+        if (! in_array($solicitud->estado, [
+            SolicitudEstado::EnBorrador,
+            SolicitudEstado::EnRevisionSecretaria,
+            SolicitudEstado::Aprobada,
+        ], true)) {
             abort(403, 'Este trámite ya no admite firma del solicitante.');
         }
     }

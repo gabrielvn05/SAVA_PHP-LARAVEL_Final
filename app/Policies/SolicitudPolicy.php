@@ -49,6 +49,19 @@ class SolicitudPolicy
                 || $user->hasCapability(CapabilityType::AprobarSolicitudes));
     }
 
+    public function firmarOficio(User $user, Solicitud $solicitud): bool
+    {
+        if ($solicitud->creado_por !== $user->id) {
+            return false;
+        }
+
+        return in_array($solicitud->estado, [
+            SolicitudEstado::EnBorrador,
+            SolicitudEstado::EnRevisionSecretaria,
+            SolicitudEstado::Aprobada,
+        ], true);
+    }
+
     public function delete(User $user, Solicitud $solicitud): bool
     {
         if ($solicitud->creado_por !== $user->id) {

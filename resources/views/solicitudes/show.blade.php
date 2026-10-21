@@ -120,6 +120,9 @@
             />
             <div class="solicitud-preview__downloads">
                 <a href="{{ $documentoPrincipal['url'] }}" class="btn btn--primary btn--sm">Descargar oficio firmado</a>
+                @if($estado === \App\Enums\SolicitudEstado::Aprobada && auth()->id() === $solicitud->creado_por)
+                    <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'p12']) }}" class="btn btn--secondary btn--sm">Firmar oficio aprobado con el sello</a>
+                @endif
             </div>
         @elseif($mostrarOficioInstitucional ?? true)
             <x-doc-viewer

@@ -47,11 +47,14 @@ class OficioPdfService
         return $this->generar($solicitud) !== null;
     }
 
-    /** PDF institucional para vista previa al firmar (Word/LibreOffice; HTML solo si no hay conversión). */
-    public function generarParaFirma(Solicitud $solicitud): ?string
+    /**
+     * PDF institucional para vista previa al firmar (Word/LibreOffice; HTML solo si no hay conversión).
+     * Con el sello desactivado se evita incrustarlo dos veces: la firma lo dibuja ella misma.
+     */
+    public function generarParaFirma(Solicitud $solicitud, bool $conSelloInstitucional = true): ?string
     {
         if ($this->docx->puedeGenerarDocx($solicitud)) {
-            $pdf = $this->generar($solicitud);
+            $pdf = $this->generar($solicitud, $conSelloInstitucional);
             if (is_string($pdf) && $pdf !== '') {
                 return $pdf;
             }
