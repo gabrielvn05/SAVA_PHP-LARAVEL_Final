@@ -112,7 +112,8 @@ class FirmaEcIntegracionTest extends TestCase
         $this->assertTrue(PdfFirmaDigital::contieneFirmaDigital((string) $guardado));
 
         $solicitud->update(['estado' => SolicitudEstado::Aprobada]);
-        $this->assertNull(app(SolicitudOficioFirmadoService::class)->pdfAprobadoConFirmaSolicitante($solicitud->fresh()));
+        $aprobado = app(SolicitudOficioFirmadoService::class)->pdfAprobadoConFirmaSolicitante($solicitud->fresh());
+        $this->assertSame($firmado, $aprobado);
     }
 
     public function test_callback_rechaza_una_clave_distinta(): void

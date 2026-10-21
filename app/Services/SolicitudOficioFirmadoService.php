@@ -109,12 +109,12 @@ class SolicitudOficioFirmadoService
     }
 
     /**
-     * Oficio firmado después de la aprobación: el sello ya iba dentro de la firma.
-     * Si la firma es anterior, devuelve null para usar el oficio regenerado con el sello.
+     * El PDF firmado por el solicitante, sin reescribirlo al aprobar.
+     * El sello ya quedó dentro de esa firma.
      */
     public function pdfAprobadoConFirmaSolicitante(Solicitud $solicitud): ?string
     {
-        if ($solicitud->estado !== SolicitudEstado::Aprobada || ! self::firmaIncluyeSello($solicitud)) {
+        if ($solicitud->estado !== SolicitudEstado::Aprobada) {
             return null;
         }
 
@@ -168,8 +168,8 @@ class SolicitudOficioFirmadoService
         array $anexos,
     ): array {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
-        $conSello = $solicitud->estado === SolicitudEstado::Aprobada;
-        $imagenSello = $conSello ? $this->prepararRecorteSello() : null;
+        $conSello = true;
+        $imagenSello = $this->prepararRecorteSello();
 
         try {
             $pdf = $this->pdfService->generarParaFirma($solicitud, ! $conSello);
@@ -214,8 +214,8 @@ class SolicitudOficioFirmadoService
     ): array {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
         $pngPath = null;
-        $conSello = $solicitud->estado === SolicitudEstado::Aprobada;
-        $imagenSello = $conSello ? $this->prepararRecorteSello() : null;
+        $conSello = true;
+        $imagenSello = $this->prepararRecorteSello();
 
         try {
             $tmpPng = tempnam(sys_get_temp_dir(), 'firma-png-');
@@ -299,8 +299,8 @@ class SolicitudOficioFirmadoService
     public function firmarConP12(Solicitud $solicitud, UploadedFile $p12, string $contrasena, array $anexos): array
     {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
-        $conSello = $solicitud->estado === SolicitudEstado::Aprobada;
-        $imagenSello = $conSello ? $this->prepararRecorteSello() : null;
+        $conSello = true;
+        $imagenSello = $this->prepararRecorteSello();
 
         try {
             $pdf = $this->pdfService->generarParaFirma($solicitud, ! $conSello);

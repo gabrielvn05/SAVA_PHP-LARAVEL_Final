@@ -14,12 +14,8 @@
         <p class="field-hint" style="margin: 0.35rem 0 0;">
             1) Sube el archivo .p12. 2) Ingresa la contraseña. 3) Haz clic en el documento donde debe ir la firma. 4) Aplica la firma.
             El PDF queda con la firma digital que FirmaEC reconoce. Ese PDF <strong>sí se guarda</strong> en el trámite; el archivo <strong>.p12 no se almacena</strong>.
-            @if($solicitud->estado === \App\Enums\SolicitudEstado::Aprobada)
-                El decano ya aprobó. Al firmar ahora, el sello de autorizado queda dentro de la firma y FirmaEC no marca el documento como alterado.
-            @else
-                El sello de autorizado se estampa después, cuando el decano apruebe y firmes otra vez ese oficio.
-            @endif
-            Si ya descargaste un archivo, fírmalo de nuevo: ese archivo no cambia.
+            El sello de autorizado queda dentro de esta firma. Cuando el decano apruebe, el PDF no se vuelve a armar: sigue con la firma y el sello, y FirmaEC lo valida sin marcarlo como alterado.
+            Si ya descargaste un archivo anterior, fírmalo de nuevo: ese archivo no cambia.
         </p>
     </div>
 

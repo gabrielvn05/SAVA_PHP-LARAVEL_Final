@@ -424,10 +424,6 @@ class SolicitudController extends Controller
             return null;
         }
 
-        if ($solicitud->estado === SolicitudEstado::Aprobada && ! SolicitudOficioFirmadoService::firmaIncluyeSello($solicitud)) {
-            return null;
-        }
-
         $firmado = SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud);
         if ($firmado === null) {
             return null;

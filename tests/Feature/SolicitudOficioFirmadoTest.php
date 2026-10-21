@@ -273,7 +273,7 @@ class SolicitudOficioFirmadoTest extends TestCase
         $guardado = Storage::disk('local')->get($path);
         $this->assertIsString($guardado);
         $this->assertTrue(PdfFirmaDigital::contieneFirmaDigital($guardado));
-        $this->assertStringNotContainsString('/DCTDecode', $guardado);
+        $this->assertStringContainsString('/DCTDecode', $guardado);
         $this->assertStringContainsString('adbe.pkcs7.detached', $guardado);
         $this->assertStringContainsString('/FT /Sig', $guardado);
         $this->assertSame(1, preg_match('/\/Contents<([0-9A-Fa-f]+)>/', $guardado, $contenido));
@@ -292,7 +292,7 @@ class SolicitudOficioFirmadoTest extends TestCase
         ]);
 
         $aprobado = $service->pdfAprobadoConFirmaSolicitante($solicitud->fresh());
-        $this->assertNull($aprobado);
+        $this->assertSame($guardado, $aprobado);
         $this->assertSame(1, preg_match('/\/ByteRange\[0 (\d+) (\d+) (\d+)\]/', $guardado, $rangoFirma));
         $this->assertSame(strlen($guardado), (int) $rangoFirma[2] + (int) $rangoFirma[3]);
     }
