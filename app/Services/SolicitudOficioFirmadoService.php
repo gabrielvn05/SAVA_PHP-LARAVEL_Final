@@ -8,6 +8,7 @@ use App\Support\OficioNombreArchivo;
 use App\Support\OficioSelloAutorizado;
 use App\Support\PdfFirmaDigital;
 use App\Support\PdfFirmador;
+use App\Support\PdfSelloIncremental;
 use App\Support\SolicitudAdjuntos;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -168,8 +169,8 @@ class SolicitudOficioFirmadoService
         array $anexos,
     ): array {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
-        $conSello = true;
-        $imagenSello = $this->prepararRecorteSello();
+        $conSello = false;
+        $imagenSello = null;
 
         try {
             $pdf = $this->pdfService->generarParaFirma($solicitud, ! $conSello);
@@ -214,8 +215,8 @@ class SolicitudOficioFirmadoService
     ): array {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
         $pngPath = null;
-        $conSello = true;
-        $imagenSello = $this->prepararRecorteSello();
+        $conSello = false;
+        $imagenSello = null;
 
         try {
             $tmpPng = tempnam(sys_get_temp_dir(), 'firma-png-');
@@ -299,8 +300,8 @@ class SolicitudOficioFirmadoService
     public function firmarConP12(Solicitud $solicitud, UploadedFile $p12, string $contrasena, array $anexos): array
     {
         $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
-        $conSello = true;
-        $imagenSello = $this->prepararRecorteSello();
+        $conSello = false;
+        $imagenSello = null;
 
         try {
             $pdf = $this->pdfService->generarParaFirma($solicitud, ! $conSello);
@@ -633,19 +634,29 @@ class SolicitudOficioFirmadoService
     }
 
     /**
-     * Cubre el recuadro «Sello de APROBADO…».
-     * Un PDF ya firmado no se toca: cualquier cambio posterior hace que FirmaEC marque problemas de integridad.
+     * Estampa el sello al aprobar. Si el PDF ya está firmado, lo anexa al final y no reescribe la firma.
      */
     public function superponerSelloAutorizado(string $pdfBytes): string
     {
-        if (PdfFirmaDigital::contieneFirmaDigital($pdfBytes)) {
-            return $pdfBytes;
-        }
-
         $this->assertManipulacionPdfDisponible();
         $imagen = OficioSelloAutorizado::assetPath();
         if (! is_readable($imagen)) {
             return $pdfBytes;
+        }
+
+        if (PdfFirmaDigital::contieneFirmaDigital($pdfBytes)) {
+            $recorte = $this->recorteSelloSinMargen($imagen);
+            try {
+                return PdfSelloIncremental::aplicar($pdfBytes, $recorte, 142.5, 34.0, 46.0, 46.0);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return $pdfBytes;
+            } finally {
+                if ($recorte !== $imagen) {
+                    @unlink($recorte);
+                }
+            }
         }
 
         $pdf = $this->nuevoPdfFpdi();

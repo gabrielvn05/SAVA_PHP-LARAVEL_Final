@@ -270,7 +270,7 @@ class SolicitudFirmaDocenteController extends Controller
             return 'Oficio firmado. El sello de autorizado quedó dentro de la firma. Descárgalo de nuevo y valídalo en FirmaEC.';
         }
 
-        return 'Oficio firmado con certificado .p12. La firma y el sello quedaron en el mismo PDF. Revisa la vista previa y, si está correcto, envía a Secretaría.';
+        return 'Oficio firmado con certificado .p12. Revisa la vista previa y, si está correcto, envía a Secretaría. El sello de autorizado se estampa cuando el decano apruebe.';
     }
 
     /**

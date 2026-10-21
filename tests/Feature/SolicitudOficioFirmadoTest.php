@@ -273,7 +273,7 @@ class SolicitudOficioFirmadoTest extends TestCase
         $guardado = Storage::disk('local')->get($path);
         $this->assertIsString($guardado);
         $this->assertTrue(PdfFirmaDigital::contieneFirmaDigital($guardado));
-        $this->assertStringContainsString('/DCTDecode', $guardado);
+        $this->assertStringNotContainsString('/SelloSAVA', $guardado);
         $this->assertStringContainsString('adbe.pkcs7.detached', $guardado);
         $this->assertStringContainsString('/FT /Sig', $guardado);
         $this->assertSame(1, preg_match('/\/Contents<([0-9A-Fa-f]+)>/', $guardado, $contenido));
@@ -292,12 +292,13 @@ class SolicitudOficioFirmadoTest extends TestCase
         ]);
 
         $aprobado = $service->pdfAprobadoConFirmaSolicitante($solicitud->fresh());
-        $this->assertSame($guardado, $aprobado);
-        $this->assertSame(1, preg_match('/\/ByteRange\[0 (\d+) (\d+) (\d+)\]/', $guardado, $rangoFirma));
-        $this->assertSame(strlen($guardado), (int) $rangoFirma[2] + (int) $rangoFirma[3]);
+        $this->assertIsString($aprobado);
+        $this->assertStringStartsWith($guardado, $aprobado);
+        $this->assertStringContainsString('/SelloSAVA', $aprobado);
+        $this->assertTrue($this->firmaCubreElPdf($aprobado, $contenido[1]));
     }
 
-    public function test_firma_p12_de_oficio_aprobado_deja_el_sello_dentro_de_la_firma(): void
+    public function test_al_aprobar_el_sello_se_anexa_sin_reescribir_la_firma(): void
     {
         Storage::fake('local');
 
@@ -335,12 +336,10 @@ class SolicitudOficioFirmadoTest extends TestCase
         $path = (string) ($resultado['anexos'][0]['path'] ?? '');
         $guardado = Storage::disk('local')->get($path);
         $this->assertIsString($guardado);
-        $this->assertSame('1', $resultado['firma_docente']['incluye_sello'] ?? null);
-        $this->assertStringContainsString('/DCTDecode', $guardado);
+        $this->assertArrayNotHasKey('incluye_sello', $resultado['firma_docente']);
+        $this->assertStringNotContainsString('/SelloSAVA', $guardado);
         $this->assertSame(1, preg_match('/\/Contents<([0-9A-Fa-f]+)>/', $guardado, $contenido));
         $this->assertTrue($this->firmaCubreElPdf($guardado, $contenido[1]));
-        $this->assertSame(1, preg_match('/\/ByteRange\[0 (\d+) (\d+) (\d+)\]/', $guardado, $rango));
-        $this->assertSame(strlen($guardado), (int) $rango[2] + (int) $rango[3]);
 
         $solicitud->update([
             'detalle' => [
@@ -351,7 +350,10 @@ class SolicitudOficioFirmadoTest extends TestCase
         ]);
 
         $aprobado = $service->pdfAprobadoConFirmaSolicitante($solicitud->fresh());
-        $this->assertSame($guardado, $aprobado);
+        $this->assertIsString($aprobado);
+        $this->assertStringStartsWith($guardado, $aprobado);
+        $this->assertStringContainsString('/SelloSAVA', $aprobado);
+        $this->assertTrue($this->firmaCubreElPdf($aprobado, $contenido[1]));
     }
 
     private function certificadoP12(string $password): string
