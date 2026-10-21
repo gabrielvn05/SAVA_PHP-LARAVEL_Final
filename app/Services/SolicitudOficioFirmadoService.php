@@ -8,6 +8,7 @@ use App\Support\OficioNombreArchivo;
 use App\Support\OficioSelloAutorizado;
 use App\Support\PdfFirmaDigital;
 use App\Support\PdfFirmador;
+use App\Support\PdfSelloIncremental;
 use App\Support\SolicitudAdjuntos;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -102,9 +103,8 @@ class SolicitudOficioFirmadoService
     }
 
     /**
-     * Oficio que el solicitante firmó.
-     * Si el PDF ya tiene firma digital, se entrega sin reescribirlo: un sello posterior la invalidaría.
-     * Si solo tiene un sello visual, se superpone el sello de autorizado.
+     * Oficio que el solicitante firmó, con el sello de autorizado.
+     * Si el PDF tiene firma digital, el sello se anexa al final y no se reescribe la firma.
      */
     public function pdfAprobadoConFirmaSolicitante(Solicitud $solicitud): ?string
     {
@@ -131,10 +131,6 @@ class SolicitudOficioFirmadoService
         $bytes = Storage::disk($disk)->get($path);
         if (! is_string($bytes) || ! str_starts_with($bytes, '%PDF')) {
             return null;
-        }
-
-        if (PdfFirmaDigital::contieneFirmaDigital($bytes)) {
-            return $bytes;
         }
 
         try {
@@ -609,14 +605,25 @@ class SolicitudOficioFirmadoService
      */
     public function superponerSelloAutorizado(string $pdfBytes): string
     {
-        if (PdfFirmaDigital::contieneFirmaDigital($pdfBytes)) {
-            return $pdfBytes;
-        }
-
         $this->assertManipulacionPdfDisponible();
         $imagen = OficioSelloAutorizado::assetPath();
         if (! is_readable($imagen)) {
             return $pdfBytes;
+        }
+
+        if (PdfFirmaDigital::contieneFirmaDigital($pdfBytes)) {
+            $recorte = $this->recorteSelloSinMargen($imagen);
+            try {
+                return PdfSelloIncremental::aplicar($pdfBytes, $recorte, 142.5, 34.0, 46.0, 46.0);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return $pdfBytes;
+            } finally {
+                if ($recorte !== $imagen) {
+                    @unlink($recorte);
+                }
+            }
         }
 
         $pdf = $this->nuevoPdfFpdi();

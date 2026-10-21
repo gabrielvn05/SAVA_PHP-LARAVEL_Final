@@ -231,7 +231,7 @@ class SolicitudOficioFirmadoTest extends TestCase
         $this->assertSame(SolicitudEstado::EnRevisionSecretaria, $solicitud->estado);
     }
 
-    public function test_firma_p12_incrusta_pades_y_la_aprobacion_no_reescribe_el_pdf(): void
+    public function test_firma_p12_incrusta_pades_y_el_sello_no_rompe_la_firma(): void
     {
         Storage::fake('local');
 
@@ -291,7 +291,11 @@ class SolicitudOficioFirmadoTest extends TestCase
         ]);
 
         $aprobado = $service->pdfAprobadoConFirmaSolicitante($solicitud->fresh());
-        $this->assertSame($guardado, $aprobado);
+        $this->assertIsString($aprobado);
+        $this->assertStringStartsWith($guardado, $aprobado);
+        $this->assertNotSame($guardado, $aprobado);
+        $this->assertStringContainsString('/SelloSAVA', $aprobado);
+        $this->assertTrue($this->firmaCubreElPdf($aprobado, $contenido[1]));
     }
 
     private function certificadoP12(string $password): string
