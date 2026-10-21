@@ -292,10 +292,9 @@ class SolicitudOficioFirmadoTest extends TestCase
         ]);
 
         $aprobado = $service->pdfAprobadoConFirmaSolicitante($solicitud->fresh());
-        $this->assertSame($guardado, $aprobado);
-        $this->assertTrue($this->firmaCubreElPdf($aprobado, $contenido[1]));
-        $this->assertSame(1, preg_match('/\/ByteRange\[0 (\d+) (\d+) (\d+)\]/', $aprobado, $rangoFirma));
-        $this->assertSame(strlen($aprobado), (int) $rangoFirma[2] + (int) $rangoFirma[3]);
+        $this->assertNull($aprobado);
+        $this->assertSame(1, preg_match('/\/ByteRange\[0 (\d+) (\d+) (\d+)\]/', $guardado, $rangoFirma));
+        $this->assertSame(strlen($guardado), (int) $rangoFirma[2] + (int) $rangoFirma[3]);
     }
 
     public function test_firma_p12_de_oficio_aprobado_deja_el_sello_dentro_de_la_firma(): void
@@ -336,6 +335,7 @@ class SolicitudOficioFirmadoTest extends TestCase
         $path = (string) ($resultado['anexos'][0]['path'] ?? '');
         $guardado = Storage::disk('local')->get($path);
         $this->assertIsString($guardado);
+        $this->assertSame('1', $resultado['firma_docente']['incluye_sello'] ?? null);
         $this->assertStringContainsString('/DCTDecode', $guardado);
         $this->assertSame(1, preg_match('/\/Contents<([0-9A-Fa-f]+)>/', $guardado, $contenido));
         $this->assertTrue($this->firmaCubreElPdf($guardado, $contenido[1]));

@@ -101,13 +101,20 @@ class SolicitudOficioFirmadoService
         return self::oficioFirmadoEnAnexos($solicitud) !== null;
     }
 
+    public static function firmaIncluyeSello(Solicitud $solicitud): bool
+    {
+        $firma = $solicitud->detalle['firma_docente'] ?? null;
+
+        return is_array($firma) && (string) ($firma['incluye_sello'] ?? '') === '1';
+    }
+
     /**
-     * Oficio que el solicitante firmó.
-     * Si ya trae firma digital, se devuelve tal cual: el sello tiene que haber quedado dentro de esa firma.
+     * Oficio firmado después de la aprobación: el sello ya iba dentro de la firma.
+     * Si la firma es anterior, devuelve null para usar el oficio regenerado con el sello.
      */
     public function pdfAprobadoConFirmaSolicitante(Solicitud $solicitud): ?string
     {
-        if ($solicitud->estado !== SolicitudEstado::Aprobada) {
+        if ($solicitud->estado !== SolicitudEstado::Aprobada || ! self::firmaIncluyeSello($solicitud)) {
             return null;
         }
 
@@ -192,14 +199,7 @@ class SolicitudOficioFirmadoService
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-p12.pdf';
         $path = SolicitudAdjuntos::guardarContenido($pdfFirmado, 'pdf');
 
-        return $this->insertarOficioFirmado($anexos, $path, $nombre, [
-            'tipo' => 'p12_documento',
-            'formato' => 'pades',
-            'titular' => $material['titular'],
-            'serial' => $material['serial'],
-            'pagina' => (string) $pagina,
-            'fecha' => now()->toIso8601String(),
-        ]);
+        return $this->insertarOficioFirmado($anexos, $path, $nombre, $this->metaFirmaP12($material, $pagina, $conSello, 'p12_documento'));
     }
 
     public function firmarConP12EImagenEnDocumento(
@@ -263,14 +263,7 @@ class SolicitudOficioFirmadoService
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-p12.pdf';
         $path = SolicitudAdjuntos::guardarContenido($pdfFirmado, 'pdf');
 
-        return $this->insertarOficioFirmado($anexos, $path, $nombre, [
-            'tipo' => 'p12_documento',
-            'formato' => 'pades',
-            'titular' => $material['titular'],
-            'serial' => $material['serial'],
-            'pagina' => (string) $pagina,
-            'fecha' => now()->toIso8601String(),
-        ]);
+        return $this->insertarOficioFirmado($anexos, $path, $nombre, $this->metaFirmaP12($material, $pagina, $conSello, 'p12_documento'));
     }
 
     /**
@@ -333,13 +326,30 @@ class SolicitudOficioFirmadoService
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-electronico.pdf';
         $path = SolicitudAdjuntos::guardarContenido($pdfFirmado, 'pdf');
 
-        return $this->insertarOficioFirmado($anexos, $path, $nombre, [
-            'tipo' => 'p12',
+        return $this->insertarOficioFirmado($anexos, $path, $nombre, $this->metaFirmaP12($material, null, $conSello, 'p12'));
+    }
+
+    /**
+     * @param  array{titular: string, serial: string}  $material
+     * @return array<string, string>
+     */
+    private function metaFirmaP12(array $material, ?int $pagina, bool $conSello, string $tipo): array
+    {
+        $meta = [
+            'tipo' => $tipo,
             'formato' => 'pades',
             'titular' => $material['titular'],
             'serial' => $material['serial'],
             'fecha' => now()->toIso8601String(),
-        ]);
+        ];
+        if ($pagina !== null) {
+            $meta['pagina'] = (string) $pagina;
+        }
+        if ($conSello) {
+            $meta['incluye_sello'] = '1';
+        }
+
+        return $meta;
     }
 
     /**
