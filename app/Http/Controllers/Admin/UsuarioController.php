@@ -18,6 +18,7 @@ use App\Support\InstitutionalEmail;
 use App\Support\TemporaryPasswordGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
@@ -55,6 +56,7 @@ class UsuarioController extends Controller
             'esSuperusuario' => $actor->rol === AppRole::Superusuario,
             'rutas' => [
                 'importCsv' => Route::has('admin.usuarios.import-csv'),
+                'plantillaCsv' => Route::has('admin.usuarios.plantilla-csv'),
                 'rol' => Route::has('admin.usuarios.rol'),
                 'estado' => Route::has('admin.usuarios.estado'),
                 'resetClave' => Route::has('admin.usuarios.reset-clave'),
@@ -187,6 +189,17 @@ class UsuarioController extends Controller
         $this->audit->log('UPDATE', $usuario);
 
         return back()->with('success', "Se envió una clave temporal a {$usuario->email}.");
+    }
+
+    public function plantillaCsv(): Response
+    {
+        $this->authorize('importCsv', User::class);
+
+        return response($this->importService->contenidoPlantilla(), 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="plantilla_usuarios.csv"',
+            'Cache-Control' => 'no-store',
+        ]);
     }
 
     public function importCsv(Request $request): RedirectResponse

@@ -15,6 +15,7 @@ class UsuarioAdminRoutesTest extends TestCase
         $this->assertTrue(Route::has('admin.usuarios.estado'));
         $this->assertTrue(Route::has('admin.usuarios.reset-clave'));
         $this->assertTrue(Route::has('admin.usuarios.import-csv'));
+        $this->assertTrue(Route::has('admin.usuarios.plantilla-csv'));
         $this->assertTrue(Route::has('admin.usuarios.delegate'));
     }
 }

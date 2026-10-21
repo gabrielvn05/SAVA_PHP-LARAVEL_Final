@@ -21,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => EnsureUserIsActive::class,
             'password.changed' => EnsurePasswordChanged::class,
         ]);
+        $middleware->validateCsrfTokens(except: [
+            'firmaec/grabar_archivos_firmados',
+        ]);
         $middleware->append(SecurityHeaders::class);
         $middleware->append(PreventSensitivePageCache::class);
         $middleware->appendToGroup('web', EnsurePasswordChanged::class);

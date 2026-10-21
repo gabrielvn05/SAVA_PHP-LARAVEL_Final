@@ -98,7 +98,27 @@
             <article class="card stack">
                 <h2 style="margin: 0; font-size: 1.1rem;">Importar usuarios (CSV)</h2>
                 <p class="field-hint" style="margin: 0;">
-                    Columnas: <code>email,nombres,apellidos,cedula,celular,carrera,rol</code> (rol opcional).
+                    Descargue la plantilla oficial y llénela. No cambie la primera fila ni el orden de las columnas, y borre la fila de ejemplo antes de importar.
+                </p>
+                @if($rutas['plantillaCsv'] ?? false)
+                    <p style="margin: 0;">
+                        <a href="{{ route('admin.usuarios.plantilla-csv') }}" class="btn btn--secondary">Descargar plantilla CSV</a>
+                    </p>
+                @endif
+                <p class="field-hint" style="margin: 0;">
+                    Columnas: <code>email,nombres,apellidos,cedula,celular,carrera,rol</code>.
+                    El rol es opcional; si queda vacío, el usuario se crea como administrativo.
+                    Cédula y celular: 10 dígitos, sin letras. Correo institucional.
+                </p>
+                <p class="field-hint" style="margin: 0;">
+                    Carrera:
+                    @foreach(\App\Support\Carreras::OPCIONES as $carrera)
+                        <code>{{ $carrera['value'] }}</code>{{ $loop->last ? '.' : ', ' }}
+                    @endforeach
+                    Rol:
+                    @foreach($roles as $rol)
+                        <code>{{ $rol->value }}</code>{{ $loop->last ? '.' : ', ' }}
+                    @endforeach
                 </p>
                 <form method="POST" action="{{ route('admin.usuarios.import-csv') }}" enctype="multipart/form-data" class="row" style="gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
                     @csrf

@@ -6,6 +6,8 @@ use App\Enums\SolicitudEstado;
 use App\Models\Solicitud;
 use App\Support\OficioNombreArchivo;
 use App\Support\OficioSelloAutorizado;
+use App\Support\PdfFirmaDigital;
+use App\Support\PdfFirmador;
 use App\Support\SolicitudAdjuntos;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -100,8 +102,9 @@ class SolicitudOficioFirmadoService
     }
 
     /**
-     * Oficio que el solicitante firmó, con el sello de autorizado encima.
-     * El PDF regenerado desde la plantilla no conserva esa firma.
+     * Oficio que el solicitante firmó.
+     * Si el PDF ya tiene firma digital, se entrega sin reescribirlo: un sello posterior la invalidaría.
+     * Si solo tiene un sello visual, se superpone el sello de autorizado.
      */
     public function pdfAprobadoConFirmaSolicitante(Solicitud $solicitud): ?string
     {
@@ -128,6 +131,10 @@ class SolicitudOficioFirmadoService
         $bytes = Storage::disk($disk)->get($path);
         if (! is_string($bytes) || ! str_starts_with($bytes, '%PDF')) {
             return null;
+        }
+
+        if (PdfFirmaDigital::contieneFirmaDigital($bytes)) {
+            return $bytes;
         }
 
         try {
@@ -158,33 +165,39 @@ class SolicitudOficioFirmadoService
         float $yPorcentaje,
         array $anexos,
     ): array {
-        ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
+        $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
 
-        $pdf = $this->pdfService->generarParaFirma($solicitud);
-        if (! is_string($pdf) || $pdf === '') {
-            throw ValidationException::withMessages([
-                'p12' => 'No se pudo preparar el PDF del oficio.',
-            ]);
+        try {
+            $pdf = $this->pdfService->generarParaFirma($solicitud);
+            if (! is_string($pdf) || $pdf === '') {
+                throw ValidationException::withMessages([
+                    'p12' => 'No se pudo preparar el PDF del oficio.',
+                ]);
+            }
+
+            $this->assertManipulacionPdfDisponible();
+            $pdfFirmado = $this->conFirmaDigital(
+                fn (): string => $this->superponerBloqueFirmaElectronicaEnPdf(
+                    $pdf,
+                    $solicitud,
+                    $material,
+                    $pagina,
+                    $xPorcentaje,
+                    $yPorcentaje,
+                ),
+            );
+        } finally {
+            $this->descartarClave($material);
         }
-
-        $this->assertManipulacionPdfDisponible();
-        $pdfFirmado = $this->superponerBloqueFirmaElectronicaEnPdf(
-            $pdf,
-            $solicitud,
-            $titular,
-            $serial,
-            $pagina,
-            $xPorcentaje,
-            $yPorcentaje,
-        );
 
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-p12.pdf';
         $path = SolicitudAdjuntos::guardarContenido($pdfFirmado, 'pdf');
 
         return $this->insertarOficioFirmado($anexos, $path, $nombre, [
             'tipo' => 'p12_documento',
-            'titular' => $titular,
-            'serial' => $serial,
+            'formato' => 'pades',
+            'titular' => $material['titular'],
+            'serial' => $material['serial'],
             'pagina' => (string) $pagina,
             'fecha' => now()->toIso8601String(),
         ]);
@@ -200,30 +213,42 @@ class SolicitudOficioFirmadoService
         float $yPorcentaje,
         array $anexos,
     ): array {
-        ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
-
-        $tmpPng = tempnam(sys_get_temp_dir(), 'firma-png-');
-        if ($tmpPng === false) {
-            throw ValidationException::withMessages(['firma_imagen' => 'No se pudo procesar la imagen de firma.']);
-        }
-
-        $pngPath = $tmpPng.'.png';
-        @unlink($tmpPng);
-        file_put_contents($pngPath, file_get_contents($imagenFirma->getRealPath()) ?: '');
-
-        $this->assertManipulacionPdfDisponible();
-        $pdf = $this->pdfService->generarParaFirma($solicitud);
-        if (! is_string($pdf) || $pdf === '') {
-            @unlink($pngPath);
-            throw ValidationException::withMessages([
-                'firma_imagen' => 'No se pudo preparar el PDF del oficio.',
-            ]);
-        }
+        $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
+        $pngPath = null;
 
         try {
-            $pdfFirmado = $this->superponerSelloEnPdf($pdf, $pngPath, $pagina, $xPorcentaje, $yPorcentaje);
+            $tmpPng = tempnam(sys_get_temp_dir(), 'firma-png-');
+            if ($tmpPng === false) {
+                throw ValidationException::withMessages(['firma_imagen' => 'No se pudo procesar la imagen de firma.']);
+            }
+
+            $pngPath = $tmpPng.'.png';
+            @unlink($tmpPng);
+            file_put_contents($pngPath, file_get_contents($imagenFirma->getRealPath()) ?: '');
+
+            $this->assertManipulacionPdfDisponible();
+            $pdf = $this->pdfService->generarParaFirma($solicitud);
+            if (! is_string($pdf) || $pdf === '') {
+                throw ValidationException::withMessages([
+                    'firma_imagen' => 'No se pudo preparar el PDF del oficio.',
+                ]);
+            }
+
+            $pdfFirmado = $this->conFirmaDigital(
+                fn (): string => $this->superponerSelloYFirmarEnPdf(
+                    $pdf,
+                    $pngPath,
+                    $material,
+                    $pagina,
+                    $xPorcentaje,
+                    $yPorcentaje,
+                ),
+            );
         } finally {
-            @unlink($pngPath);
+            if (is_string($pngPath)) {
+                @unlink($pngPath);
+            }
+            $this->descartarClave($material);
         }
 
         if (! is_string($pdfFirmado) || $pdfFirmado === '') {
@@ -237,32 +262,75 @@ class SolicitudOficioFirmadoService
 
         return $this->insertarOficioFirmado($anexos, $path, $nombre, [
             'tipo' => 'p12_documento',
-            'titular' => $titular,
-            'serial' => $serial,
+            'formato' => 'pades',
+            'titular' => $material['titular'],
+            'serial' => $material['serial'],
             'pagina' => (string) $pagina,
             'fecha' => now()->toIso8601String(),
         ]);
     }
 
-    public function firmarConP12(Solicitud $solicitud, UploadedFile $p12, string $contrasena, array $anexos): array
+    /**
+     * Guarda un PDF que ya trae la firma de FirmaEC, sin volver a abrirlo.
+     *
+     * @param  array<string, string>  $meta
+     */
+    public function guardarPdfFirmadoExterno(Solicitud $solicitud, string $pdf, string $nombre, array $meta): void
     {
-        ['titular' => $titular, 'serial' => $serial] = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
-
-        $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
-        if (! is_string($pdf) || $pdf === '') {
+        if (! str_starts_with($pdf, '%PDF')) {
             throw ValidationException::withMessages([
-                'p12' => 'No se pudo generar el PDF del oficio en el servidor. Descarga Word o PDF, fírmalo externamente y súbelo.',
+                'archivo' => 'El archivo devuelto no es un PDF.',
             ]);
         }
 
-        $pdfFirmado = $this->agregarHojaFirmaElectronica($pdf, $titular, now()->locale('es')->translatedFormat('d \d\e F \d\e Y H:i'), $serial);
+        $firmado = $this->insertarOficioFirmado(
+            SolicitudAdjuntos::anexosActuales($solicitud),
+            SolicitudAdjuntos::guardarContenido($pdf, 'pdf'),
+            $nombre,
+            $meta,
+        );
+        $legacy = SolicitudAdjuntos::sincronizarCamposLegacy($firmado['anexos']);
+        $detalle = $solicitud->detalle ?? [];
+        $detalle['anexos'] = $legacy['detalle_anexos'];
+        $detalle['firma_docente'] = $firmado['firma_docente'];
+        $solicitud->update([
+            'detalle' => $detalle,
+            'justificativo_path' => $legacy['justificativo_path'],
+            'justificativo_nombre' => $legacy['justificativo_nombre'],
+        ]);
+    }
+
+    public function firmarConP12(Solicitud $solicitud, UploadedFile $p12, string $contrasena, array $anexos): array
+    {
+        $material = $this->leerCertificadoP12($p12, $contrasena, $solicitud);
+
+        try {
+            $pdf = $this->pdfService->pdfBaseParaFirma($solicitud);
+            if (! is_string($pdf) || $pdf === '') {
+                throw ValidationException::withMessages([
+                    'p12' => 'No se pudo generar el PDF del oficio en el servidor. Descarga Word o PDF, fírmalo externamente y súbelo.',
+                ]);
+            }
+
+            $pdfFirmado = $this->conFirmaDigital(
+                fn (): string => $this->agregarHojaFirmaElectronica(
+                    $pdf,
+                    $material,
+                    now()->locale('es')->translatedFormat('d \d\e F \d\e Y H:i'),
+                ),
+            );
+        } finally {
+            $this->descartarClave($material);
+        }
+
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado-electronico.pdf';
         $path = SolicitudAdjuntos::guardarContenido($pdfFirmado, 'pdf');
 
         return $this->insertarOficioFirmado($anexos, $path, $nombre, [
             'tipo' => 'p12',
-            'titular' => $titular,
-            'serial' => $serial,
+            'formato' => 'pades',
+            'titular' => $material['titular'],
+            'serial' => $material['serial'],
             'fecha' => now()->toIso8601String(),
         ]);
     }
@@ -297,7 +365,9 @@ class SolicitudOficioFirmadoService
     }
 
     /**
-     * @return array{titular: string, serial: string}
+     * La clave privada solo vive en esta petición. No se guarda en la solicitud.
+     *
+     * @return array{titular: string, serial: string, cert: string, pkey: string, extracerts: string}
      */
     private function leerCertificadoP12(UploadedFile $p12, string $contrasena, Solicitud $solicitud): array
     {
@@ -309,13 +379,74 @@ class SolicitudOficioFirmadoService
             ]);
         }
 
-        unset($contenidoP12, $certificados['pkey']);
+        $cert = (string) ($certificados['cert'] ?? '');
+        $pkey = (string) ($certificados['pkey'] ?? '');
+        $extra = '';
+        if (isset($certificados['extracerts']) && is_array($certificados['extracerts'])) {
+            $extra = implode("\n", array_map('strval', $certificados['extracerts']));
+        }
 
-        $info = openssl_x509_parse($certificados['cert'] ?? '') ?: [];
+        unset($contenidoP12, $certificados);
+
+        if ($cert === '' || $pkey === '') {
+            throw ValidationException::withMessages([
+                'p12' => 'El archivo .p12 no incluye certificado y clave privada.',
+            ]);
+        }
+
+        $info = openssl_x509_parse($cert) ?: [];
         $titular = (string) ($info['subject']['CN'] ?? $solicitud->creador?->nombreCompleto() ?? 'Titular del certificado');
         $serial = isset($info['serialNumber']) ? (string) $info['serialNumber'] : '';
 
-        return ['titular' => $titular, 'serial' => $serial];
+        return [
+            'titular' => $titular,
+            'serial' => $serial,
+            'cert' => $cert,
+            'pkey' => $pkey,
+            'extracerts' => $extra,
+        ];
+    }
+
+    /**
+     * @param  array{titular: string, serial: string, cert: string, pkey: string, extracerts: string}  $material
+     */
+    private function descartarClave(array &$material): void
+    {
+        $material['pkey'] = '';
+        $material['cert'] = '';
+        $material['extracerts'] = '';
+    }
+
+    /**
+     * @param  callable(): string  $generar
+     */
+    private function conFirmaDigital(callable $generar): string
+    {
+        try {
+            return $generar();
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            throw ValidationException::withMessages([
+                'p12' => 'No se pudo incrustar la firma digital en el PDF. Verifica el certificado .p12 e inténtalo de nuevo.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array{titular: string, serial: string, cert: string, pkey: string, extracerts: string}  $material
+     * @return array{Name: string, Location: string, Reason: string, ContactInfo: string}
+     */
+    private function infoFirma(array $material): array
+    {
+        return [
+            'Name' => $material['titular'],
+            'Location' => 'Ecuador',
+            'Reason' => 'Firma electrónica del oficio',
+            'ContactInfo' => 'SAVA ULEAM',
+        ];
     }
 
     private function validarArchivoFirmado(UploadedFile $file): void
@@ -328,49 +459,45 @@ class SolicitudOficioFirmadoService
         }
     }
 
-    private function agregarHojaFirmaElectronica(string $pdfBytes, string $titular, string $fecha, string $serial): string
+    /**
+     * @param  array{titular: string, serial: string, cert: string, pkey: string, extracerts: string}  $material
+     */
+    private function agregarHojaFirmaElectronica(string $pdfBytes, array $material, string $fecha): string
     {
-        $pdf = new Fpdi;
-        $pdf->SetCreator('SAVA ULEAM');
-        $pdf->SetAuthor($titular);
-        $pdf->setPrintHeader(false);
-        $pdf->setPrintFooter(false);
+        $titular = $material['titular'];
+        $serial = $material['serial'];
 
-        $reader = StreamReader::createByString($pdfBytes);
-        $pageCount = $pdf->setSourceFile($reader);
+        return PdfFirmaDigital::aplicar(
+            $pdfBytes,
+            $material,
+            static fn (): null => null,
+            $this->infoFirma($material),
+            function (PdfFirmador $pdf) use ($titular, $fecha, $serial): array {
+                $pdf->AddPage();
+                $pdf->SetFont('helvetica', 'B', 14);
+                $pdf->Cell(0, 10, 'Constancia de firma electrónica del solicitante', 0, 1);
+                $pdf->SetFont('helvetica', '', 11);
+                $pdf->Ln(4);
+                $pdf->MultiCell(0, 6, "El documento anterior fue firmado electrónicamente mediante certificado digital (.p12) en SAVA.\n\nTitular del certificado: {$titular}\nFecha y hora: {$fecha}".($serial !== '' ? "\nN.º de serie: {$serial}" : '')."\n\nEl archivo .p12 no se almacena en el sistema; solo se usó en el momento de la firma.", 0, 'L');
 
-        for ($page = 1; $page <= $pageCount; $page++) {
-            $template = $pdf->importPage($page);
-            $size = $pdf->getTemplateSize($template);
-            $orientation = ($size['width'] ?? 0) > ($size['height'] ?? 0) ? 'L' : 'P';
-            $pdf->AddPage($orientation, [$size['width'], $size['height']]);
-            $pdf->useTemplate($template);
-        }
-
-        $pdf->AddPage();
-        $pdf->SetFont('helvetica', 'B', 14);
-        $pdf->Cell(0, 10, 'Constancia de firma electrónica del solicitante', 0, 1);
-        $pdf->SetFont('helvetica', '', 11);
-        $pdf->Ln(4);
-        $pdf->MultiCell(0, 6, "El documento anterior fue firmado electrónicamente mediante certificado digital (.p12) en SAVA.\n\nTitular del certificado: {$titular}\nFecha y hora: {$fecha}".($serial !== '' ? "\nN.º de serie: {$serial}" : '')."\n\nEl archivo .p12 no se almacena en el sistema; solo se usó en el momento de la firma.", 0, 'L');
-
-        return $pdf->Output('', 'S');
+                return ['x' => 15.0, 'y' => 20.0, 'w' => 180.0, 'h' => 70.0];
+            },
+        );
     }
 
+    /**
+     * @param  array{titular: string, serial: string, cert: string, pkey: string, extracerts: string}  $material
+     */
     private function superponerBloqueFirmaElectronicaEnPdf(
         string $pdfBytes,
         Solicitud $solicitud,
-        string $titular,
-        string $serial,
+        array $material,
         int $paginaObjetivo,
         float $xPorcentaje,
         float $yPorcentaje,
     ): string {
-        $pdf = $this->nuevoPdfFpdi();
-        $reader = StreamReader::createByString($pdfBytes);
-        $pageCount = $pdf->setSourceFile($reader);
-        $paginaObjetivo = max(1, min($paginaObjetivo, $pageCount));
-
+        $titular = $material['titular'];
+        $serial = $material['serial'];
         $bloqueAncho = 72.0;
         $bloqueAlto = 22.0;
         $qrSize = 18.0;
@@ -378,43 +505,59 @@ class SolicitudOficioFirmadoService
         $qrPayload = $this->payloadQrFirmaElectronica($solicitud, $titular, $serial);
         [$nombreLinea1, $nombreLinea2] = $this->partirNombreTitularCertificado($titular);
 
-        for ($page = 1; $page <= $pageCount; $page++) {
-            $this->importarPaginaPdf($pdf, $page);
-            if ($page !== $paginaObjetivo) {
-                continue;
-            }
+        return PdfFirmaDigital::aplicar(
+            $pdfBytes,
+            $material,
+            function (PdfFirmador $pdf, int $page, int $pageCount) use (
+                $paginaObjetivo,
+                $xPorcentaje,
+                $yPorcentaje,
+                $bloqueAncho,
+                $bloqueAlto,
+                $qrSize,
+                $aviso,
+                $qrPayload,
+                $nombreLinea1,
+                $nombreLinea2,
+            ): ?array {
+                $pagina = max(1, min($paginaObjetivo, $pageCount));
+                if ($page !== $pagina) {
+                    return null;
+                }
 
-            $pageW = $pdf->GetPageWidth();
-            $pageH = $pdf->GetPageHeight();
-            $x = max(4.0, ($xPorcentaje / 100) * $pageW - ($bloqueAncho / 2));
-            $y = max(4.0, ($yPorcentaje / 100) * $pageH - ($bloqueAlto / 2));
+                $pageW = $pdf->GetPageWidth();
+                $pageH = $pdf->GetPageHeight();
+                $x = max(4.0, ($xPorcentaje / 100) * $pageW - ($bloqueAncho / 2));
+                $y = max(4.0, ($yPorcentaje / 100) * $pageH - ($bloqueAlto / 2));
 
-            $estiloQr = [
-                'border' => false,
-                'padding' => 0,
-                'fgcolor' => [0, 0, 0],
-                'bgcolor' => false,
-            ];
-            $pdf->write2DBarcode($qrPayload, 'QRCODE,H', $x, $y + 0.5, $qrSize, $qrSize, $estiloQr, 'N');
+                $estiloQr = [
+                    'border' => false,
+                    'padding' => 0,
+                    'fgcolor' => [0, 0, 0],
+                    'bgcolor' => false,
+                ];
+                $pdf->write2DBarcode($qrPayload, 'QRCODE,H', $x, $y + 0.5, $qrSize, $qrSize, $estiloQr, 'N');
 
-            $textX = $x + $qrSize + 2.5;
-            $textW = $bloqueAncho - $qrSize - 2.5;
-            $pdf->SetTextColor(0, 0, 0);
-            $pdf->SetFont('courier', '', 6.5);
-            $pdf->SetXY($textX, $y + 0.5);
-            $pdf->Cell($textW, 3.2, $aviso, 0, 1, 'L');
-            $pdf->SetX($textX);
-            $pdf->Cell($textW, 3.2, 'Firmado electrónicamente por:', 0, 1, 'L');
-            $pdf->SetFont('courier', 'B', 9);
-            $pdf->SetX($textX);
-            $pdf->Cell($textW, 4.6, mb_strtoupper($nombreLinea1), 0, 1, 'L');
-            if ($nombreLinea2 !== '') {
+                $textX = $x + $qrSize + 2.5;
+                $textW = $bloqueAncho - $qrSize - 2.5;
+                $pdf->SetTextColor(0, 0, 0);
+                $pdf->SetFont('courier', '', 6.5);
+                $pdf->SetXY($textX, $y + 0.5);
+                $pdf->Cell($textW, 3.2, $aviso, 0, 1, 'L');
                 $pdf->SetX($textX);
-                $pdf->Cell($textW, 4.6, mb_strtoupper($nombreLinea2), 0, 1, 'L');
-            }
-        }
+                $pdf->Cell($textW, 3.2, 'Firmado electrónicamente por:', 0, 1, 'L');
+                $pdf->SetFont('courier', 'B', 9);
+                $pdf->SetX($textX);
+                $pdf->Cell($textW, 4.6, mb_strtoupper($nombreLinea1), 0, 1, 'L');
+                if ($nombreLinea2 !== '') {
+                    $pdf->SetX($textX);
+                    $pdf->Cell($textW, 4.6, mb_strtoupper($nombreLinea2), 0, 1, 'L');
+                }
 
-        return $pdf->Output('', 'S');
+                return ['x' => $x, 'y' => $y, 'w' => $bloqueAncho, 'h' => $bloqueAlto];
+            },
+            $this->infoFirma($material),
+        );
     }
 
     /**
@@ -466,6 +609,10 @@ class SolicitudOficioFirmadoService
      */
     public function superponerSelloAutorizado(string $pdfBytes): string
     {
+        if (PdfFirmaDigital::contieneFirmaDigital($pdfBytes)) {
+            return $pdfBytes;
+        }
+
         $this->assertManipulacionPdfDisponible();
         $imagen = OficioSelloAutorizado::assetPath();
         if (! is_readable($imagen)) {
@@ -588,6 +735,38 @@ class SolicitudOficioFirmadoService
         }
 
         return $pdf->Output('', 'S');
+    }
+
+    /**
+     * @param  array{titular: string, serial: string, cert: string, pkey: string, extracerts: string}  $material
+     */
+    private function superponerSelloYFirmarEnPdf(
+        string $pdfBytes,
+        string $pngPath,
+        array $material,
+        int $paginaObjetivo,
+        float $xPorcentaje,
+        float $yPorcentaje,
+    ): string {
+        return PdfFirmaDigital::aplicar(
+            $pdfBytes,
+            $material,
+            function (PdfFirmador $pdf, int $page, int $pageCount) use ($pngPath, $paginaObjetivo, $xPorcentaje, $yPorcentaje): ?array {
+                $pagina = max(1, min($paginaObjetivo, $pageCount));
+                if ($page !== $pagina) {
+                    return null;
+                }
+
+                $anchoFirma = 45.0;
+                $altoFirma = 16.0;
+                $x = max(4.0, ($xPorcentaje / 100) * $pdf->GetPageWidth() - ($anchoFirma / 2));
+                $y = max(4.0, ($yPorcentaje / 100) * $pdf->GetPageHeight() - ($altoFirma / 2));
+                $pdf->Image($pngPath, $x, $y, $anchoFirma, $altoFirma, 'PNG');
+
+                return ['x' => $x, 'y' => $y, 'w' => $anchoFirma, 'h' => $altoFirma];
+            },
+            $this->infoFirma($material),
+        );
     }
 
     private function nuevoPdfFpdi(): Fpdi

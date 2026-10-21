@@ -230,6 +230,29 @@ class UsuarioRolTest extends TestCase
         $this->assertNull(User::query()->where('email', 'cedula.repetida@uleam.edu.ec')->first());
     }
 
+    public function test_superusuario_descarga_la_plantilla_csv_de_usuarios(): void
+    {
+        $super = $this->usuario(AppRole::Superusuario, '1313000011');
+
+        $this->actingAs($super)
+            ->get(route('admin.usuarios.index'))
+            ->assertOk()
+            ->assertSee('Descargar plantilla CSV')
+            ->assertSee('software')
+            ->assertSee('docente');
+
+        $descarga = $this->actingAs($super)
+            ->get(route('admin.usuarios.plantilla-csv'));
+
+        $descarga->assertOk();
+        $descarga->assertHeader('content-disposition');
+        $this->assertStringContainsString(
+            'email,nombres,apellidos,cedula,celular,carrera,rol',
+            $descarga->getContent(),
+        );
+        $this->assertStringContainsString('ejemplo.reemplazar@uleam.edu.ec', $descarga->getContent());
+    }
+
     public function test_secretaria_cannot_manage_users(): void
     {
         $secretaria = $this->usuario(AppRole::Secretaria, '1313000010');

@@ -59,4 +59,32 @@ class UsuarioImportServiceTest extends TestCase
         $this->assertSame([], $result['errors']);
         $this->assertSame('1712345675', User::query()->where('email', 'docente@uleam.edu.ec')->value('cedula'));
     }
+
+    public function test_la_plantilla_oficial_no_crea_usuarios_si_se_importa_tal_cual(): void
+    {
+        $csv = app(UsuarioImportService::class)->contenidoPlantilla();
+
+        $this->assertStringContainsString('email,nombres,apellidos,cedula,celular,carrera,rol', $csv);
+
+        $result = app(UsuarioImportService::class)->importFromCsv($csv);
+
+        $this->assertSame(0, $result['created']);
+        $this->assertTrue(collect($result['errors'])->contains(
+            fn (string $error): bool => str_contains($error, 'fila de ejemplo'),
+        ));
+        $this->assertSame(0, User::query()->count());
+    }
+
+    public function test_acepta_csv_guardado_por_excel_con_punto_y_coma(): void
+    {
+        $csv = implode("\n", [
+            'email;nombres;apellidos;cedula;celular;carrera;rol',
+            'docente@uleam.edu.ec;Ana;Pérez;1712345675;0991234567;software;docente',
+        ]);
+
+        $result = app(UsuarioImportService::class)->importFromCsv($csv);
+
+        $this->assertSame(1, $result['created']);
+        $this->assertSame([], $result['errors']);
+    }
 }

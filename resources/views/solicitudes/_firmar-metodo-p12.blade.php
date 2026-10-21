@@ -13,7 +13,8 @@
         <h2 class="solicitud-section-title" style="margin: 0;">Firma con certificado .p12</h2>
         <p class="field-hint" style="margin: 0.35rem 0 0;">
             1) Sube el archivo .p12. 2) Ingresa la contraseña. 3) Haz clic en el documento donde debe ir la firma. 4) Aplica la firma.
-            El PDF firmado <strong>sí se guarda</strong> en tu trámite; el archivo <strong>.p12 no se almacena</strong>.
+            El PDF queda con la firma digital que FirmaEC reconoce. Ese PDF <strong>sí se guarda</strong> en el trámite; el archivo <strong>.p12 no se almacena</strong>.
+            Si ya descargaste un oficio anterior, fírmalo de nuevo: ese archivo no cambia.
         </p>
     </div>
 

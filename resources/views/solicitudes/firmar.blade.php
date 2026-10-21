@@ -61,7 +61,7 @@
             <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'p12']) }}" class="wizard-tipo-card" style="text-decoration: none; color: inherit;">
                 <h2 class="wizard-tipo-card__title">Firmar con certificado .p12</h2>
                 <p class="wizard-tipo-card__desc">
-                    Sube tu archivo .p12, ingresa la contraseña y el sistema genera el oficio firmado electrónicamente.
+                    Sube tu certificado .p12. SAVA incrusta la firma digital en el PDF para que, al descargarlo, FirmaEC muestre al firmante y el documento como válido.
                 </p>
             </a>
             <a href="{{ route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'manual']) }}" class="wizard-tipo-card" style="text-decoration: none; color: inherit;">

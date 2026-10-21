@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\PasswordRecoveryController;
 use App\Http\Controllers\BibliotecaController;
 use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FirmaEcController;
 use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\ReporteController;
@@ -45,6 +46,10 @@ Route::middleware('guest')->group(function (): void {
         ->middleware('throttle:solicitar-cuenta')
         ->name('solicitar-cuenta.store');
 });
+
+Route::post('/firmaec/grabar_archivos_firmados', [FirmaEcController::class, 'grabar'])
+    ->middleware('throttle:60,1')
+    ->name('firmaec.grabar');
 
 Route::middleware(['auth', 'active'])->group(function (): void {
     Route::get('/cambiar-clave', [PasswordChangeController::class, 'edit'])->name('cambiar-clave.edit');
@@ -91,6 +96,10 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         ->name('solicitudes.firmar-p12-documento');
     Route::post('/solicitudes/{solicitud}/firmar-oficio-p12', [SolicitudFirmaDocenteController::class, 'firmarP12Documento'])
         ->name('solicitudes.firmar-oficio-p12');
+    Route::post('/solicitudes/{solicitud}/firmar-firmaec', [SolicitudFirmaDocenteController::class, 'iniciarFirmaEc'])
+        ->name('solicitudes.firmar-firmaec');
+    Route::get('/solicitudes/{solicitud}/firmar-firmaec/{envio}', [SolicitudFirmaDocenteController::class, 'estadoFirmaEc'])
+        ->name('solicitudes.firmar-firmaec.estado');
     Route::post('/solicitudes/{solicitud}/subir-oficio-firmado', [SolicitudFirmaDocenteController::class, 'subirManual'])
         ->name('solicitudes.subir-oficio-firmado');
     Route::post('/solicitudes/{solicitud}/enviar-secretaria', [SolicitudFirmaDocenteController::class, 'enviarSecretaria'])
@@ -122,6 +131,7 @@ Route::middleware(['auth', 'active'])->group(function (): void {
     Route::patch('/admin/usuarios/{usuario}/rol', [UsuarioController::class, 'updateRol'])->name('admin.usuarios.rol');
     Route::patch('/admin/usuarios/{usuario}/estado', [UsuarioController::class, 'updateEstado'])->name('admin.usuarios.estado');
     Route::post('/admin/usuarios/{usuario}/reset-clave', [UsuarioController::class, 'resetClave'])->name('admin.usuarios.reset-clave');
+    Route::get('/admin/usuarios/plantilla-csv', [UsuarioController::class, 'plantillaCsv'])->name('admin.usuarios.plantilla-csv');
     Route::post('/admin/usuarios/importar-csv', [UsuarioController::class, 'importCsv'])->name('admin.usuarios.import-csv');
     Route::post('/admin/usuarios/{usuario}/delegar', [UsuarioController::class, 'delegate'])
         ->name('admin.usuarios.delegate');

@@ -13,18 +13,62 @@ use Illuminate\Support\Facades\Hash;
 
 class UsuarioImportService
 {
+    /** @var list<string> */
+    public const COLUMNAS = ['email', 'nombres', 'apellidos', 'cedula', 'celular', 'carrera', 'rol'];
+
+    public const EMAIL_EJEMPLO = 'ejemplo.reemplazar@uleam.edu.ec';
+
+    public function contenidoPlantilla(): string
+    {
+        $handle = fopen('php://temp', 'r+');
+        if ($handle === false) {
+            return '';
+        }
+
+        fwrite($handle, "\xEF\xBB\xBF");
+        fwrite($handle, "sep=,\n");
+        fputcsv($handle, self::COLUMNAS);
+        fputcsv($handle, [
+            self::EMAIL_EJEMPLO,
+            'Juan',
+            'Pérez',
+            '1712345675',
+            '0991234567',
+            'software',
+            'docente',
+        ]);
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        return $csv === false ? '' : $csv;
+    }
+
     /** @return array{created: int, errors: list<string>} */
     public function importFromCsv(string $csvContents): array
     {
+        $csvContents = preg_replace('/^\xEF\xBB\xBF/', '', $csvContents) ?? $csvContents;
+        if (trim($csvContents) === '') {
+            return ['created' => 0, 'errors' => ['El archivo CSV está vacío.']];
+        }
+
         $lines = preg_split('/\R/', trim($csvContents)) ?: [];
+
+        $headerLineNumber = 1;
+        if ($lines !== [] && $this->isSepDirective($lines[0])) {
+            array_shift($lines);
+            $headerLineNumber = 2;
+        }
+
         if ($lines === []) {
             return ['created' => 0, 'errors' => ['El archivo CSV está vacío.']];
         }
 
-        $header = str_getcsv(array_shift($lines));
+        $delimiter = $this->detectDelimiter($lines[0]);
+        $header = str_getcsv(array_shift($lines), $delimiter);
         $map = $this->columnMap($header);
         if ($map === null) {
-            return ['created' => 0, 'errors' => ['Encabezados inválidos. Use: email,nombres,apellidos,cedula,celular,carrera,rol (opcional).']];
+            return ['created' => 0, 'errors' => ['Encabezados inválidos. Descargue la plantilla oficial: email,nombres,apellidos,cedula,celular,carrera,rol (opcional).']];
         }
 
         $created = 0;
@@ -35,8 +79,8 @@ class UsuarioImportService
                 continue;
             }
 
-            $row = str_getcsv($line);
-            $lineNumber = $index + 2;
+            $row = str_getcsv($line, $delimiter);
+            $lineNumber = $index + $headerLineNumber + 1;
             $result = $this->createFromRow($row, $map, $lineNumber);
             if ($result === true) {
                 $created++;
@@ -74,6 +118,19 @@ class UsuarioImportService
         return $map;
     }
 
+    private function isSepDirective(string $line): bool
+    {
+        return (bool) preg_match('/^sep=.$/i', trim($line));
+    }
+
+    private function detectDelimiter(string $headerLine): string
+    {
+        $comma = count(str_getcsv($headerLine, ','));
+        $semicolon = count(str_getcsv($headerLine, ';'));
+
+        return $semicolon > $comma ? ';' : ',';
+    }
+
     /**
      * @param  list<string|null>  $row
      * @param  array<string, int>  $map
@@ -82,6 +139,9 @@ class UsuarioImportService
     private function createFromRow(array $row, array $map, int $lineNumber): bool|string
     {
         $email = strtolower(trim((string) ($row[$map['email']] ?? '')));
+        if ($email === self::EMAIL_EJEMPLO) {
+            return "Línea {$lineNumber}: elimine la fila de ejemplo de la plantilla y escriba los usuarios reales.";
+        }
         $nombres = trim((string) ($row[$map['nombres']] ?? ''));
         $apellidos = trim((string) ($row[$map['apellidos']] ?? ''));
         $cedula = CedulaEcuador::normalizeDigits((string) ($row[$map['cedula']] ?? ''));

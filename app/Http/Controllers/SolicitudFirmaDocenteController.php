@@ -8,10 +8,14 @@ use App\Services\AppNotificationService;
 use App\Services\AuditService;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
+use App\Models\FirmaEcEnvio;
+use App\Models\User;
+use App\Services\FirmaEcService;
 use App\Services\SolicitudOficioFirmadoService;
 use App\Services\SolicitudWorkflowService;
 use App\Support\OficioNombreArchivo;
 use App\Support\SolicitudAdjuntos;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -22,6 +26,7 @@ class SolicitudFirmaDocenteController extends Controller
 {
     public function __construct(
         private readonly SolicitudOficioFirmadoService $oficioFirmado,
+        private readonly FirmaEcService $firmaEc,
         private readonly OficioDocxService $oficioDocx,
         private readonly OficioPdfService $oficioPdf,
         private readonly SolicitudWorkflowService $workflow,
@@ -122,6 +127,63 @@ class SolicitudFirmaDocenteController extends Controller
         ]);
 
         return $this->redirectTrasGuardarFirma($solicitud, $firmado, 'Firma aplicada al oficio. Revisa el documento y envía a Secretaría cuando esté listo.');
+    }
+
+    public function iniciarFirmaEc(Request $request, Solicitud $solicitud): JsonResponse
+    {
+        $this->authorize('update', $solicitud);
+        $this->abortSiNoPuedeFirmar($solicitud);
+
+        $validated = $request->validate([
+            'tipo_certificado' => ['required', 'integer', 'in:1,2,3'],
+            'firma_page' => ['required', 'integer', 'min:1', 'max:50'],
+            'firma_x' => ['required', 'numeric', 'min:0', 'max:100'],
+            'firma_y' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $usuario = $request->user();
+        if (! $usuario instanceof User) {
+            abort(403);
+        }
+
+        $preparado = $this->firmaEc->preparar(
+            $solicitud,
+            $usuario,
+            (int) $validated['firma_page'],
+            (float) $validated['firma_x'],
+            (float) $validated['firma_y'],
+            (int) $validated['tipo_certificado'],
+        );
+
+        return response()->json([
+            'estado' => 'pendiente',
+            'envio_id' => $preparado['envio']->id,
+            'enlace' => $preparado['enlace'],
+            'estado_url' => route('solicitudes.firmar-firmaec.estado', [$solicitud, $preparado['envio']]),
+        ]);
+    }
+
+    public function estadoFirmaEc(Solicitud $solicitud, FirmaEcEnvio $envio): JsonResponse
+    {
+        $this->authorize('update', $solicitud);
+        $this->abortSiNoPuedeFirmar($solicitud);
+
+        if ($envio->solicitud_id !== $solicitud->id || $envio->user_id !== auth()->id()) {
+            abort(404);
+        }
+
+        $envio->refresh();
+        if ($envio->estado === 'firmado') {
+            return response()->json([
+                'estado' => 'firmado',
+                'redirect' => route('solicitudes.firmar', $solicitud).'#vista-firmado',
+            ]);
+        }
+
+        return response()->json([
+            'estado' => $envio->estado,
+            'mensaje' => $envio->error,
+        ]);
     }
 
     public function firmarP12Documento(Request $request, Solicitud $solicitud): RedirectResponse
