@@ -268,7 +268,15 @@ class SolicitudController extends Controller
             $anexos[] = ['path' => SolicitudAdjuntos::guardar($file), 'nombre' => $file->getClientOriginalName()];
         }
 
-        $codigo = \App\Support\OficioCodigo::generar($user, SolicitudTipo::from($tipo));
+        $estado = match (true) {
+            $this->workflow->solicitudCreadaPorDecano($user->rol) => SolicitudEstado::Aprobada,
+            $user->rol === AppRole::Secretaria => SolicitudEstado::PendienteAprobacionDecano,
+            default => SolicitudEstado::EnBorrador,
+        };
+
+        $codigo = $estado === SolicitudEstado::EnBorrador
+            ? null
+            : \App\Support\OficioCodigo::generar($user, SolicitudTipo::from($tipo));
 
         $institucionTipo = $validated['institucion_medica_tipo'] ?? null;
         $institucionMedica = $institucionTipo === 'IESS'
@@ -315,12 +323,6 @@ class SolicitudController extends Controller
         if (($validated['tipo'] ?? '') === SolicitudTipo::FaltaMarcado->value && ! empty($validated['jornada'])) {
             $user->update(['jornada' => $validated['jornada']]);
         }
-
-        $estado = match (true) {
-            $this->workflow->solicitudCreadaPorDecano($user->rol) => SolicitudEstado::Aprobada,
-            $user->rol === AppRole::Secretaria => SolicitudEstado::PendienteAprobacionDecano,
-            default => SolicitudEstado::EnBorrador,
-        };
 
         $solicitud = Solicitud::create([
             'creado_por' => $user->id,
@@ -517,15 +519,6 @@ class SolicitudController extends Controller
     {
         $this->authorize('update', $solicitud);
 
-        $fechaInicioInput = trim((string) $request->input('fecha_inicio', ''));
-        if (
-            $fechaInicioInput !== ''
-            && $solicitud->tipo !== SolicitudTipo::Justificacion
-            && ($error = SolicitudValidator::validateFechaInicioMaxTresMeses($fechaInicioInput))
-        ) {
-            return back()->withInput()->with('error', $error);
-        }
-
         if (\App\Support\SolicitudAdjuntoLimits::exceedsTotalLimit($request)) {
             return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::totalLimitMessage());
         }
@@ -546,19 +539,11 @@ class SolicitudController extends Controller
             return back()->withInput()->with('error', 'Este tipo de trámite requiere adjuntar un justificativo.');
         }
 
-        $validated = $request->validate([
-            'tipo' => ['required', Rule::enum(SolicitudTipo::class)],
-            'fecha_inicio' => 'required|date',
-            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
-            'motivo' => 'required|string|max:5000',
+        $request->validate([
             'justificativo' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
             'anexos.*' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
             'eliminar_anexos.*' => 'nullable|string',
         ], \App\Support\SolicitudAdjuntoLimits::mimeValidationMessages());
-
-        if ($validated['tipo'] !== $solicitud->tipo->value) {
-            return back()->withInput()->with('error', 'No puedes cambiar el tipo de solicitud. Crea un trámite nuevo si te equivocaste.');
-        }
 
         $old = $solicitud->toArray();
         $detalle = $solicitud->detalle ?? [];
@@ -579,10 +564,6 @@ class SolicitudController extends Controller
         $detalle['anexo_nombre'] = $legacy['justificativo_nombre'];
 
         $data = [
-            'tipo' => $solicitud->tipo->value,
-            'fecha_inicio' => $validated['fecha_inicio'],
-            'fecha_fin' => $validated['fecha_fin'],
-            'motivo' => $validated['motivo'],
             'detalle' => $detalle,
             'justificativo_path' => $legacy['justificativo_path'],
             'justificativo_nombre' => $legacy['justificativo_nombre'],
@@ -592,7 +573,7 @@ class SolicitudController extends Controller
         $this->audit->log('UPDATE', $solicitud, $old);
 
         return redirect()->route('solicitudes.show', $solicitud)
-            ->with('success', 'Solicitud actualizada.');
+            ->with('success', 'Archivos actualizados.');
     }
 
     public function destroy(Solicitud $solicitud): RedirectResponse

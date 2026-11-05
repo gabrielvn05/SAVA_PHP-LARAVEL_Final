@@ -8,7 +8,7 @@
         <div class="page-header__text">
             <h1 class="page-header__title">Editar solicitud</h1>
             <p class="field-hint" style="margin: 0.35rem 0 0;">
-                Tipo: <strong>{{ $solicitud->tipo->label() }}</strong> (no se puede cambiar; crea un trámite nuevo si te equivocaste).
+                Tipo: <strong>{{ $solicitud->tipo->label() }}</strong>. Aquí solo puedes subir o quitar archivos de respaldo.
             </p>
         </div>
         @if(($mostrarFirmaDocente ?? false) && $solicitud->estado === \App\Enums\SolicitudEstado::EnBorrador)
@@ -22,22 +22,20 @@
         <form method="POST" action="{{ route('solicitudes.update', $solicitud) }}" enctype="multipart/form-data" class="stack">
             @csrf
             @method('PUT')
-            <input type="hidden" name="tipo" value="{{ $solicitud->tipo->value }}">
-
-            <div class="form-grid">
-                <label class="field">
-                    <span class="field__label">Fecha inicio *</span>
-                    <input type="date" name="fecha_inicio" required class="field__input" value="{{ old('fecha_inicio', $solicitud->fecha_inicio->format('Y-m-d')) }}">
-                </label>
-                <label class="field">
-                    <span class="field__label">Fecha fin *</span>
-                    <input type="date" name="fecha_fin" required class="field__input" value="{{ old('fecha_fin', $solicitud->fecha_fin->format('Y-m-d')) }}">
-                </label>
-                <label class="field field--full">
-                    <span class="field__label">Motivo *</span>
-                    <textarea name="motivo" required rows="4" class="field__input">{{ old('motivo', $solicitud->motivo) }}</textarea>
-                </label>
-            </div>
+            <dl class="stack" style="gap: 0.35rem; margin: 0;">
+                <div>
+                    <dt class="field__label">Fecha inicio</dt>
+                    <dd style="margin: 0;">{{ $solicitud->fecha_inicio->format('d/m/Y') }}</dd>
+                </div>
+                <div>
+                    <dt class="field__label">Fecha fin</dt>
+                    <dd style="margin: 0;">{{ $solicitud->fecha_fin->format('d/m/Y') }}</dd>
+                </div>
+                <div>
+                    <dt class="field__label">Motivo</dt>
+                    <dd style="margin: 0; white-space: pre-wrap;">{{ $solicitud->motivo }}</dd>
+                </div>
+            </dl>
 
             @include('solicitudes._adjuntos-field', [
                 'label' => 'Otros documentos de respaldo',
@@ -47,7 +45,7 @@
             ])
 
             <div class="row" style="gap: 0.65rem; flex-wrap: wrap;">
-                <button type="submit" name="borrador" value="1" class="btn btn--primary">Guardar cambios</button>
+                <button type="submit" name="borrador" value="1" class="btn btn--primary">Guardar archivos</button>
                 @if(($mostrarFirmaDocente ?? false) && $solicitud->estado === \App\Enums\SolicitudEstado::EnBorrador)
                     <a href="{{ route('solicitudes.firmar', $solicitud) }}" class="btn btn--secondary">Continuar a firma</a>
                 @endif

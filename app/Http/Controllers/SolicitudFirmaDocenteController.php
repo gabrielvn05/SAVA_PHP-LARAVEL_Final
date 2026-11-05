@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\FirmaEcService;
 use App\Services\SolicitudOficioFirmadoService;
 use App\Services\SolicitudWorkflowService;
+use App\Support\OficioCodigo;
 use App\Support\OficioNombreArchivo;
 use App\Support\SolicitudAdjuntos;
 use Illuminate\Http\JsonResponse;
@@ -326,7 +327,12 @@ class SolicitudFirmaDocenteController extends Controller
         }
 
         $old = $solicitud->toArray();
-        $solicitud->update(['estado' => $nuevoEstado]);
+        $detalle = $solicitud->detalle ?? [];
+        $detalle['codigo_tramite'] = OficioCodigo::confirmarAlEnviar($solicitud);
+        $solicitud->update([
+            'estado' => $nuevoEstado,
+            'detalle' => $detalle,
+        ]);
         $this->audit->log('UPDATE', $solicitud, $old);
         $this->appNotifications->onSolicitudCreada($solicitud->fresh(['creador']));
 

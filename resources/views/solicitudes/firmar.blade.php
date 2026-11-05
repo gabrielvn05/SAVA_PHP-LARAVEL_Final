@@ -22,7 +22,7 @@
             </p>
         </div>
         <div class="page-header__actions">
-            <a href="{{ route('solicitudes.edit', $solicitud) }}" class="btn btn--secondary btn--sm">Editar datos</a>
+            <a href="{{ route('solicitudes.edit', $solicitud) }}" class="btn btn--secondary btn--sm">Editar archivos</a>
         </div>
     </header>
 

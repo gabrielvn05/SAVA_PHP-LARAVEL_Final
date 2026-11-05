@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\AppRole;
+use App\Enums\SolicitudEstado;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
@@ -28,6 +29,21 @@ class OficioCodigo
         } while (self::codigoExiste($codigo));
 
         return $codigo;
+    }
+
+    /**
+     * El correlativo queda fijo al salir de borrador. Si el trámite ya tiene
+     * un código que nadie envió, se conserva; si no, se toma el siguiente.
+     */
+    public static function confirmarAlEnviar(Solicitud $solicitud): string
+    {
+        $solicitud->loadMissing('creador');
+        $codigo = (string) (($solicitud->detalle ?? [])['codigo_tramite'] ?? '');
+        if ($codigo !== '' && ! self::codigoExiste($codigo)) {
+            return $codigo;
+        }
+
+        return self::generar($solicitud->creador, $solicitud->tipo);
     }
 
     public static function siglasRol(AppRole $rol): string
@@ -57,6 +73,7 @@ class OficioCodigo
         $prefijo = $base.'-';
 
         Solicitud::query()
+            ->where('estado', '!=', SolicitudEstado::EnBorrador->value)
             ->where('detalle->codigo_tramite', 'like', $prefijo.'%')
             ->pluck('detalle')
             ->each(function (mixed $detalle) use ($prefijo, &$maximo): void {
@@ -81,6 +98,7 @@ class OficioCodigo
     private static function codigoExiste(string $codigo): bool
     {
         return Solicitud::query()
+            ->where('estado', '!=', SolicitudEstado::EnBorrador->value)
             ->where('detalle->codigo_tramite', $codigo)
             ->exists();
     }

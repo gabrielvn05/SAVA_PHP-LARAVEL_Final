@@ -307,9 +307,9 @@ class SolicitudAdjuntoTest extends TestCase
         $this->actingAs($user)
             ->put(route('solicitudes.update', $solicitud), [
                 'tipo' => SolicitudTipo::Permiso->value,
-                'fecha_inicio' => $solicitud->fecha_inicio->format('Y-m-d'),
-                'fecha_fin' => $solicitud->fecha_fin->format('Y-m-d'),
-                'motivo' => 'Permiso',
+                'fecha_inicio' => '2020-01-01',
+                'fecha_fin' => '2020-01-02',
+                'motivo' => 'Motivo que no debe guardarse',
                 'borrador' => 1,
                 'eliminar_anexos' => [$pathUno],
                 'anexos' => [$reemplazo],
@@ -319,6 +319,8 @@ class SolicitudAdjuntoTest extends TestCase
         $solicitud->refresh();
         $paths = array_column($solicitud->detalle['anexos'] ?? [], 'path');
 
+        $this->assertSame('Permiso', $solicitud->motivo);
+        $this->assertSame(now()->toDateString(), $solicitud->fecha_inicio->toDateString());
         $this->assertNotContains($pathUno, $paths);
         $this->assertContains($pathDos, $paths);
         $this->assertCount(2, $paths);

@@ -244,7 +244,7 @@
     @if(auth()->id() === $solicitud->creado_por)
         <div class="row" style="gap: 0.65rem; flex-wrap: wrap;">
             @can('update', $solicitud)
-                <a href="{{ route('solicitudes.edit', $solicitud) }}" class="btn btn--primary">Editar solicitud</a>
+                <a href="{{ route('solicitudes.edit', $solicitud) }}" class="btn btn--primary">Editar archivos</a>
             @endcan
             @can('delete', $solicitud)
                 <form method="POST" action="{{ route('solicitudes.destroy', $solicitud) }}" onsubmit="return confirm('¿Eliminar esta solicitud? Deberás crear un trámite nuevo si te equivocaste en los datos.');">

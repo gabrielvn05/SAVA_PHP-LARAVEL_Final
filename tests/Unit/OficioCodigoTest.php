@@ -51,10 +51,23 @@ class OficioCodigoTest extends TestCase
         ]);
 
         $this->crearSolicitud($user, 'FACIVITEC-DOC-VISCAM-0004');
+        $this->crearSolicitud($user, 'FACIVITEC-DOC-VISCAM-0099', SolicitudEstado::EnBorrador);
         $this->crearSolicitud($user, 'FACIVITEC-15032026-VIA-MJPL');
 
         $this->assertSame('FACIVITEC-DOC-VISCAM-0005', OficioCodigo::generar($user, SolicitudTipo::Viaje));
         $this->assertSame('FACIVITEC-DOC-PERM-0001', OficioCodigo::generar($user, SolicitudTipo::Permiso));
+    }
+
+    public function test_un_borrador_no_consume_correlativo(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Administrativo,
+        ]);
+
+        $this->crearSolicitud($user, 'FACIVITEC-ADM-CDOM-0001', SolicitudEstado::EnBorrador);
+        $this->crearSolicitud($user, 'FACIVITEC-ADM-CDOM-0002', SolicitudEstado::EnBorrador);
+
+        $this->assertSame('FACIVITEC-ADM-CDOM-0001', OficioCodigo::generar($user, SolicitudTipo::CalamidadDomestica));
     }
 
     public function test_codigo_de_trabajo_usa_su_propia_serie(): void
@@ -68,15 +81,18 @@ class OficioCodigoTest extends TestCase
         $this->assertSame('FACIVITEC-CDT-NMAR-0001', OficioCodigo::generar($user, SolicitudTipo::FaltaMarcado));
     }
 
-    private function crearSolicitud(User $user, string $codigo): void
-    {
+    private function crearSolicitud(
+        User $user,
+        string $codigo,
+        SolicitudEstado $estado = SolicitudEstado::EnRevisionSecretaria,
+    ): void {
         Solicitud::query()->create([
             'creado_por' => $user->id,
             'tipo' => SolicitudTipo::Viaje,
             'fecha_inicio' => now()->toDateString(),
             'fecha_fin' => now()->toDateString(),
             'motivo' => 'Trámite de prueba',
-            'estado' => SolicitudEstado::EnRevisionSecretaria,
+            'estado' => $estado,
             'detalle' => ['codigo_tramite' => $codigo],
         ]);
     }

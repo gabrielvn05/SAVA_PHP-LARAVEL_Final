@@ -35,7 +35,7 @@ class SolicitudStoreTest extends TestCase
         $this->assertNotNull($solicitud);
         $this->assertSame($user->id, $solicitud->creado_por);
 
-        $response->assertRedirect(route('solicitudes.show', $solicitud));
+        $response->assertRedirect(route('solicitudes.firmar', $solicitud));
 
         $this->actingAs($user)
             ->get(route('solicitudes.show', $solicitud))
