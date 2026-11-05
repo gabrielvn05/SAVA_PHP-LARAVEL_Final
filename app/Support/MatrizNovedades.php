@@ -13,7 +13,7 @@ class MatrizNovedades
 {
     public const MINUTOS_JORNADA = 480;
 
-    public const UNIDAD = 'FACULTAD DE CIENCIAS DE LA VIDA Y LA TECNOLOGÍA (FACIVITEC)';
+    public const UNIDAD = 'FACULTAD CIENCIAS DE LA VIDA Y TECNOLOGÍAS (FACIVITEC)';
 
     /**
      * @return array{

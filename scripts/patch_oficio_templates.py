@@ -15,7 +15,7 @@ SRC = Path(r"C:\Users\gabri\Downloads\Sava\OneDrive_2026-11-05\Proyecto Sava")
 OUT = ROOT / "resources" / "templates" / "oficios"
 
 FACULTAD_NOMBRE = (
-    "Facultad de Ciencias de la Vida y la Tecnología (FACIVITEC)"
+    "Facultad Ciencias de la Vida y Tecnologías (FACIVITEC)"
 )
 
 FILES = {

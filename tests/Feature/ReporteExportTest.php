@@ -106,7 +106,7 @@ class ReporteExportTest extends TestCase
         $textos = $this->textosCompartidos($copia);
         @unlink($copia);
 
-        $this->assertStringContainsString('FACULTAD DE CIENCIAS DE LA VIDA Y LA TECNOLOGÍA (FACIVITEC)', $textos);
+        $this->assertStringContainsString('FACULTAD CIENCIAS DE LA VIDA Y TECNOLOGÍAS (FACIVITEC)', $textos);
         $this->assertStringContainsString('PERIODO : DEL 01 AL 31 DE OCTUBRE DE 2026', $textos);
         $this->assertStringContainsString('Cargo del Jefe Inmediato', $textos);
         $this->assertStringContainsString('LINEAMIENTOS PARA EL LLENADO', $textos);

@@ -12,7 +12,7 @@ use Carbon\Carbon;
 
 class OficioDatosService
 {
-    public const FACULTAD_NOMBRE = 'Facultad Ciencias de la Vida y la Tecnología (FACIVITEC)';
+    public const FACULTAD_NOMBRE = 'Facultad Ciencias de la Vida y Tecnologías (FACIVITEC)';
 
     public const FACULTAD_ETIQUETA = 'Ciencias de la Vida y Tecnologías';
 
