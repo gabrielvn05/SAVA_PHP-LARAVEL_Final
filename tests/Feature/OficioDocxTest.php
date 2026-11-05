@@ -269,7 +269,7 @@ class OficioDocxTest extends TestCase
         $this->actingAs($user)
             ->get(route('solicitudes.preview-oficio', ['solicitud' => $solicitud, 'html' => 1]))
             ->assertOk()
-            ->assertSee('OFICIO N°', false)
+            ->assertSee('OFICIO No.', false)
             ->assertSee('FACIVITEC-14102026-PER-CA')
             ->assertSee('Gabriel Velez')
             ->assertSee('sello-autorizado.jpg', false)

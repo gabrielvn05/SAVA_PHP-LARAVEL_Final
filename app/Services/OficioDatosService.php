@@ -12,9 +12,9 @@ use Carbon\Carbon;
 
 class OficioDatosService
 {
-    public const FACULTAD_NOMBRE = 'Facultad de Ciencias de la Vida y la Tecnología (FACIVITEC)';
+    public const FACULTAD_NOMBRE = 'Facultad Ciencias de la Vida y la Tecnología (FACIVITEC)';
 
-    public const FACULTAD_ETIQUETA = 'FACIVITEC';
+    public const FACULTAD_ETIQUETA = 'Ciencias de la Vida y Tecnologías';
 
     /** Fecha de lugar del encabezado. Las plantillas traen «Manta, 15 de septiembre del 2026» fijo. */
     public static function fechaLugarGeneracion(?\DateTimeInterface $momento = null): string

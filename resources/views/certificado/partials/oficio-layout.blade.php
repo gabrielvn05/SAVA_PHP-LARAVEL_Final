@@ -42,7 +42,7 @@
         <img src="{{ asset('templates/oficio-media/logo-facultad.png') }}" alt="FACIVITEC">
         <img src="{{ asset('templates/oficio-media/marca-uleam.png') }}" alt="ULEAM">
     </header>
-    <p class="meta__codigo">OFICIO N° {{ $codigo }}</p>
+    <p class="meta__codigo">OFICIO No. {{ $codigo }}</p>
     <p class="meta">{{ \App\Services\OficioDatosService::fechaLugarGeneracion() }}</p>
 
     <div class="destinatario">

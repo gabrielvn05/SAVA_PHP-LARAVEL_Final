@@ -2,41 +2,80 @@
 
 namespace App\Support;
 
+use App\Enums\AppRole;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
-use Carbon\CarbonInterface;
 
 class OficioCodigo
 {
     public const PREFIJO = 'FACIVITEC';
 
-    public static function generar(User $solicitante, SolicitudTipo $tipo, ?CarbonInterface $fecha = null): string
+    public static function generar(User $solicitante, SolicitudTipo $tipo): string
     {
-        $fecha ??= now();
-        $ddmmaaaa = $fecha->format('dmY');
-        $siglas = self::siglasTipo($tipo);
-        $iniciales = self::inicialesSolicitante($solicitante);
+        $base = sprintf(
+            '%s-%s-%s',
+            self::PREFIJO,
+            self::siglasRol($solicitante->rol),
+            self::siglasTipo($tipo),
+        );
 
-        $base = sprintf('%s-%s-%s-%s', self::PREFIJO, $ddmmaaaa, $siglas, $iniciales);
+        $numero = self::siguienteNumero($base);
 
-        return self::hacerUnico($base);
+        do {
+            $codigo = sprintf('%s-%04d', $base, $numero);
+            $numero++;
+        } while (self::codigoExiste($codigo));
+
+        return $codigo;
     }
 
-    private static function hacerUnico(string $base): string
+    public static function siglasRol(AppRole $rol): string
     {
-        if (! self::codigoExiste($base)) {
-            return $base;
-        }
+        return match ($rol) {
+            AppRole::Docente, AppRole::Decano => 'DOC',
+            AppRole::Mantenimiento => 'CDT',
+            AppRole::Administrativo, AppRole::Secretaria, AppRole::Superusuario => 'ADM',
+        };
+    }
 
-        for ($n = 2; $n <= 99; $n++) {
-            $candidato = sprintf('%s-%02d', $base, $n);
-            if (! self::codigoExiste($candidato)) {
-                return $candidato;
-            }
-        }
+    public static function siglasTipo(SolicitudTipo $tipo): string
+    {
+        return match ($tipo) {
+            SolicitudTipo::Permiso => 'PERM',
+            SolicitudTipo::Justificacion => 'JUST',
+            SolicitudTipo::Enfermedad => 'CERTMED',
+            SolicitudTipo::Viaje => 'VISCAM',
+            SolicitudTipo::CalamidadDomestica => 'CDOM',
+            SolicitudTipo::FaltaMarcado => 'NMAR',
+        };
+    }
 
-        return $base.'-'.strtoupper(bin2hex(random_bytes(2)));
+    private static function siguienteNumero(string $base): int
+    {
+        $maximo = 0;
+        $prefijo = $base.'-';
+
+        Solicitud::query()
+            ->where('detalle->codigo_tramite', 'like', $prefijo.'%')
+            ->pluck('detalle')
+            ->each(function (mixed $detalle) use ($prefijo, &$maximo): void {
+                if (is_string($detalle)) {
+                    $detalle = json_decode($detalle, true);
+                }
+
+                $codigo = is_array($detalle) ? (string) ($detalle['codigo_tramite'] ?? '') : '';
+                if (! str_starts_with($codigo, $prefijo)) {
+                    return;
+                }
+
+                $correlativo = substr($codigo, strlen($prefijo));
+                if (preg_match('/^\d+$/', $correlativo)) {
+                    $maximo = max($maximo, (int) $correlativo);
+                }
+            });
+
+        return $maximo + 1;
     }
 
     private static function codigoExiste(string $codigo): bool
@@ -44,38 +83,6 @@ class OficioCodigo
         return Solicitud::query()
             ->where('detalle->codigo_tramite', $codigo)
             ->exists();
-    }
-
-    public static function siglasTipo(SolicitudTipo $tipo): string
-    {
-        return match ($tipo) {
-            SolicitudTipo::FaltaMarcado => 'REC',
-            SolicitudTipo::CalamidadDomestica => 'CAL',
-            SolicitudTipo::Enfermedad => 'MED',
-            SolicitudTipo::Viaje => 'VIA',
-            SolicitudTipo::Permiso => 'PER',
-            SolicitudTipo::Justificacion => 'JUS',
-        };
-    }
-
-    public static function inicialesSolicitante(User $user): string
-    {
-        $partes = preg_split('/\s+/u', trim($user->nombres.' '.$user->apellidos)) ?: [];
-        $iniciales = '';
-        foreach ($partes as $parte) {
-            if ($parte === '') {
-                continue;
-            }
-            $iniciales .= mb_strtoupper(mb_substr($parte, 0, 1));
-        }
-
-        if ($iniciales !== '') {
-            return $iniciales;
-        }
-
-        $fallback = preg_replace('/[^A-Za-zÁÉÍÓÚÑáéíóúñ]/u', '', $user->email ?? '') ?? '';
-
-        return strtoupper(mb_substr($fallback, 0, 3)) ?: 'XX';
     }
 
     public static function usaPlantillaInstitucional(SolicitudTipo $tipo): bool

@@ -170,7 +170,7 @@ def normalize_oficio_codigo(xml: str) -> str:
     for pattern in patterns:
         xml = re.sub(
             pattern,
-            "OFICIO N° [Código del oficio]",
+            "OFICIO No. [Código del oficio]",
             xml,
             count=1,
             flags=re.DOTALL | re.IGNORECASE,
@@ -186,7 +186,7 @@ def normalize_oficio_codigo(xml: str) -> str:
     )
     xml = re.sub(
         codigo_entre_tags,
-        "OFICIO N° [Código del oficio]",
+        "OFICIO No. [Código del oficio]",
         xml,
         count=1,
         flags=re.DOTALL | re.IGNORECASE,
