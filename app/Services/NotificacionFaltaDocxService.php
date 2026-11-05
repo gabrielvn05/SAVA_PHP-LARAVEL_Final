@@ -94,6 +94,7 @@ class NotificacionFaltaDocxService
             '[facultad]' => OficioDatosService::FACULTAD_NOMBRE,
             '[Facultad]' => OficioDatosService::FACULTAD_ETIQUETA,
             '[Fecha automática del sistema]' => now()->locale('es')->translatedFormat('d \d\e F \d\e Y'),
+            '[Fecha y hora completa automática del sistema]' => now()->locale('es')->translatedFormat('d \d\e F \d\e Y H:i'),
             '_correo_decano' => $decano->email ?? '—',
         ];
     }

@@ -11,7 +11,7 @@ from io import BytesIO
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = Path(r"c:\Users\gabri\Downloads")
+SRC = Path(r"C:\Users\gabri\Downloads\Sava\OneDrive_2026-11-05\Proyecto Sava")
 OUT = ROOT / "resources" / "templates" / "oficios"
 
 FACULTAD_NOMBRE = (
@@ -39,12 +39,6 @@ OUT_NAMES = {
 }
 
 LINE_REPLACEMENTS: dict[str, list[tuple[str, str]]] = {
-    "notificacion_faltas": [
-        (
-            "Fecha de emisión:",
-            "Fecha de emisión: [Fecha automática del sistema]",
-        ),
-    ],
     "falta_marcado": [
         ("Jornada:", "Jornada: [Jornada]"),
         ("Fecha del incidente:", "Fecha del incidente: [Fecha del incidente]"),
@@ -218,10 +212,13 @@ def normalize_oficio_codigo(xml: str) -> str:
 
 def normalize_facultad_y_rol(xml: str) -> str:
     for nombre in (
-        "Facultad de Ciencias de la Vida y Tecnologías",
         "Facultad de Ciencias de la Vida y la Tecnología (FACIVITEC)",
+        "Facultad de Ciencias de la Vida y Tecnologías",
+        "Facultad de Ciencias de la Vida y Tecnología",
+        "Facultad Ciencias de la Vida y Tecnologías",
+        "Facultad Ciencias de la Vida y Tecnología",
     ):
-        xml = xml.replace(nombre, "[facultad]")
+        xml = xml_friendly_replace(xml, nombre, "[facultad]", count=0)
     xml = re.sub(
         r",\s*ADMINISTRATIVO\s+de la carrera",
         ", [Rol del personal] de la carrera",
@@ -289,7 +286,22 @@ def patch_xml(xml: str, key: str) -> str:
 
     if key == "notificacion_faltas":
         xml = xml.replace("Decano (s)", "[Título del firmante]")
-        xml = xml_friendly_replace(xml, "Correo:", "Correo Institucional: [Correo]", count=1)
+        correo_antes = xml
+        xml = xml_friendly_replace(
+            xml,
+            "Correo:[Correo]",
+            "Correo Institucional: [Correo]",
+            count=1,
+        )
+        if xml == correo_antes:
+            xml = xml_friendly_replace(xml, "Correo:", "Correo Institucional: [Correo]", count=1)
+        xml = re.sub(
+            r"(\[Correo\]</w:t>\s*</w:r>)(\s*(?:<w:r\b[^>]*>\s*(?:<w:rPr>.*?</w:rPr>\s*)?<w:t[^>]*>\s*</w:t>\s*</w:r>)*)(\s*<w:r\b[^>]*>\s*(?:<w:rPr>.*?</w:rPr>\s*)?<w:t[^>]*>Fecha de emisión:)",
+            r"\1<w:r><w:br/></w:r>\2\3",
+            xml,
+            count=1,
+            flags=re.DOTALL,
+        )
         for cargo_placeholder in (
             "[Cargo: Docente / Administrativo / Código de trabajo ]",
             "[Cargo: Docente / Administrativo / Código de trabajo]",
@@ -309,8 +321,13 @@ def patch_xml(xml: str, key: str) -> str:
     for old, new in LINE_REPLACEMENTS.get(key, []):
         xml = xml_friendly_replace(xml, old, new)
 
-    xml = xml.replace("Ángel Cristian Mera Macias", "[Nombre del decano]")
-    xml = xml.replace("Alex Andrés Santamaria Philco, Ph.D.", "[Nombre del decano]")
+    xml = xml_friendly_replace(xml, "Ángel Cristian Mera Macias", "[Nombre del decano]", count=0)
+    xml = xml_friendly_replace(
+        xml,
+        "Alex Andrés Santamaria Philco, Ph.D.",
+        "[Nombre del decano]",
+        count=0,
+    )
     xml = normalize_firma_table_jc(xml)
 
     return xml
