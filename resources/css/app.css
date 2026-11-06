@@ -829,6 +829,33 @@ html.sidebar-open {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.sidebar-credits {
+  margin-top: auto;
+  flex-shrink: 0;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.sidebar-credits__label {
+  margin: 0.55rem 0 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.sidebar-credits__label:first-child {
+  margin-top: 0;
+}
+
+.sidebar-credits__name {
+  margin: 0;
+}
+
 .logout-modal {
   position: fixed;
   inset: 0;

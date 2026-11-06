@@ -196,6 +196,13 @@
                         @endif
                     @endif
                 </nav>
+                <footer class="sidebar-credits">
+                    <p class="sidebar-credits__label">Autores</p>
+                    <p class="sidebar-credits__name">Gabriel Alexander Velez Nuñez</p>
+                    <p class="sidebar-credits__name">Miguel Ignacio Zamora Piguave</p>
+                    <p class="sidebar-credits__label">Tutor</p>
+                    <p class="sidebar-credits__name">Ing. Carlos Eduardo Anchundia Betancourt</p>
+                </footer>
             </aside>
 
             <div class="app-shell__content page-enter">

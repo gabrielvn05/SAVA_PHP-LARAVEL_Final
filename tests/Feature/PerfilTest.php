@@ -118,6 +118,11 @@ class PerfilTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('dashboard'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('Autores')
+            ->assertSee('Gabriel Alexander Velez Nuñez')
+            ->assertSee('Miguel Ignacio Zamora Piguave')
+            ->assertSee('Tutor')
+            ->assertSee('Ing. Carlos Eduardo Anchundia Betancourt');
     }
 }
