@@ -544,7 +544,24 @@ function initProfileEditable() {
     }
 }
 
+function syncNativePdfFrames() {
+    document.querySelectorAll('.doc-viewer__frame--native').forEach((frame) => {
+        if (!(frame instanceof HTMLIFrameElement)) {
+            return;
+        }
+        const src = frame.dataset.nativePdf || frame.getAttribute('src') || '';
+        if (src !== '') {
+            frame.dataset.nativePdf = src;
+        }
+        if (frame.hasAttribute('src')) {
+            frame.removeAttribute('src');
+        }
+    });
+}
+
 function initDocViewers() {
+    syncNativePdfFrames();
+
     document.querySelectorAll('[data-doc-print]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const src = btn.getAttribute('data-doc-print');

@@ -83,7 +83,16 @@ async function renderPdfViewer(root) {
         }, { root: pagesEl, threshold: 0.45 })
         : null;
 
-    const availableWidth = () => Math.max(260, (pagesEl.clientWidth || root.clientWidth || window.innerWidth - 32) - 8);
+    const availableWidth = () => {
+        const styles = window.getComputedStyle(pagesEl);
+        const pad = (parseFloat(styles.paddingLeft) || 0) + (parseFloat(styles.paddingRight) || 0);
+        const inner = (pagesEl.clientWidth || 0) - pad;
+        if (inner >= 160) {
+            return inner;
+        }
+
+        return Math.max(240, Math.min(720, (root.clientWidth || window.innerWidth || 360) - 32));
+    };
 
     const updateButtons = () => {
         if (prevBtn) prevBtn.disabled = currentPage <= 1;
@@ -100,11 +109,17 @@ async function renderPdfViewer(root) {
         for (let number = 1; number <= pdf.numPages; number += 1) {
             const page = await pdf.getPage(number);
             const base = page.getViewport({ scale: 1 });
-            const viewport = page.getViewport({ scale: (targetWidth / base.width) * zoom });
+            const cssWidth = Math.max(1, targetWidth);
+            const cssHeight = Math.max(1, Math.round(cssWidth * (base.height / base.width)));
+            const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+            const viewport = page.getViewport({ scale: (cssWidth / base.width) * zoom * pixelRatio });
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d', { alpha: false });
             canvas.width = Math.floor(viewport.width);
             canvas.height = Math.floor(viewport.height);
+            canvas.style.width = '100%';
+            canvas.style.height = `${cssHeight}px`;
+            canvas.style.aspectRatio = `${Math.round(cssWidth)} / ${cssHeight}`;
             canvas.className = 'pdf-viewer__page';
             canvas.setAttribute('data-pdf-page-canvas', String(number));
             pagesEl.appendChild(canvas);
@@ -115,6 +130,9 @@ async function renderPdfViewer(root) {
 
         if (statusEl) {
             statusEl.hidden = true;
+        }
+        if (fallbackEl) {
+            fallbackEl.hidden = true;
         }
         updateButtons();
     };
