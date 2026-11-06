@@ -8,6 +8,54 @@ async function loadPdfJs(root) {
     return api;
 }
 
+function previewCssWidth(canvas) {
+    const measured = canvas.parentElement?.clientWidth || 0;
+    if (measured >= 160) {
+        return measured;
+    }
+
+    return Math.max(240, Math.min(720, (window.innerWidth || 360) - 48));
+}
+
+async function paintPdfPage(page, canvas) {
+    const base = page.getViewport({ scale: 1 });
+    const cssWidth = previewCssWidth(canvas);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const viewport = page.getViewport({ scale: (cssWidth / base.width) * pixelRatio });
+
+    const cssHeight = Math.max(1, Math.round((cssWidth * base.height) / base.width));
+
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    canvas.style.width = `${Math.round(cssWidth)}px`;
+    canvas.style.height = `${cssHeight}px`;
+    canvas.style.aspectRatio = `${Math.round(cssWidth)} / ${cssHeight}`;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('canvas');
+    }
+
+    await page.render({ canvasContext: context, viewport }).promise;
+}
+
+function watchPreviewWidth(canvas, render) {
+    let lastWidth = canvas.parentElement?.clientWidth || 0;
+    let timer = 0;
+
+    window.addEventListener('resize', () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+            const width = canvas.parentElement?.clientWidth || 0;
+            if (width < 160 || Math.abs(width - lastWidth) < 32) {
+                return;
+            }
+            lastWidth = width;
+            render().catch(() => {});
+        }, 200);
+    });
+}
+
 function initSignaturePad(canvas) {
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -99,7 +147,9 @@ function initP12PosicionFlow(root) {
     const submitBtn = root.querySelector('[data-firma-submit]');
 
     let currentPage = Number(pageInput?.value || 1);
-    let pdfLoaded = false;
+    let pdfDoc = null;
+    let painting = false;
+    let painted = false;
     let posicionElegida = false;
     const tieneCoords = () => {
         const x = Number(xInput?.value || 0);
@@ -162,7 +212,7 @@ function initP12PosicionFlow(root) {
         if (previewWrap instanceof HTMLElement) {
             previewWrap.hidden = !passOk;
         }
-        if (passOk && !pdfLoaded) {
+        if (passOk && !painted) {
             await renderPdfPreview();
         }
         syncSubmitState();
@@ -195,38 +245,46 @@ function initP12PosicionFlow(root) {
     });
 
     syncSubmitState();
+    if (pageCanvas) {
+        watchPreviewWidth(pageCanvas, () => renderPdfPreview());
+    }
 
     async function renderPdfPreview() {
-        if (!pdfUrl || !pageCanvas || !pageBtn || pdfLoaded) {
+        if (!pdfUrl || !pageCanvas || !pageBtn || painting) {
             return;
         }
 
+        painting = true;
         try {
-            const pdfjs = await loadPdfJs(root);
-            const response = await fetch(pdfUrl, { credentials: 'same-origin' });
-            if (!response.ok) {
-                throw new Error('pdf');
-            }
-            const buffer = await response.arrayBuffer();
-            const pdf = await pdfjs.getDocument({ data: buffer }).promise;
-            currentPage = pdf.numPages;
-            if (pageInput) {
-                pageInput.value = String(currentPage);
+            if (!pdfDoc) {
+                const pdfjs = await loadPdfJs(root);
+                const response = await fetch(pdfUrl, { credentials: 'same-origin' });
+                if (!response.ok) {
+                    throw new Error('pdf');
+                }
+                const buffer = await response.arrayBuffer();
+                pdfDoc = await pdfjs.getDocument({ data: buffer }).promise;
+                currentPage = pdfDoc.numPages;
+                if (pageInput) {
+                    pageInput.value = String(currentPage);
+                }
             }
 
-            const page = await pdf.getPage(currentPage);
-            const viewport = page.getViewport({ scale: 1.35 });
-            pageCanvas.width = viewport.width;
-            pageCanvas.height = viewport.height;
-            await page.render({ canvasContext: pageCanvas.getContext('2d'), viewport }).promise;
+            const page = await pdfDoc.getPage(currentPage);
+            await paintPdfPage(page, pageCanvas);
 
             setMark(Number(xInput?.value || 75), Number(yInput?.value || 88));
-            pdfLoaded = true;
+            painted = true;
             syncSubmitState();
         } catch {
-            if (statusEl) {
-                statusEl.textContent = 'No se pudo cargar la vista del PDF. Intenta de nuevo o usa la subida manual.';
+            if (!painted) {
+                pdfDoc = null;
+                if (statusEl) {
+                    statusEl.textContent = 'No se pudo cargar la vista del PDF. Intenta de nuevo o usa la subida manual.';
+                }
             }
+        } finally {
+            painting = false;
         }
     }
 }
@@ -326,10 +384,12 @@ function initPadFlow(root) {
             }
 
             const page = await pdf.getPage(currentPage);
-            const viewport = page.getViewport({ scale: 1.35 });
-            pageCanvas.width = viewport.width;
-            pageCanvas.height = viewport.height;
-            await page.render({ canvasContext: pageCanvas.getContext('2d'), viewport }).promise;
+            await paintPdfPage(page, pageCanvas);
+            watchPreviewWidth(pageCanvas, async () => {
+                const fresh = await pdf.getPage(currentPage);
+                await paintPdfPage(fresh, pageCanvas);
+                setMark(Number(xInput?.value || 75), Number(yInput?.value || 88));
+            });
 
             setMark(Number(xInput?.value || 75), Number(yInput?.value || 88));
         } catch {

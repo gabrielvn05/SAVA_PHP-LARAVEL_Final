@@ -3896,13 +3896,14 @@ button:focus-visible {
 .firma-pdf-positioner__page {
   position: relative;
   display: block;
-  width: max-content;
-  max-width: calc(100% - 2rem);
+  width: calc(100% - 2rem);
+  max-width: 720px;
   margin: 1rem auto;
   padding: 0;
   border: 0;
   background: #fff;
   cursor: crosshair;
+  line-height: 0;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
 }
 
@@ -3912,8 +3913,9 @@ button:focus-visible {
 
 .firma-pdf-positioner__canvas {
   display: block;
-  max-width: 100%;
+  width: 100%;
   height: auto;
+  aspect-ratio: 210 / 297;
 }
 
 .firma-pdf-positioner__status {

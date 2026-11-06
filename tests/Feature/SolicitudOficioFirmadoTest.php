@@ -345,6 +345,44 @@ class SolicitudOficioFirmadoTest extends TestCase
         $this->assertStringContainsString("\xFF\xD8\xFF", $sellado);
     }
 
+    public function test_oficio_manual_mantiene_la_firma_y_estampa_el_sello(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000196',
+            'carrera' => 'software',
+        ]);
+
+        $pdfBytes = $this->pdfConRevisionParcial($this->pdfConFirmaDeTinta());
+        $path = SolicitudAdjuntos::guardarContenido($pdfBytes, 'pdf');
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::Aprobada,
+            'detalle' => [
+                'codigo_tramite' => 'FACIVITEC-TEST-MANUAL-TINTA',
+                'anexos' => [[
+                    'path' => $path,
+                    'nombre' => 'firmado.pdf',
+                    'rol' => SolicitudOficioFirmadoService::ROL_ANEXO,
+                ]],
+                'firma_docente' => ['tipo' => 'manual'],
+            ],
+        ]);
+
+        $sellado = app(SolicitudOficioFirmadoService::class)->pdfAprobadoConFirmaSolicitante($solicitud);
+        $this->assertIsString($sellado);
+        $this->assertStringStartsWith($pdfBytes, $sellado);
+        $this->assertStringContainsString('/SelloSAVA', $sellado);
+        $this->assertStringContainsString('/Subtype /Ink', $sellado);
+        $this->assertStringContainsString('120 150 200 150', $sellado);
+    }
+
     public function test_oficio_manual_no_borra_la_firma_si_no_puede_anexar_el_sello(): void
     {
         Storage::fake('local');
@@ -435,6 +473,53 @@ class SolicitudOficioFirmadoTest extends TestCase
         $this->assertStringStartsWith($guardado, $aprobado);
         $this->assertStringContainsString('/SelloSAVA', $aprobado);
         $this->assertTrue($this->firmaCubreElPdf($aprobado, $contenido[1]));
+    }
+
+    private function pdfConFirmaDeTinta(): string
+    {
+        $objetos = [
+            1 => '<< /Type /Catalog /Pages 2 0 R >>',
+            2 => '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            3 => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> /Annots [6 0 R] >>',
+            5 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+            6 => '<< /Type /Annot /Subtype /Ink /Rect [100 100 220 180] /InkList [[120 150 200 150]] /C [1 0 0] /BS << /W 3 >> >>',
+        ];
+        $flujo = "BT /F1 24 Tf 72 700 Td (Oficio) Tj ET\n";
+        $objetos[4] = "<< /Length ".strlen($flujo)." >>\nstream\n".$flujo.'endstream';
+        ksort($objetos);
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [];
+        foreach ($objetos as $numero => $cuerpo) {
+            $offsets[$numero] = strlen($pdf);
+            $pdf .= $numero." 0 obj\n".$cuerpo."\nendobj\n";
+        }
+
+        $xref = strlen($pdf);
+        $pdf .= "xref\n0 7\n";
+        $pdf .= "0000000000 65535 f \n";
+        for ($numero = 1; $numero <= 6; $numero++) {
+            $pdf .= sprintf("%010d 00000 n \n", $offsets[$numero]);
+        }
+        $pdf .= "trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
+
+        return $pdf;
+    }
+
+    private function pdfConRevisionParcial(string $pdf): string
+    {
+        if (! preg_match('/startxref\s+(\d+)/', $pdf, $coincidencia)) {
+            $this->fail('El PDF de prueba no tiene startxref.');
+        }
+        if (! str_ends_with($pdf, "\n")) {
+            $pdf .= "\n";
+        }
+        $inicio = strlen($pdf);
+        $pdf .= "xref\n0 1\n0000000000 65535 f \n";
+        $pdf .= "trailer\n<< /Size 7 /Root 1 0 R /Prev {$coincidencia[1]} >>\n";
+        $pdf .= "startxref\n{$inicio}\n%%EOF\n";
+
+        return $pdf;
     }
 
     private function certificadoP12(string $password): string

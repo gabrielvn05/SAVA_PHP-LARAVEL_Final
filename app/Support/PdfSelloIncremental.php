@@ -80,11 +80,15 @@ class PdfSelloIncremental
         }
 
         $paginaNueva = self::reemplazarReferencia($paginaNueva, 'Parent', $size + 4);
+        $firmasMovidas = [];
+        $paginaNueva = self::moverFirmaVisual($pdf, $mapa, $paginaNueva, $paginaId, $paginaNuevaId, $objetos, $siguiente, $firmasMovidas);
         $objetos[$paginaNuevaId] = $paginaNueva;
 
         $catalogoId = $siguiente;
+        $siguiente++;
         $catalogo = self::diccionario($pdf, $mapa, $raiz);
         $catalogo = self::reemplazarReferencia($catalogo, 'Pages', $paginasNuevasId);
+        $catalogo = self::moverCamposDeFirma($pdf, $mapa, $catalogo, $firmasMovidas, $objetos, $siguiente);
         $catalogo = preg_replace(
             '/\/OpenAction\s*\[\s*'.preg_quote((string) $paginaId, '/').'\s+0\s+R/',
             '/OpenAction ['.$paginaNuevaId.' 0 R',
@@ -99,6 +103,114 @@ class PdfSelloIncremental
         ksort($objetos);
 
         return self::anexar($pdf, $objetos, $catalogoId, $trailer);
+    }
+
+    /**
+     * La firma hecha en el visor es una anotación. Al crear la página nueva hay que
+     * apuntar esa firma a la página nueva, si no el visor deja de pintarla.
+     *
+     * @param  array<int, int>  $mapa
+     * @param  array<int, string>  $objetos
+     * @param  array<int, int>  $firmasMovidas
+     */
+    private static function moverFirmaVisual(
+        string $pdf,
+        array $mapa,
+        string $pagina,
+        int $paginaVieja,
+        int $paginaNueva,
+        array &$objetos,
+        int &$siguiente,
+        array &$firmasMovidas,
+    ): string {
+        if (! preg_match('/\/Annots\s*\[([^\]]*)\]/', $pagina, $lista)) {
+            return $pagina;
+        }
+        if (! preg_match_all('/(\d+)\s+0\s+R/', $lista[1], $ids)) {
+            return $pagina;
+        }
+
+        $nuevaLista = $lista[1];
+        foreach ($ids[1] as $idTexto) {
+            $id = (int) $idTexto;
+            try {
+                $anotacion = self::diccionario($pdf, $mapa, $id);
+            } catch (\Throwable) {
+                continue;
+            }
+            if (! preg_match('/\/P\s+'.$paginaVieja.'\s+0\s+R/', $anotacion)) {
+                continue;
+            }
+            $copia = preg_replace(
+                '/\/P\s+'.$paginaVieja.'\s+0\s+R/',
+                '/P '.$paginaNueva.' 0 R',
+                $anotacion,
+                1,
+            );
+            if (! is_string($copia)) {
+                continue;
+            }
+            $nuevoId = $siguiente;
+            $siguiente++;
+            $objetos[$nuevoId] = $copia;
+            $firmasMovidas[$id] = $nuevoId;
+            $actualizada = preg_replace(
+                '/(?<!\d)'.$id.'\s+0\s+R/',
+                $nuevoId.' 0 R',
+                $nuevaLista,
+                1,
+            );
+            if (is_string($actualizada)) {
+                $nuevaLista = $actualizada;
+            }
+        }
+
+        return str_replace($lista[0], '/Annots['.$nuevaLista.']', $pagina);
+    }
+
+    /**
+     * @param  array<int, int>  $mapa
+     * @param  array<int, int>  $firmasMovidas
+     * @param  array<int, string>  $objetos
+     */
+    private static function moverCamposDeFirma(
+        string $pdf,
+        array $mapa,
+        string $catalogo,
+        array $firmasMovidas,
+        array &$objetos,
+        int &$siguiente,
+    ): string {
+        if ($firmasMovidas === []) {
+            return $catalogo;
+        }
+        $acroId = self::referencia($catalogo, 'AcroForm');
+        if ($acroId === null) {
+            return $catalogo;
+        }
+
+        try {
+            $acro = self::diccionario($pdf, $mapa, $acroId);
+        } catch (\Throwable) {
+            return $catalogo;
+        }
+
+        foreach ($firmasMovidas as $viejo => $nuevo) {
+            $actualizado = preg_replace(
+                '/(?<!\d)'.$viejo.'\s+0\s+R/',
+                $nuevo.' 0 R',
+                $acro,
+            );
+            if (is_string($actualizado)) {
+                $acro = $actualizado;
+            }
+        }
+
+        $nuevoAcro = $siguiente;
+        $siguiente++;
+        $objetos[$nuevoAcro] = $acro;
+
+        return self::reemplazarReferencia($catalogo, 'AcroForm', $nuevoAcro);
     }
 
     /**
@@ -149,7 +261,7 @@ class PdfSelloIncremental
             if ($trailer === '') {
                 $trailer = $este;
             }
-            $inicio = self::referencia($este, 'Prev');
+            $inicio = self::referenciaNumero($este, 'Prev');
         }
 
         if ($mapa === [] || $trailer === '') {
@@ -250,7 +362,7 @@ class PdfSelloIncremental
         while (! isset($visto[$nodo])) {
             $visto[$nodo] = true;
             $dict = self::diccionario($pdf, $mapa, $nodo);
-            if (str_contains($dict, '/Type /Pages')) {
+            if (preg_match('/\/Type\s*\/Pages\b/', $dict)) {
                 if (! preg_match('/\/Kids\s*\[(.*?)\]/s', $dict, $hijos) || ! preg_match('/(\d+)\s+0\s+R/', $hijos[1], $primero)) {
                     throw new \RuntimeException('El PDF no tiene páginas legibles.');
                 }
@@ -258,7 +370,7 @@ class PdfSelloIncremental
 
                 continue;
             }
-            if (str_contains($dict, '/Type /Page')) {
+            if (preg_match('/\/Type\s*\/Page\b/', $dict)) {
                 return $nodo;
             }
 

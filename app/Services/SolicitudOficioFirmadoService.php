@@ -689,6 +689,22 @@ class SolicitudOficioFirmadoService
 
     private function estamparSelloOficioManual(string $pdfBytes): string
     {
+        $imagen = OficioSelloAutorizado::assetPath();
+        if (! is_readable($imagen)) {
+            return $pdfBytes;
+        }
+
+        $recorte = $this->recorteSelloSinMargen($imagen);
+        try {
+            return PdfSelloIncremental::aplicar($pdfBytes, $recorte, 142.5, 34.0, 46.0, 46.0);
+        } catch (\Throwable $e) {
+            report($e);
+        } finally {
+            if ($recorte !== $imagen && is_file($recorte)) {
+                @unlink($recorte);
+            }
+        }
+
         try {
             return $this->estamparSelloReescribiendo($pdfBytes);
         } catch (\Throwable $e) {
@@ -711,7 +727,7 @@ class SolicitudOficioFirmadoService
         $pdf->setPrintFooter(false);
         $pdf->SetAutoPageBreak(false);
         $reader = StreamReader::createByString($pdfBytes);
-        $readerId = $pdf->setSourceFile($reader);
+        $pageCount = $pdf->setSourceFile($reader);
 
         $recorte = $this->recorteSelloSinMargen($imagen);
         $ancho = 46.0;
@@ -720,14 +736,13 @@ class SolicitudOficioFirmadoService
         $y = 34.0;
 
         try {
-            $pageCount = $pdf->setSourceFile($reader);
             for ($page = 1; $page <= $pageCount; $page++) {
                 $this->importarPaginaPdf($pdf, $page);
                 if ($page !== 1) {
                     continue;
                 }
 
-                $this->copiarFirmasVisuales($pdf, $readerId, $page);
+                $this->copiarFirmasVisuales($pdf, $page);
                 $pageW = $pdf->GetPageWidth();
                 $pageH = $pdf->GetPageHeight();
                 $xPagina = max(4.0, min($x, $pageW - $ancho - 4));
@@ -743,11 +758,13 @@ class SolicitudOficioFirmadoService
         return $pdf->Output('', 'S');
     }
 
-    private function copiarFirmasVisuales(PdfConLector $pdf, string $readerId, int $numeroPagina): void
+    private function copiarFirmasVisuales(PdfConLector $pdf, int $numeroPagina): void
     {
         try {
-            $pagina = $pdf->lector($readerId)->getPage($numeroPagina);
-            $parser = (new \ReflectionProperty($pagina, 'parser'))->getValue($pagina);
+            $pagina = $pdf->lectorActual()->getPage($numeroPagina);
+            $propiedad = new \ReflectionProperty($pagina, 'parser');
+            $propiedad->setAccessible(true);
+            $parser = $propiedad->getValue($pagina);
             $anotaciones = PdfType::resolve(PdfDictionary::get($pagina->getPageDictionary(), 'Annots'), $parser);
         } catch (\Throwable) {
             return;
@@ -788,12 +805,19 @@ class SolicitudOficioFirmadoService
             return;
         }
 
+        if ($lista->value === []) {
+            return;
+        }
+
         [$rojo, $verde, $azul] = $this->colorDeAnotacion($anotacion, $parser);
         $pdf->SetDrawColor($rojo, $verde, $azul);
         $pdf->SetLineWidth($this->grosorDeAnotacion($anotacion, $parser, $punto));
-        $pdf->SetLineCap(1);
+        $pdf->setLineStyle(['cap' => 'round', 'join' => 'round']);
 
-        foreach ($lista->value as $trazo) {
+        $primero = PdfType::resolve($lista->value[0], $parser);
+        $trazos = $primero instanceof PdfNumeric ? [$lista] : $lista->value;
+
+        foreach ($trazos as $trazo) {
             $trazo = PdfType::resolve($trazo, $parser);
             if (! $trazo instanceof PdfArray) {
                 continue;
@@ -836,7 +860,8 @@ class SolicitudOficioFirmadoService
             $y = $altoPagina - ($rect[3] * $punto);
             $ancho = max(1.0, ($rect[2] - $rect[0]) * $punto);
             $alto = max(1.0, ($rect[3] - $rect[1]) * $punto);
-            $pdf->Image($ruta, $x, $y, $ancho, $alto, strtoupper($imagen['ext']));
+            $tipo = $imagen['ext'] === 'png' ? 'PNG' : 'JPEG';
+            $pdf->Image($ruta, $x, $y, $ancho, $alto, $tipo);
         } finally {
             @unlink($ruta);
         }
@@ -895,19 +920,14 @@ class SolicitudOficioFirmadoService
                 } catch (\Throwable) {
                     return null;
                 }
-                $filtro = '';
-                try {
-                    $filtroTipo = PdfType::resolve(PdfDictionary::get($diccionario, 'Filter'), $parser);
-                    $filtro = $filtroTipo instanceof PdfName ? $filtroTipo->value : '';
-                } catch (\Throwable) {
-                    $filtro = '';
+                if (str_starts_with($bytes, "\xFF\xD8\xFF")) {
+                    return ['bytes' => $bytes, 'ext' => 'jpg'];
                 }
-                $ext = $filtro === 'DCTDecode' ? 'jpg' : 'png';
-                if ($filtro !== 'DCTDecode' && ! str_starts_with($bytes, "\x89PNG")) {
-                    return null;
+                if (str_starts_with($bytes, "\x89PNG")) {
+                    return ['bytes' => $bytes, 'ext' => 'png'];
                 }
 
-                return ['bytes' => $bytes, 'ext' => $ext];
+                return null;
             }
 
             try {
@@ -1180,5 +1200,13 @@ class SolicitudOficioFirmadoService
         }
 
         return null;
+    }
+}
+
+class PdfConLector extends Fpdi
+{
+    public function lectorActual(): PdfReader
+    {
+        return $this->getPdfReader($this->currentReaderId);
     }
 }
