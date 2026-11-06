@@ -1,0 +1,16 @@
+@php
+    $paths = [
+        'home' => '<path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>',
+        'book' => '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11a3 3 0 0 1 3 3v13a2.2 2.2 0 0 0-2.2-2H4V5.5Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13a3 3 0 0 0-3 3v13a2.2 2.2 0 0 1 2.2-2H20V5.5Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>',
+        'users' => '<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.75"/><path d="M3.5 19.2c.7-2.7 2.9-4.2 5.5-4.2s4.8 1.5 5.5 4.2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><circle cx="17" cy="9" r="2.1" stroke="currentColor" stroke-width="1.75"/><path d="M16.2 15c1.7.4 3 1.5 3.6 3.2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
+        'user-plus' => '<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.75"/><path d="M3.5 19c.6-2.6 2.8-4.2 5.5-4.2 1.4 0 2.7.4 3.7 1.2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M17 11v6M20 14h-6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
+        'folder' => '<path d="M3.5 7.2A1.7 1.7 0 0 1 5.2 5.5H9l1.8 2h8a1.7 1.7 0 0 1 1.7 1.7v8.1a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7V7.2Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>',
+        'file-plus' => '<path d="M14 3.5H7.2A1.7 1.7 0 0 0 5.5 5.2v13.6A1.7 1.7 0 0 0 7.2 20.5h9.6a1.7 1.7 0 0 0 1.7-1.7V8.2L14 3.5Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M14 3.5V8h4.5M12 17.2v-5M9.5 14.7h5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>',
+        'list' => '<path d="M9 6.5h11M9 12h11M9 17.5h11" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+        'clipboard' => '<path d="M9 4.2h6a1 1 0 0 1 1 1V6H8V5.2a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><rect x="5.5" y="5.5" width="13" height="15" rx="2" stroke="currentColor" stroke-width="1.75"/><path d="m8.8 13.2 2.1 2.1 4.3-4.3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>',
+        'bell' => '<path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16l-2-2Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
+        'chart' => '<path d="M4 19.5V5M4 19.5h16" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M8 16.5v-4.5M12 16.5V8M16 16.5v-2.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
+        'info' => '<circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.75"/><path d="M12 11v5.2M12 8h.01" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
+    ];
+@endphp
+<svg class="sidebar-nav__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">{!! $paths[$name] ?? '' !!}</svg>

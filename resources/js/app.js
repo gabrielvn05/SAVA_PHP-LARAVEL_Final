@@ -162,10 +162,41 @@ function initSidebar() {
         });
     });
 
+    const aboutModal = document.querySelector('[data-about-modal]');
+    function closeAccountMenu() {
+        const menu = document.querySelector('[data-topbar-menu]');
+        const panel = menu?.querySelector('[data-topbar-menu-panel]');
+        const toggle = menu?.querySelector('[data-topbar-menu-toggle]');
+        menu?.classList.remove('is-open');
+        if (panel) panel.hidden = true;
+        toggle?.setAttribute('aria-expanded', 'false');
+    }
+    function setAbout(open) {
+        if (!aboutModal) return;
+        aboutModal.hidden = !open;
+        aboutModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+        if (open) closeAccountMenu();
+    }
+    document.querySelectorAll('[data-about-open]').forEach((openBtn) => {
+        openBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setAbout(true);
+        });
+    });
+    aboutModal?.querySelectorAll('[data-about-close]').forEach((el) => {
+        el.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setAbout(false);
+        });
+    });
+
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
         if (document.querySelector('[data-profile-modal]')) return;
-        if (modal && !modal.hidden) setLogout(false);
+        if (aboutModal && !aboutModal.hidden) setAbout(false);
+        else if (modal && !modal.hidden) setLogout(false);
         else setOpen(false);
     });
 

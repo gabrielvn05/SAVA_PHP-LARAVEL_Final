@@ -140,6 +140,13 @@
                         </svg>
                     </button>
                     <div class="topbar-menu__panel" data-topbar-menu-panel role="menu" hidden>
+                        <div class="topbar-menu__identity">
+                            <div class="topbar-menu__identity-avatar" aria-hidden="true">{{ $inicialesTopbar !== '' ? $inicialesTopbar : '?' }}</div>
+                            <div class="topbar-menu__identity-meta">
+                                <span class="topbar-menu__identity-name">{{ mb_strtoupper($usuario->nombreCompleto()) }}</span>
+                                <span class="topbar-menu__identity-id">{{ $identificadorTopbar }}</span>
+                            </div>
+                        </div>
                         <a href="{{ route('perfil.edit') }}" class="topbar-menu__item" role="menuitem">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.75"/>
@@ -147,6 +154,13 @@
                             </svg>
                             Perfil y configuración
                         </a>
+                        <button type="button" class="topbar-menu__item" role="menuitem" data-about-open>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.75"/>
+                                <path d="M12 11v5.2M12 8h.01" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+                            </svg>
+                            Acerca de
+                        </button>
                         <button type="button" class="topbar-menu__item topbar-menu__item--danger" role="menuitem" data-logout-open>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <path d="M10 17l5-5-5-5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
@@ -163,46 +177,79 @@
             <div class="sidebar-backdrop" data-sidebar-backdrop aria-hidden="true"></div>
             <aside class="sidebar-panel" data-sidebar-panel aria-label="Menú lateral">
                 <nav class="sidebar-nav" aria-label="Menú principal">
-                    <a href="{{ route('dashboard') }}" class="sidebar-nav__link {{ request()->routeIs('dashboard') ? 'is-active' : '' }}">Inicio</a>
-                    <a href="{{ route('biblioteca.index') }}" class="sidebar-nav__link {{ request()->routeIs('biblioteca.*') ? 'is-active' : '' }}">Biblioteca</a>
+                    <a href="{{ route('dashboard') }}" class="sidebar-nav__link {{ request()->routeIs('dashboard') ? 'is-active' : '' }}">
+                        @include('partials.nav-icon', ['name' => 'home'])
+                        <span>Inicio</span>
+                    </a>
+                    <a href="{{ route('biblioteca.index') }}" class="sidebar-nav__link {{ request()->routeIs('biblioteca.*') ? 'is-active' : '' }}">
+                        @include('partials.nav-icon', ['name' => 'book'])
+                        <span>Biblioteca</span>
+                    </a>
 
                     @if($esSuper)
-                        <a href="{{ route('admin.usuarios.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.usuarios.*') ? 'is-active' : '' }}">Usuarios</a>
-                        <a href="{{ route('admin.solicitudes-cuenta.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.solicitudes-cuenta.*') ? 'is-active' : '' }}">Solicitudes de cuenta</a>
+                        <a href="{{ route('admin.usuarios.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.usuarios.*') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'users'])
+                            <span>Usuarios</span>
+                        </a>
+                        <a href="{{ route('admin.solicitudes-cuenta.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.solicitudes-cuenta.*') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'user-plus'])
+                            <span>Solicitudes de cuenta</span>
+                        </a>
                     @else
                         <div class="sidebar-nav__group" data-nav-group>
                             <button type="button" class="sidebar-nav__group-btn" aria-expanded="{{ $solicitudesOpen ? 'true' : 'false' }}" data-nav-group-btn>
-                                <span>Solicitudes</span>
-                                <span class="sidebar-nav__chevron" aria-hidden style="transform: rotate({{ $solicitudesOpen ? '180deg' : '0deg' }});">▼</span>
+                                <span class="sidebar-nav__group-label">
+                                    @include('partials.nav-icon', ['name' => 'folder'])
+                                    <span>Solicitudes</span>
+                                </span>
+                                <span class="sidebar-nav__chevron" aria-hidden="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                        <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </span>
                             </button>
                             <div class="sidebar-nav__sub" @unless($solicitudesOpen) hidden @endunless data-nav-group-sub>
-                                <a href="{{ route('solicitudes.wizard') }}" class="sidebar-nav__sublink {{ request()->routeIs('solicitudes.wizard', 'solicitudes.create') ? 'is-active' : '' }}">Nuevas solicitudes</a>
-                                <a href="{{ route('solicitudes.index') }}" class="sidebar-nav__sublink {{ request()->routeIs('solicitudes.index', 'solicitudes.show', 'solicitudes.edit') ? 'is-active' : '' }}">Mis solicitudes</a>
+                                <a href="{{ route('solicitudes.wizard') }}" class="sidebar-nav__sublink {{ request()->routeIs('solicitudes.wizard', 'solicitudes.create') ? 'is-active' : '' }}">
+                                    @include('partials.nav-icon', ['name' => 'file-plus'])
+                                    <span>Nuevas solicitudes</span>
+                                </a>
+                                <a href="{{ route('solicitudes.index') }}" class="sidebar-nav__sublink {{ request()->routeIs('solicitudes.index', 'solicitudes.show', 'solicitudes.edit') ? 'is-active' : '' }}">
+                                    @include('partials.nav-icon', ['name' => 'list'])
+                                    <span>Mis solicitudes</span>
+                                </a>
                             </div>
                         </div>
 
                         @if($puedeProceso)
-                            <a href="{{ route('solicitudes.proceso') }}" class="sidebar-nav__link {{ request()->routeIs('solicitudes.proceso') || ($puedeProceso && request()->routeIs('solicitudes.show')) ? 'is-active' : '' }}">Proceso de aprobación</a>
+                            <a href="{{ route('solicitudes.proceso') }}" class="sidebar-nav__link {{ request()->routeIs('solicitudes.proceso') || ($puedeProceso && request()->routeIs('solicitudes.show')) ? 'is-active' : '' }}">
+                                @include('partials.nav-icon', ['name' => 'clipboard'])
+                                <span>Proceso de aprobación</span>
+                            </a>
                         @endif
                         @if($usuario->hasCapability(\App\Enums\CapabilityType::GestionarUsuarios))
-                            <a href="{{ route('admin.usuarios.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.usuarios.*') ? 'is-active' : '' }}">Usuarios</a>
+                            <a href="{{ route('admin.usuarios.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.usuarios.*') ? 'is-active' : '' }}">
+                                @include('partials.nav-icon', ['name' => 'users'])
+                                <span>Usuarios</span>
+                            </a>
                         @endif
                         @if($puedeNotificacionesFaltas)
-                            <a href="{{ route('notificaciones-faltas.index') }}" class="sidebar-nav__link {{ request()->routeIs('notificaciones-faltas.*') ? 'is-active' : '' }}">Notificaciones TH</a>
+                            <a href="{{ route('notificaciones-faltas.index') }}" class="sidebar-nav__link {{ request()->routeIs('notificaciones-faltas.*') ? 'is-active' : '' }}">
+                                @include('partials.nav-icon', ['name' => 'bell'])
+                                <span>Notificaciones TH</span>
+                            </a>
                         @endif
                         @if($esSecretaria || $esDecano)
-                            <a href="{{ route('reportes.index') }}" class="sidebar-nav__link {{ request()->routeIs('reportes.*') ? 'is-active' : '' }}">Reportes</a>
-                            <a href="{{ route('admin.solicitudes-cuenta.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.solicitudes-cuenta.*') ? 'is-active' : '' }}">Solicitudes de cuenta</a>
+                            <a href="{{ route('reportes.index') }}" class="sidebar-nav__link {{ request()->routeIs('reportes.*') ? 'is-active' : '' }}">
+                                @include('partials.nav-icon', ['name' => 'chart'])
+                                <span>Reportes</span>
+                            </a>
+                            <a href="{{ route('admin.solicitudes-cuenta.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.solicitudes-cuenta.*') ? 'is-active' : '' }}">
+                                @include('partials.nav-icon', ['name' => 'user-plus'])
+                                <span>Solicitudes de cuenta</span>
+                            </a>
                         @endif
                     @endif
                 </nav>
-                <footer class="sidebar-credits">
-                    <p class="sidebar-credits__label">Autores</p>
-                    <p class="sidebar-credits__name">Gabriel Alexander Velez Nuñez</p>
-                    <p class="sidebar-credits__name">Miguel Ignacio Zamora Piguave</p>
-                    <p class="sidebar-credits__label">Tutor</p>
-                    <p class="sidebar-credits__name">Ing. Carlos Eduardo Anchundia Betancourt</p>
-                </footer>
             </aside>
 
             <div class="app-shell__content page-enter">
@@ -264,5 +311,21 @@
     <form id="logout-form" method="POST" action="{{ route('logout') }}" hidden>
         @csrf
     </form>
+
+    <div class="about-modal" hidden data-about-modal role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
+        <button type="button" class="about-modal__backdrop" aria-label="Cerrar" data-about-close></button>
+        <div class="about-modal__panel">
+            <h2 id="about-modal-title" class="about-modal__title">Acerca de SAVA</h2>
+            <p class="about-modal__text">Sistema de Asistencia y Validaciones Académicas. Gestión de permisos y justificaciones.</p>
+            <p class="about-modal__label">Autores</p>
+            <p class="about-modal__name">Gabriel Alexander Velez Nuñez</p>
+            <p class="about-modal__name">Miguel Ignacio Zamora Piguave</p>
+            <p class="about-modal__label">Tutor</p>
+            <p class="about-modal__name">Ing. Carlos Eduardo Anchundia Betancourt</p>
+            <div class="about-modal__actions">
+                <button type="button" class="btn btn--primary" data-about-close>Cerrar</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
