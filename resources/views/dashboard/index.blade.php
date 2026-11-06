@@ -8,6 +8,30 @@
     $circumference = 2 * M_PI * $radius;
     $donutOffset = 0;
     $donutTotal = collect($stats['byEstado'])->sum('count');
+    $puedeRevisar = ! $user->isSolicitante() && $user->hasCapability(\App\Enums\CapabilityType::RevisarSolicitudes);
+    $puedeFirmar = ! $user->isSolicitante() && $user->hasCapability(\App\Enums\CapabilityType::AprobarSolicitudes);
+    $fraseConteo = function (int $n, string $singular, string $plural): string {
+        return ($n === 1 ? '1 '.$singular : $n.' '.$plural);
+    };
+    $resumenPartes = [];
+    if ($user->isSolicitante()) {
+        $resumenPartes[] = $stats['enProceso'] === 0
+            ? 'No tienes trámites en proceso'
+            : $fraseConteo($stats['enProceso'], 'trámite en proceso', 'trámites en proceso');
+    }
+    if ($puedeRevisar || $puedeFirmar) {
+        $pendientes = [];
+        if ($puedeRevisar && $stats['pendientesRevision'] > 0) {
+            $pendientes[] = $fraseConteo($stats['pendientesRevision'], 'pendiente de tu revisión', 'pendientes de tu revisión');
+        }
+        if ($puedeFirmar && $stats['pendientesFirma'] > 0) {
+            $pendientes[] = $fraseConteo($stats['pendientesFirma'], 'pendiente de tu firma', 'pendientes de tu firma');
+        }
+        $resumenPartes[] = $pendientes === []
+            ? 'No tienes pendientes por atender'
+            : implode(' y ', $pendientes);
+    }
+    $resumenInicio = implode('. ', $resumenPartes).'.';
 @endphp
 
 @section('content')
@@ -15,8 +39,50 @@
     <header class="page-header">
         <div class="page-header__text">
             <h1 class="page-header__title">Hola, {{ $user->nombres }}</h1>
+            <p class="page-header__subtitle">{{ $resumenInicio }}</p>
         </div>
     </header>
+
+    <div class="dash-actions">
+        <article class="card dash-action">
+            <h2>Mis solicitudes</h2>
+            <p class="field-hint">Consulta, crea y edita tus solicitudes y certificados.</p>
+            <div class="dash-action__links">
+                <a href="{{ route('solicitudes.wizard') }}" class="btn btn--primary btn--sm">Nueva solicitud</a>
+                <a href="{{ route('solicitudes.index') }}" class="btn btn--secondary btn--sm">Ver mis solicitudes</a>
+            </div>
+        </article>
+
+        @if($puedeRevisar)
+            <article class="card dash-action dash-action--warning">
+                <h2>Revisión</h2>
+                <p class="field-hint">
+                    Pendientes: <strong>{{ $stats['pendientesRevision'] }}</strong>
+                    @if($stats['total'] > 0)
+                        · {{ $pct($stats['pendientesRevision']) }}% del total
+                    @endif
+                </p>
+                <div class="dash-action__links">
+                    <a href="{{ route('solicitudes.proceso') }}" class="btn btn--primary btn--sm">Abrir proceso</a>
+                </div>
+            </article>
+        @endif
+
+        @if($puedeFirmar)
+            <article class="card dash-action dash-action--success">
+                <h2>Aprobación y firma</h2>
+                <p class="field-hint">
+                    Pendientes de firma: <strong>{{ $stats['pendientesFirma'] }}</strong>
+                    @if($stats['total'] > 0)
+                        · {{ $pct($stats['pendientesFirma']) }}% del total
+                    @endif
+                </p>
+                <div class="dash-action__links">
+                    <a href="{{ route('solicitudes.proceso') }}" class="btn btn--primary btn--sm">Atender pendientes</a>
+                </div>
+            </article>
+        @endif
+    </div>
 
     <div class="dash-metrics">
         <article class="card dash-metric dash-metric--primary">
@@ -128,81 +194,46 @@
     </div>
 
     <div class="dashboard-grid">
-        <article class="card dashboard-tile stack">
-            <h2 style="margin: 0;">Mis solicitudes</h2>
-            <p class="field-hint">Consulta, crea y edita tus solicitudes y certificados.</p>
-            <div class="row" style="gap: 8px; flex-wrap: wrap;">
-                <a href="{{ route('solicitudes.index') }}" class="btn btn--secondary btn--sm" style="width: fit-content;">Ver mis solicitudes</a>
-                <a href="{{ route('solicitudes.wizard') }}" class="btn btn--primary btn--sm" style="width: fit-content;">Nueva solicitud</a>
-            </div>
-        </article>
-
-        @if(! $user->isSolicitante() && $user->hasCapability(\App\Enums\CapabilityType::RevisarSolicitudes))
-            <article class="card dashboard-tile stack" style="border-left-color: var(--color-warning);">
-                <h2 style="margin: 0;">Revisión (Secretaría)</h2>
-                <p class="field-hint">
-                    Pendientes: <strong>{{ $stats['pendientesRevision'] }}</strong>
-                    @if($stats['total'] > 0)
-                        · {{ $pct($stats['pendientesRevision']) }}% del total
-                    @endif
-                </p>
-                <a href="{{ route('solicitudes.proceso') }}" class="btn btn--secondary btn--sm" style="width: fit-content;">Abrir proceso</a>
-            </article>
-        @endif
-
-        @if(! $user->isSolicitante() && $user->hasCapability(\App\Enums\CapabilityType::AprobarSolicitudes))
-            <article class="card dashboard-tile stack" style="border-left-color: var(--color-success);">
-                <h2 style="margin: 0;">Aprobación y firma</h2>
-                <p class="field-hint">
-                    Pendientes de firma: <strong>{{ $stats['pendientesFirma'] }}</strong>
-                    @if($stats['total'] > 0)
-                        · {{ $pct($stats['pendientesFirma']) }}% del total
-                    @endif
-                </p>
-                <a href="{{ route('solicitudes.proceso') }}" class="btn btn--secondary btn--sm" style="width: fit-content;">Atender pendientes</a>
-            </article>
-        @endif
-
         @if($user->rol === \App\Enums\AppRole::Decano)
-            <article class="card dashboard-tile stack" style="border-left-color: var(--color-accent);">
-                <h2 style="margin: 0;">Usuarios</h2>
+            <article class="card dashboard-tile dashboard-tile--accent stack">
+                <h2>Usuarios</h2>
                 <p class="field-hint">Cambia el rol y delega la firma o el envío de faltas. Esas acciones quedan a nombre del Decano.</p>
-                <a href="{{ route('admin.usuarios.index') }}" class="btn btn--primary btn--sm" style="width: fit-content;">Gestionar usuarios</a>
+                <a href="{{ route('admin.usuarios.index') }}" class="btn btn--primary btn--sm">Gestionar usuarios</a>
             </article>
-            <article class="card dashboard-tile stack" style="border-left-color: var(--color-accent);">
-                <h2 style="margin: 0;">Solicitudes de cuenta</h2>
+            <article class="card dashboard-tile dashboard-tile--accent stack">
+                <h2>Solicitudes de cuenta</h2>
                 <p class="field-hint">Pendientes por revisar: {{ $stats['solicitudesCuentaPendientes'] ?? 0 }}</p>
-                <a href="{{ route('admin.solicitudes-cuenta.index') }}" class="btn btn--primary btn--sm" style="width: fit-content;">Revisar solicitudes</a>
+                <a href="{{ route('admin.solicitudes-cuenta.index') }}" class="btn btn--primary btn--sm">Revisar solicitudes</a>
             </article>
-            <article class="card dashboard-tile stack" style="border-left-color: var(--color-info);">
-                <h2 style="margin: 0;">Reportes</h2>
+            <article class="card dashboard-tile dashboard-tile--info stack">
+                <h2>Reportes</h2>
                 <p class="field-hint">Consolidados por tipo de solicitud y periodo.</p>
-                <a href="{{ route('reportes.index') }}" class="btn btn--primary btn--sm" style="width: fit-content;">Abrir reportes</a>
+                <a href="{{ route('reportes.index') }}" class="btn btn--primary btn--sm">Abrir reportes</a>
             </article>
         @endif
 
         @if($user->rol === \App\Enums\AppRole::Secretaria)
-            <article class="card dashboard-tile stack" style="border-left-color: var(--color-info);">
-                <h2 style="margin: 0;">Reportes</h2>
+            <article class="card dashboard-tile dashboard-tile--info stack">
+                <h2>Reportes</h2>
                 <p class="field-hint">Consolidados por tipo de solicitud y periodo.</p>
-                <a href="{{ route('reportes.index') }}" class="btn btn--primary btn--sm" style="width: fit-content;">Abrir reportes</a>
+                <a href="{{ route('reportes.index') }}" class="btn btn--primary btn--sm">Abrir reportes</a>
             </article>
-            <article class="card dashboard-tile stack" style="border-left-color: var(--color-warning);">
-                <h2 style="margin: 0;">Solicitudes de cuenta (rechazo)</h2>
+            <article class="card dashboard-tile dashboard-tile--warning stack">
+                <h2>Solicitudes de cuenta</h2>
                 <p class="field-hint">Pendientes por resolver: {{ $stats['solicitudesCuentaPendientes'] ?? 0 }}</p>
-                <a href="{{ route('admin.solicitudes-cuenta.index') }}" class="btn btn--secondary btn--sm" style="width: fit-content;">Abrir bandeja</a>
+                <a href="{{ route('admin.solicitudes-cuenta.index') }}" class="btn btn--secondary btn--sm">Abrir bandeja</a>
             </article>
         @endif
 
-        <article class="card dashboard-tile stack" style="border-left-color: var(--color-danger);">
-            <h2 style="margin: 0;">Rechazadas</h2>
+        <article class="card dashboard-tile dashboard-tile--danger stack">
+            <h2>Rechazadas</h2>
             <p class="field-hint">
                 Total: <strong>{{ $stats['rechazadas'] }}</strong>
                 @if($stats['total'] > 0)
                     · {{ $pct($stats['rechazadas']) }}% del total
                 @endif
             </p>
-            <a href="{{ route('solicitudes.index', ['estado' => 'rechazada']) }}" class="btn btn--secondary btn--sm" style="width: fit-content;">Ver historial</a>
+            <a href="{{ route('solicitudes.index', ['estado' => 'rechazada']) }}" class="btn btn--secondary btn--sm">Ver historial</a>
         </article>
     </div>
 </section>
