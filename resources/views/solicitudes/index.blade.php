@@ -2,11 +2,19 @@
 
 @section('title', 'Mis solicitudes')
 
+@php
+    $hayFiltros = collect($filtros ?? [])->contains(fn ($valor) => filled($valor));
+    $total = $solicitudes->total();
+@endphp
+
 @section('content')
 <section class="stack">
     <header class="page-header">
         <div class="page-header__text">
             <h1 class="page-header__title">Mis solicitudes</h1>
+            <p class="page-header__subtitle">
+                {{ $total }} {{ $total === 1 ? 'solicitud' : 'solicitudes' }}{{ $hayFiltros ? ' con estos filtros' : '' }}.
+            </p>
         </div>
         <div class="page-header__actions">
             <a href="{{ route('solicitudes.create') }}" class="btn btn--secondary btn--sm">Formulario simple</a>
@@ -14,79 +22,81 @@
         </div>
     </header>
 
-    <article class="card" style="margin-bottom: 1rem;">
-        <h2 class="page-header__title" style="font-size: 1rem; margin: 0 0 0.75rem;">Filtros</h2>
-        <form method="GET" action="{{ route('solicitudes.index') }}" class="solicitud-filters" data-no-loading>
-            <div>
-                <label for="f-estado">Estado del trámite</label>
-                <select id="f-estado" name="estado">
-                    <option value="">Todos los procesos</option>
-                    @foreach($estados as $estado)
-                        <option value="{{ $estado->value }}" @selected(($filtros['estado'] ?? '') === $estado->value)>{{ $estado->label() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label for="f-tipo">Tipo</label>
-                <select id="f-tipo" name="tipo">
-                    <option value="">Todos</option>
-                    @foreach($tipos as $tipo)
-                        <option value="{{ $tipo->value }}" @selected(($filtros['tipo'] ?? '') === $tipo->value)>{{ $tipo->label() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="solicitud-filters__span2">
-                <label for="f-q">Nombre o texto en motivo</label>
-                <input id="f-q" type="search" name="q" value="{{ $filtros['q'] ?? '' }}" placeholder="Buscar...">
-            </div>
-            <div>
-                <button type="submit" class="btn btn--secondary btn--sm">Filtrar</button>
-            </div>
-        </form>
-        <p class="field-hint" style="margin-top: 0.75rem; margin-bottom: 0;">
-            {{ $solicitudes->total() }} solicitud{{ $solicitudes->total() === 1 ? '' : 'es' }} encontrada{{ $solicitudes->total() === 1 ? '' : 's' }}.
-            Se muestran 10 por página.
-        </p>
-    </article>
-
-    <article class="card card--flat">
-        <div class="table-wrap">
-            <table class="data-table data-table--compact">
-                <thead>
-                    <tr>
-                        <th>Tipo</th>
-                        <th>Periodo</th>
-                        <th>Estado</th>
-                        <th>Motivo</th>
-                        <th>Carrera</th>
-                        <th>Rol</th>
-                        <th>Justificativo</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($solicitudes as $solicitud)
-                        <tr>
-                            <td data-label="Tipo">{{ $solicitud->tipo->label() }}</td>
-                            <td data-label="Periodo">{{ $solicitud->fecha_inicio->format('Y-m-d') }} - {{ $solicitud->fecha_fin->format('Y-m-d') }}</td>
-                            <td data-label="Estado"><span class="badge {{ $solicitud->estado->badgeClass() }}">{{ $solicitud->estado->label() }}</span></td>
-                            <td data-label="Motivo">{{ \Illuminate\Support\Str::limit($solicitud->motivo, 80) }}</td>
-                            <td data-label="Carrera">{{ \App\Support\Carreras::label($solicitud->creador->carrera ?? '') }}</td>
-                            <td data-label="Rol">{{ $solicitud->creador->rol->label() }}</td>
-                            <td data-label="Justificativo">{{ $solicitud->justificativo_nombre ?: '—' }}</td>
-                            <td data-label="Acciones"><a href="{{ route('solicitudes.show', $solicitud) }}" class="btn btn--secondary btn--sm">Ver</a></td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" style="text-align: center; color: var(--color-text-muted);">
-                                No hay solicitudes con estos filtros.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+    <form method="GET" action="{{ route('solicitudes.index') }}" class="list-toolbar" data-no-loading>
+        <div class="list-toolbar__field">
+            <label for="f-estado">Estado</label>
+            <select id="f-estado" name="estado">
+                <option value="">Todos</option>
+                @foreach($estados as $estado)
+                    <option value="{{ $estado->value }}" @selected(($filtros['estado'] ?? '') === $estado->value)>{{ $estado->label() }}</option>
+                @endforeach
+            </select>
         </div>
-        {{ $solicitudes->links() }}
-    </article>
+        <div class="list-toolbar__field">
+            <label for="f-tipo">Tipo</label>
+            <select id="f-tipo" name="tipo">
+                <option value="">Todos</option>
+                @foreach($tipos as $tipo)
+                    <option value="{{ $tipo->value }}" @selected(($filtros['tipo'] ?? '') === $tipo->value)>{{ $tipo->label() }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="list-toolbar__field list-toolbar__field--grow">
+            <label for="f-q">Buscar en el motivo</label>
+            <input id="f-q" type="search" name="q" value="{{ $filtros['q'] ?? '' }}" placeholder="Texto del motivo">
+        </div>
+        <div class="list-toolbar__actions">
+            <button type="submit" class="btn btn--secondary btn--sm">Filtrar</button>
+            @if($hayFiltros)
+                <a href="{{ route('solicitudes.index') }}" class="btn btn--ghost btn--sm">Limpiar</a>
+            @endif
+        </div>
+    </form>
+
+    @if($solicitudes->isEmpty())
+        <div class="list-empty">
+            @if($hayFiltros)
+                <h2 class="list-empty__title">Ninguna solicitud coincide</h2>
+                <p class="list-empty__text">Prueba con otro estado, tipo o texto, o quita los filtros para ver el listado completo.</p>
+                <div class="list-empty__actions">
+                    <a href="{{ route('solicitudes.index') }}" class="btn btn--secondary btn--sm">Quitar filtros</a>
+                </div>
+            @else
+                <h2 class="list-empty__title">Aún no tienes solicitudes</h2>
+                <p class="list-empty__text">Cuando registres un permiso o una justificación, aparecerá en esta lista.</p>
+                <div class="list-empty__actions">
+                    <a href="{{ route('solicitudes.wizard') }}" class="btn btn--primary btn--sm">Nueva solicitud</a>
+                </div>
+            @endif
+        </div>
+    @else
+        <article class="card card--flat">
+            <div class="table-wrap">
+                <table class="data-table data-table--compact data-table--fit">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Periodo</th>
+                            <th>Estado</th>
+                            <th>Motivo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($solicitudes as $solicitud)
+                            <tr>
+                                <td data-label="Tipo">{{ $solicitud->tipo->label() }}</td>
+                                <td data-label="Periodo">{{ \App\Support\SolicitudPeriodo::label($solicitud) }}</td>
+                                <td data-label="Estado"><span class="badge {{ $solicitud->estado->badgeClass() }}">{{ $solicitud->estado->label() }}</span></td>
+                                <td data-label="Motivo" title="{{ $solicitud->motivo }}">{{ \Illuminate\Support\Str::limit($solicitud->motivo, 90) }}</td>
+                                <td data-label="Acciones"><a href="{{ route('solicitudes.show', $solicitud) }}" class="btn btn--secondary btn--sm">Ver</a></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            {{ $solicitudes->links() }}
+        </article>
+    @endif
 </section>
 @endsection

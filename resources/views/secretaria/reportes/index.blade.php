@@ -73,7 +73,7 @@
                                 <td data-label="Solicitante">{{ $solicitud->creador?->nombreCompleto() }}</td>
                                 <td data-label="Tipo">{{ $solicitud->tipo->label() }}</td>
                                 <td data-label="Estado"><span class="badge {{ $solicitud->estado->badgeClass() }}">{{ $solicitud->estado->label() }}</span></td>
-                                <td data-label="Periodo">{{ $solicitud->fecha_inicio->format('d/m/Y') }} – {{ $solicitud->fecha_fin->format('d/m/Y') }}</td>
+                                <td data-label="Periodo">{{ \App\Support\SolicitudPeriodo::label($solicitud) }}</td>
                             </tr>
                         @endforeach
                     </tbody>

@@ -2,11 +2,19 @@
 
 @section('title', 'Proceso de aprobación')
 
+@php
+    $hayFiltros = collect($filtros ?? [])->contains(fn ($valor) => filled($valor));
+    $total = $solicitudes->total();
+@endphp
+
 @section('content')
 <section class="stack">
     <header class="page-header">
         <div class="page-header__text">
             <h1 class="page-header__title">Proceso de aprobación</h1>
+            <p class="page-header__subtitle">
+                {{ $total }} {{ $total === 1 ? 'solicitud' : 'solicitudes' }}{{ $hayFiltros ? ' con estos filtros' : '' }}.
+            </p>
         </div>
         <div class="page-header__actions">
             <a href="{{ route('solicitudes.index') }}" class="btn btn--secondary btn--sm">Mis solicitudes</a>
@@ -14,14 +22,12 @@
         </div>
     </header>
 
-    <article class="card" style="margin-bottom: 1rem;">
-        <h2 class="page-header__title" style="font-size: 1rem; margin: 0 0 0.75rem;">Filtros</h2>
-        <form method="GET" action="{{ route('solicitudes.proceso') }}" class="solicitud-filters" data-no-loading>
-            <div>
+    <form method="GET" action="{{ route('solicitudes.proceso') }}" class="list-toolbar" data-no-loading>
+            <div class="list-toolbar__field list-toolbar__field--grow">
                 <label for="pf-nombre">Nombre solicitante</label>
-                <input id="pf-nombre" type="search" name="nombre" value="{{ $filtros['nombre'] ?? '' }}" placeholder="Apellido o nombre…">
+                <input id="pf-nombre" type="search" name="nombre" value="{{ $filtros['nombre'] ?? '' }}" placeholder="Apellido o nombre">
             </div>
-            <div>
+            <div class="list-toolbar__field">
                 <label for="pf-rol">Rol</label>
                 <select id="pf-rol" name="rol">
                     <option value="">Todos</option>
@@ -32,7 +38,7 @@
                     @endforeach
                 </select>
             </div>
-            <div>
+            <div class="list-toolbar__field">
                 <label for="pf-carrera">Carrera</label>
                 <select id="pf-carrera" name="carrera">
                     <option value="">Todas</option>
@@ -41,16 +47,16 @@
                     @endforeach
                 </select>
             </div>
-            <div>
+            <div class="list-toolbar__field">
                 <label for="pf-desde">Fecha desde</label>
                 <input id="pf-desde" type="date" name="fecha_desde" value="{{ $filtros['fecha_desde'] ?? '' }}">
             </div>
-            <div>
+            <div class="list-toolbar__field">
                 <label for="pf-hasta">Fecha hasta</label>
                 <input id="pf-hasta" type="date" name="fecha_hasta" value="{{ $filtros['fecha_hasta'] ?? '' }}">
             </div>
-            <div class="solicitud-filters__span2">
-                <label for="pf-estado">Proceso / estado</label>
+            <div class="list-toolbar__field">
+                <label for="pf-estado">Estado</label>
                 <select id="pf-estado" name="estado">
                     <option value="">Todos los procesos</option>
                     @foreach($estados as $estado)
@@ -58,60 +64,70 @@
                     @endforeach
                 </select>
             </div>
-            <div>
+            <div class="list-toolbar__actions">
                 <button type="submit" class="btn btn--secondary btn--sm">Filtrar</button>
+                @if($hayFiltros)
+                    <a href="{{ route('solicitudes.proceso') }}" class="btn btn--ghost btn--sm">Limpiar</a>
+                @endif
             </div>
-        </form>
-        <p class="field-hint" style="margin-top: 0.75rem; margin-bottom: 0;">
-            {{ $solicitudes->total() }} solicitud{{ $solicitudes->total() === 1 ? '' : 'es' }} encontrada{{ $solicitudes->total() === 1 ? '' : 's' }}.
-            Se muestran 10 por página.
-        </p>
-    </article>
+    </form>
 
+    @if($solicitudes->isEmpty())
+        <div class="list-empty">
+            @if($hayFiltros)
+                <h2 class="list-empty__title">Ninguna solicitud coincide</h2>
+                <p class="list-empty__text">Prueba con otro solicitante, estado o fecha, o quita los filtros para ver la bandeja completa.</p>
+                <div class="list-empty__actions">
+                    <a href="{{ route('solicitudes.proceso') }}" class="btn btn--secondary btn--sm">Quitar filtros</a>
+                </div>
+            @else
+                <h2 class="list-empty__title">No hay solicitudes en esta bandeja</h2>
+                <p class="list-empty__text">Cuando alguien envíe un trámite, aparecerá aquí para revisarlo.</p>
+            @endif
+        </div>
+    @else
     <article class="card card--flat">
         <div class="table-wrap">
-            <table class="data-table data-table--compact">
+            <table class="data-table data-table--compact data-table--fit">
                 <thead>
                     <tr>
                         <th>Solicitante</th>
                         <th>Tipo</th>
                         <th>Periodo</th>
                         <th>Estado</th>
-                        <th>Carrera</th>
-                        <th>Rol</th>
                         <th>Motivo</th>
-                        <th>Justificativo</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($solicitudes as $solicitud)
+                    @foreach($solicitudes as $solicitud)
+                        @php
+                            $carreraLista = \App\Support\Carreras::label($solicitud->creador->carrera ?? '');
+                            $metaSolicitante = collect([$carreraLista !== '—' ? $carreraLista : null, $solicitud->creador->rol->label()])
+                                ->filter()
+                                ->implode(' · ');
+                        @endphp
                         <tr>
-                            <td data-label="Solicitante">{{ $solicitud->creador->nombreCompleto() }}</td>
+                            <td data-label="Solicitante">
+                                <span class="list-person">
+                                    <span class="list-person__name">{{ $solicitud->creador->nombreCompleto() }}</span>
+                                    <span class="list-person__meta">{{ $metaSolicitante }}</span>
+                                </span>
+                            </td>
                             <td data-label="Tipo">{{ $solicitud->tipo->label() }}</td>
-                            <td data-label="Periodo">{{ $solicitud->fecha_inicio->format('Y-m-d') }} - {{ $solicitud->fecha_fin->format('Y-m-d') }}</td>
+                            <td data-label="Periodo">{{ \App\Support\SolicitudPeriodo::label($solicitud) }}</td>
                             <td data-label="Estado"><span class="badge {{ $solicitud->estado->badgeClass() }}">{{ $solicitud->estado->label() }}</span></td>
-                            <td data-label="Carrera">{{ \App\Support\Carreras::label($solicitud->creador->carrera ?? '') }}</td>
-                            <td data-label="Rol">{{ $solicitud->creador->rol->label() }}</td>
-                            <td data-label="Motivo">{{ \Illuminate\Support\Str::limit($solicitud->motivo, 70) }}</td>
-                            <td data-label="Justificativo">{{ $solicitud->justificativo_nombre ?: '—' }}</td>
+                            <td data-label="Motivo" title="{{ $solicitud->motivo }}">{{ \Illuminate\Support\Str::limit($solicitud->motivo, 90) }}</td>
                             <td data-label="Acciones">
-                                <div class="cell-actions">
-                                    <a href="{{ route('solicitudes.show', $solicitud) }}" class="btn btn--secondary btn--sm">Ver detalles</a>
-                                </div>
+                                <a href="{{ route('solicitudes.show', $solicitud) }}" class="btn btn--secondary btn--sm">Ver</a>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="9" style="text-align: center; color: var(--color-text-muted);">
-                                No hay solicitudes con estos filtros.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
         {{ $solicitudes->links() }}
     </article>
+    @endif
 </section>
 @endsection
