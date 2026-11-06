@@ -62,9 +62,9 @@
             data-solicitud-adjuntos-input
         >
         <span class="field-hint">
-            PDF, PNG o JPG. Hasta {{ \App\Support\SolicitudAdjuntoLimits::MAX_FILES }} archivos y
-            {{ (int) (\App\Support\SolicitudAdjuntoLimits::MAX_TOTAL_KB / 1024) }} MB de peso total entre todos.
-            Puedes ir agregando archivos de uno en uno o varios a la vez; se listan abajo antes de enviar.
+            PDF, PNG o JPG. Hasta {{ \App\Support\SolicitudAdjuntoLimits::MAX_FILES }} archivos
+            (incluido el documento generado por el sistema) y
+            {{ (int) (\App\Support\SolicitudAdjuntoLimits::MAX_TOTAL_KB / 1024) }} MB en total.
         </span>
     </label>
     <p class="field-hint" data-solicitud-adjuntos-message hidden style="margin: 0; color: var(--color-danger);"></p>

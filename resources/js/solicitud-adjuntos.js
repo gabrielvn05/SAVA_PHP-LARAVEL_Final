@@ -118,7 +118,7 @@ function initSolicitudAdjuntosRoot(root) {
             }
 
             if (selected.length + remainingExisting(root) >= maxFiles) {
-                message = `Puedes adjuntar hasta ${maxFiles} archivos en total.`;
+                message = `Puedes adjuntar hasta ${maxFiles} archivos en total (incluido el documento generado por el sistema).`;
                 break;
             }
 

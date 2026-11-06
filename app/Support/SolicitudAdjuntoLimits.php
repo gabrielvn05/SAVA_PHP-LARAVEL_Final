@@ -69,7 +69,7 @@ class SolicitudAdjuntoLimits
 
     public static function fileCountMessage(): string
     {
-        return 'Puedes adjuntar hasta 10 archivos en total (incluidos los que ya están en la solicitud).';
+        return 'Puedes adjuntar hasta '.self::MAX_FILES.' archivos en total (incluido el documento generado por el sistema).';
     }
 
     /** @return list<string> */
