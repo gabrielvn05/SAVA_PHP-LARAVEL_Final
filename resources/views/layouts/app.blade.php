@@ -256,13 +256,13 @@
                 <div class="app-shell__body">
                     <main id="contenido-principal" class="app-main" tabindex="-1">
                         @if(session('success'))
-                            <div class="alert alert--success" role="status">{{ session('success') }}</div>
+                            <x-alert type="success" autohide>{{ session('success') }}</x-alert>
                         @endif
                         @if(session('warning'))
-                            <div class="alert alert--warning" role="alert">{{ session('warning') }}</div>
+                            <x-alert type="warning">{{ session('warning') }}</x-alert>
                         @endif
                         @if(session('error'))
-                            <div class="alert alert--error" role="alert">{{ session('error') }}</div>
+                            <x-alert type="error">{{ session('error') }}</x-alert>
                         @endif
                         @yield('content')
                     </main>

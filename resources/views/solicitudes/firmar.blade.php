@@ -31,21 +31,15 @@
         <div class="wizard-progress__step is-done"></div>
     </div>
 
-    @if(session('success'))
-        <p class="alert alert--success" style="margin: 0;">{{ session('success') }}</p>
-    @endif
-    @if(session('error'))
-        <p class="alert alert--danger" style="margin: 0;">{{ session('error') }}</p>
-    @endif
     @if($errors->any())
-        <div class="alert alert--danger stack" style="margin: 0; gap: 0.35rem;">
-            <p style="margin: 0;"><strong>No se pudo aplicar la firma:</strong></p>
-            <ul style="margin: 0; padding-left: 1.2rem;">
+        <x-alert type="error">
+            <p class="alert__title">No se pudo aplicar la firma:</p>
+            <ul class="alert__list">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
             </ul>
-        </div>
+        </x-alert>
     @endif
 
     @if($firmado)

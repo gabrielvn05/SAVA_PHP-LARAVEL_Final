@@ -20,12 +20,6 @@
         </div>
     </header>
 
-    @if(session('success'))
-        <div class="alert alert--success" role="status">{{ session('success') }}</div>
-    @elseif(session('error'))
-        <div class="alert alert--error" role="alert">{{ session('error') }}</div>
-    @endif
-
     <div class="profile-page__layout">
         <aside class="card card--flat profile-identity">
             <div class="profile-identity__hero">

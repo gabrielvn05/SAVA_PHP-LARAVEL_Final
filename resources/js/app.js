@@ -227,6 +227,28 @@ function initLoadingForms() {
             showLoading(label);
         });
     });
+    document.querySelectorAll('[data-loading-link]').forEach((link) => {
+        link.addEventListener('click', () => {
+            showLoading(link.getAttribute('data-loading-label') || 'Cargando…');
+        });
+    });
+}
+
+function dismissAlert(alert) {
+    if (!alert || alert.classList.contains('is-leaving')) return;
+    alert.classList.add('is-leaving');
+    const remove = () => alert.remove();
+    alert.addEventListener('transitionend', remove, { once: true });
+    window.setTimeout(remove, 400);
+}
+
+function initAlerts() {
+    document.querySelectorAll('[data-alert-close]').forEach((btn) => {
+        btn.addEventListener('click', () => dismissAlert(btn.closest('.alert')));
+    });
+    document.querySelectorAll('[data-autohide]').forEach((alert) => {
+        window.setTimeout(() => dismissAlert(alert), 5000);
+    });
 }
 
 function initWizard() {
@@ -615,6 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initPasswordToggles();
     initPasswordStrength();
     initLoadingForms();
+    initAlerts();
     initWizard();
     initSolicitudAdjuntos();
     initOficioFirmaNavegador();

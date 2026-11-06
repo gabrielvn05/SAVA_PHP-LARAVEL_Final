@@ -6,18 +6,17 @@
     $anexos = $anexos ?? [];
 @endphp
 <div
-    class="stack"
+    class="stack stack--tight"
     data-solicitud-adjuntos
     data-max-files="{{ \App\Support\SolicitudAdjuntoLimits::MAX_FILES }}"
     data-max-total-bytes="{{ \App\Support\SolicitudAdjuntoLimits::MAX_TOTAL_KB * 1024 }}"
     data-existing-count="{{ $existingCount }}"
     data-required-when="{{ $requiredWhenEnfermedad ? '1' : '0' }}"
-    style="gap: 0.5rem;"
 >
     @if($anexos !== [] && isset($solicitud))
-        <fieldset class="stack" style="border: 0; padding: 0; margin: 0;">
+        <fieldset class="stack fieldset-reset">
             <legend class="field__label">Archivos actuales</legend>
-            <p class="field-hint" style="margin: 0 0 0.5rem;">
+            <p class="field-hint field-hint--spaced">
                 Marca solo los que quieres <strong>quitar</strong> al guardar. Luego agrega los nuevos abajo (no reemplazan solos).
             </p>
             <ul class="adjuntos-actuales">
@@ -51,7 +50,7 @@
         </fieldset>
     @endif
 
-    <label class="field" style="margin: 0;">
+    <label class="field">
         <span class="field__label" id="anexo-label">{{ $label ?? 'Adjuntar documento de respaldo (opcional)' }}</span>
         <input
             type="file"
@@ -67,6 +66,6 @@
             {{ (int) (\App\Support\SolicitudAdjuntoLimits::MAX_TOTAL_KB / 1024) }} MB en total.
         </span>
     </label>
-    <p class="field-hint" data-solicitud-adjuntos-message hidden style="margin: 0; color: var(--color-danger);"></p>
-    <ul class="stack" data-solicitud-adjuntos-list hidden style="list-style: none; padding: 0; margin: 0; gap: 0.25rem;"></ul>
+    <p class="field-hint field-hint--danger" data-solicitud-adjuntos-message hidden></p>
+    <ul class="stack stack--tight plain-list" data-solicitud-adjuntos-list hidden></ul>
 </div>

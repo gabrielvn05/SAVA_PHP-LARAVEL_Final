@@ -19,7 +19,10 @@ class PasswordRecoveryTest extends TestCase
         $this->get(route('login'))
             ->assertOk()
             ->assertSee('¿Olvidaste tu contraseña?')
-            ->assertSee(route('recuperar-clave.create', absolute: false));
+            ->assertSee(route('recuperar-clave.create', absolute: false))
+            ->assertSee('o con contraseña', false)
+            ->assertSee('btn btn--primary btn--block', false)
+            ->assertSee('Ingresar con Microsoft 365', false);
     }
 
     public function test_recovery_sends_temporary_password_for_local_account(): void

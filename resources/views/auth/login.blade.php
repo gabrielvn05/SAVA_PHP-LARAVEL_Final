@@ -6,57 +6,61 @@
 <div class="login-page">
     <aside class="login-hero">
         <span class="login-hero__badge">Acceso institucional</span>
-        <img src="{{ asset('branding/LOGO-ULEAM-HORIZONTAL.png') }}" alt="ULEAM" style="max-width: 450px; width: 100%; height: auto;">
+        <img class="login-hero__logo" src="{{ asset('branding/LOGO-ULEAM-HORIZONTAL.png') }}" alt="ULEAM">
         <h1> Sistema de Asistencia y Validaciones Académicas (SAVA)</h1>
         <p>Gestión de permisos y justificaciones</p>
     </aside>
     <div class="login-panel">
         <div class="card stack login-card" id="contenido-principal" tabindex="-1">
             <div>
-                <h2 style="margin: 0; font-size: 1.35rem;">Iniciar sesión</h2>
-                <p class="field-hint" style="margin: 0.4rem 0 0;">
+                <h2 class="login-card__title">Iniciar sesión</h2>
+                <p class="field-hint login-card__lead">
                     Entra con Microsoft 365 para usar tu nombre y correo institucional, o usa la contraseña que te asignó el sistema.
                 </p>
             </div>
 
             @if($errors->any())
-                <div class="alert alert--error" role="alert">{{ $errors->first() }}</div>
+                <x-alert type="error">{{ $errors->first() }}</x-alert>
             @elseif(session('error'))
-                <div class="alert alert--error" role="alert">{{ session('error') }}</div>
+                <x-alert type="error">{{ session('error') }}</x-alert>
             @elseif(session('success'))
-                <div class="alert alert--success" role="status">{{ session('success') }}</div>
+                <x-alert type="success" autohide>{{ session('success') }}</x-alert>
             @endif
 
             @auth
-                <div class="alert alert--warning" role="status">
+                <x-alert type="warning">
                     Ahora estás como <strong>{{ auth()->user()->nombreCompleto() }}</strong>
                     ({{ auth()->user()->email }} · {{ auth()->user()->rol->label() }}).
                     Si entras con Secretaría o Decano, se cierra esta sesión y se abre la de esa cuenta.
-                </div>
+                </x-alert>
                 <form method="POST" action="{{ route('logout') }}" data-no-loading>
                     @csrf
-                    <button type="submit" class="btn btn--secondary" style="width: 100%;">Cerrar esta sesión</button>
+                    <button type="submit" class="btn btn--secondary btn--block">Cerrar esta sesión</button>
                 </form>
             @endauth
 
             @if(request('oauth') === 'error')
-                <div class="alert alert--error" role="alert">
+                <x-alert type="error">
                     No se pudo iniciar sesión con Microsoft 365. Intenta de nuevo o contacta al administrador.
-                </div>
+                </x-alert>
             @endif
 
             @if(request('solicitud') === 'ok')
-                <div class="alert alert--warning" role="status">
+                <x-alert type="warning">
                     Solicitud enviada. El Decano revisará tu pedido; cuando sea aprobado podrás iniciar sesión con el correo indicado.
-                </div>
+                </x-alert>
             @endif
 
-            <a href="{{ route('auth.microsoft') }}" class="btn btn--secondary" style="width: 100%;" onclick="document.body.insertAdjacentHTML('beforeend', '<div class=\'loading-overlay\'><div class=\'loading-overlay__panel\'><div class=\'loading-overlay__spinner\'></div><span>Conectando con Microsoft 365…</span></div></div>')">
-                Ingresar con Microsoft 365
-            </a>
-            <p class="field-hint" style="margin: -0.35rem 0 0;">
-                SAVA toma tu nombre y correo de la cuenta institucional. Para usar otra, cierra sesión y en Microsoft elige “Usar otra cuenta”.
-            </p>
+            <div class="login-microsoft">
+                <a href="{{ route('auth.microsoft') }}" class="btn btn--primary btn--block" data-loading-link data-loading-label="Conectando con Microsoft 365…">
+                    Ingresar con Microsoft 365
+                </a>
+                <p class="field-hint">
+                    SAVA toma tu nombre y correo de la cuenta institucional. Para usar otra, cierra sesión y en Microsoft elige “Usar otra cuenta”.
+                </p>
+            </div>
+
+            <p class="login-divider">o con contraseña</p>
 
             <form method="POST" action="{{ route('login') }}" class="stack" aria-label="Inicio de sesión con correo y contraseña" data-loading-label="Iniciando sesión…">
                 @csrf
@@ -75,9 +79,9 @@
                 </div>
 
                 <div>
-                    <div class="row" style="justify-content: space-between; align-items: baseline; gap: 0.5rem;">
-                        <label for="password" style="margin: 0;">Contraseña</label>
-                        <a href="{{ route('recuperar-clave.create') }}" class="field-hint" style="font-size: 0.82rem; text-decoration: none;">
+                    <div class="login-password-row">
+                        <label for="password">Contraseña</label>
+                        <a href="{{ route('recuperar-clave.create') }}" class="login-forgot">
                             ¿Olvidaste tu contraseña?
                         </a>
                     </div>
@@ -100,12 +104,12 @@
                     </div>
                 </div>
 
-                <label class="field" style="flex-direction: row; align-items: center; gap: 0.5rem;">
-                    <input type="checkbox" name="remember" value="1" {{ old('remember') ? 'checked' : '' }} style="width: auto;">
-                    <span class="field-hint" style="margin: 0;">Recordarme en este equipo</span>
+                <label class="login-remember">
+                    <input type="checkbox" name="remember" value="1" {{ old('remember') ? 'checked' : '' }}>
+                    <span class="field-hint">Recordarme en este equipo</span>
                 </label>
 
-                <button type="submit" class="btn btn--primary" style="width: 100%;">
+                <button type="submit" class="btn btn--secondary btn--block">
                     Entrar al sistema
                 </button>
             </form>
@@ -115,7 +119,7 @@
                 <a href="{{ route('solicitar-cuenta.create') }}" class="btn btn--secondary">
                     Solicitar cuenta
                 </a>
-                <p class="field-hint" style="margin: 0.75rem 0 0; font-size: 0.78rem;">
+                <p class="field-hint login-signup-cta__note">
                     Solo personal autorizado. Tu solicitud será revisada por el Decanato.
                 </p>
             </div>

@@ -156,7 +156,7 @@
                 <div class="dash-legend">
                     @forelse($stats['byEstado'] as $segment)
                         <div class="dash-legend__item">
-                            <span class="dash-legend__swatch" style="background-color: {{ $segment['color'] }}"></span>
+                            <span class="dash-legend__swatch" style="--swatch: {{ $segment['color'] }}"></span>
                             <span class="dash-legend__label">{{ $segment['label'] }}</span>
                             <span class="dash-legend__value">{{ $segment['count'] }} ({{ $segment['pct'] }}%)</span>
                         </div>
@@ -184,7 +184,7 @@
                                 <span class="dash-bar__meta">{{ $segment['count'] }} · {{ $segment['pct'] }}%</span>
                             </div>
                             <div class="dash-bar__track">
-                                <div class="dash-bar__fill" style="width: {{ ($segment['count'] / $maxTipo) * 100 }}%; background-color: {{ $segment['color'] }};"></div>
+                                <div class="dash-bar__fill" style="--bar-width: {{ ($segment['count'] / $maxTipo) * 100 }}%; --swatch: {{ $segment['color'] }}"></div>
                             </div>
                         </div>
                     @endforeach

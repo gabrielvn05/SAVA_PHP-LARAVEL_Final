@@ -61,9 +61,9 @@
                     </button>
                 @endforeach
             </div>
-            @error('tipo') <p class="field-hint" style="color: var(--color-danger);">{{ $message }}</p> @enderror
+            @error('tipo') <p class="field-hint field-hint--danger">{{ $message }}</p> @enderror
 
-            <div class="row" style="justify-content: flex-end;">
+            <div class="row row--end">
                 <button class="btn btn--primary" type="button" data-wizard-continue disabled>Continuar</button>
             </div>
         </article>
@@ -75,7 +75,7 @@
             @if(! $perfilCompleto)
                 <div class="alert alert--warning" role="alert">
                     Completa tu cédula y carrera en
-                    <a href="{{ route('perfil.edit') }}" style="font-weight: 700;">Perfil y configuración</a>
+                    <a class="alert__link" href="{{ route('perfil.edit') }}">Perfil y configuración</a>
                     antes de crear solicitudes.
                 </div>
             @endif
@@ -99,15 +99,15 @@
             </div>
 
             <div class="wizard-field wizard-field--permiso" hidden>
-                <hr style="border: 0; border-top: 1px solid var(--color-border);">
-                <h3 style="margin: 0;">Datos del permiso</h3>
-                <p class="field-hint" style="margin: 0 0 0.75rem;">Corresponde a un solo día o jornada laboral.</p>
+                <hr class="wizard-rule">
+                <h3 class="wizard-section__title">Datos del permiso</h3>
+                <p class="field-hint wizard-section__lead">Corresponde a un solo día o jornada laboral.</p>
                 <div>
                     <label>Fecha del permiso *</label>
                     <input type="date" name="fecha_permiso" min="{{ $minFecha }}" value="{{ old('fecha_permiso') }}">
                     <p class="field-hint">No puede ser anterior al {{ $minFechaLegible }}.</p>
                 </div>
-                <div class="form-grid form-grid--2" style="margin-top: 0.75rem;">
+                <div class="form-grid form-grid--2 wizard-follow">
                     <div>
                         <label>Hora de inicio de falta *</label>
                         <input type="time" name="hora_inicio_permiso" value="{{ old('hora_inicio_permiso') }}">
@@ -120,9 +120,9 @@
             </div>
 
             <div class="wizard-field wizard-field--justificacion-atraso" hidden>
-                <hr style="border: 0; border-top: 1px solid var(--color-border);">
-                <h3 style="margin: 0;">Justificación por atraso</h3>
-                <p class="field-hint" style="margin: 0 0 0.75rem;">Solo puede registrarse el atraso de la jornada de hoy.</p>
+                <hr class="wizard-rule">
+                <h3 class="wizard-section__title">Justificación por atraso</h3>
+                <p class="field-hint wizard-section__lead">Solo puede registrarse el atraso de la jornada de hoy.</p>
                 <div>
                     <label>Fecha del atraso *</label>
                     <input
@@ -134,7 +134,7 @@
                         readonly
                     >
                 </div>
-                <div class="form-grid form-grid--2" style="margin-top: 0.75rem;">
+                <div class="form-grid form-grid--2 wizard-follow">
                     <div>
                         <label>Hora establecida de llegada *</label>
                         <input type="time" name="hora_llegada_establecida" value="{{ old('hora_llegada_establecida') }}">
@@ -161,7 +161,7 @@
                             >{{ $motivoAtraso->label() }}</option>
                         @endforeach
                     </select>
-                    <p class="field-hint" id="motivo-atraso-hint" style="margin: 0.35rem 0 0;"></p>
+                    <p class="field-hint field-hint--follow" id="motivo-atraso-hint"></p>
                 </div>
             </div>
 
@@ -178,28 +178,27 @@
                             >{{ $motivoPermiso->label() }}</option>
                         @endforeach
                     </select>
-                    <p class="field-hint" id="motivo-permiso-hint" style="margin: 0.35rem 0 0;"></p>
+                    <p class="field-hint field-hint--follow" id="motivo-permiso-hint"></p>
                     <div
                         id="permiso-cita-medica-aviso"
-                        class="alert alert--warning"
+                        class="alert alert--warning alert--inset"
                         role="status"
                         @if(old('motivo_permiso') !== \App\Enums\PermisoMotivo::CitaMedica->value) hidden @endif
-                        style="margin-top: 0.65rem;"
                     >
                         <strong>Comprobante de la cita.</strong>
                         {{ \App\Enums\PermisoMotivo::CitaMedica->avisoAdjunto() }}
                         Acepta PDF, PNG o JPG.
                     </div>
                 </div>
-                <div class="wizard-field wizard-field--permiso-motivo-otro" hidden style="margin-top: 0.75rem;">
+                <div class="wizard-field wizard-field--permiso-motivo-otro wizard-follow" hidden>
                     <label>Especifique el motivo *</label>
                     <input type="text" name="motivo_permiso_otro" value="{{ old('motivo_permiso_otro') }}" maxlength="500">
                 </div>
             </div>
 
             <div class="wizard-field wizard-field--enfermedad" hidden>
-                <hr style="border: 0; border-top: 1px solid var(--color-border);">
-                <h3 style="margin: 0;">Datos del certificado médico</h3>
+                <hr class="wizard-rule">
+                <h3 class="wizard-section__title">Datos del certificado médico</h3>
                 <div class="form-grid form-grid--2">
                     <div>
                         <label>Institución médica *</label>
@@ -211,10 +210,9 @@
                         </select>
                         <div
                             id="institucion-medica-aviso-iess"
-                            class="alert alert--warning"
+                            class="alert alert--warning alert--inset"
                             role="status"
                             hidden
-                            style="margin-top: 0.65rem;"
                         >
                             <strong>Certificado avalado por el IESS.</strong>
                             Si la institución no es IESS, debes adjuntar al final del formulario el certificado médico
@@ -246,8 +244,8 @@
             </div>
 
             <div class="wizard-field wizard-field--viaje" hidden>
-                <hr style="border: 0; border-top: 1px solid var(--color-border);">
-                <h3 style="margin: 0;">Datos de la visita de campo</h3>
+                <hr class="wizard-rule">
+                <h3 class="wizard-section__title">Datos de la visita de campo</h3>
                 <div class="form-grid form-grid--2">
                     <div>
                         <label>Fecha inicio de la falta *</label>
@@ -259,14 +257,14 @@
                     </div>
                     <p class="field-hint wizard-date-note">No puede ser anterior al {{ $minFechaLegible }}.</p>
                 </div>
-                <div style="margin-top: 0.75rem;">
-                    <p class="field-hint" style="margin: 0 0 0.5rem; font-weight: 600; color: var(--color-text);">
+                <div class="wizard-follow">
+                    <p class="field-hint field-hint--emphasis">
                         Fechas del evento o actividad *
                     </p>
-                    <div class="form-grid form-grid--2" style="gap: 0.75rem 1rem;">
+                    <div class="form-grid form-grid--2 wizard-event-grid">
                         <div>
                             <span class="field-hint">Inicio del evento</span>
-                            <div class="form-grid form-grid--3" style="margin-top: 0.35rem; grid-template-columns: 1fr 1.4fr 1fr;">
+                            <div class="form-grid form-grid--3 wizard-date-parts">
                                 <div>
                                     <label class="field-hint">Día</label>
                                     <input type="number" name="evento_inicio_dia" min="1" max="31" inputmode="numeric"
@@ -292,7 +290,7 @@
                         </div>
                         <div>
                             <span class="field-hint">Fin del evento</span>
-                            <div class="form-grid form-grid--3" style="margin-top: 0.35rem; grid-template-columns: 1fr 1.4fr 1fr;">
+                            <div class="form-grid form-grid--3 wizard-date-parts">
                                 <div>
                                     <label class="field-hint">Día</label>
                                     <input type="number" name="evento_fin_dia" min="1" max="31" inputmode="numeric"
@@ -343,8 +341,8 @@
             </div>
 
             <div class="wizard-field wizard-field--calamidad" hidden>
-                <hr style="border: 0; border-top: 1px solid var(--color-border);">
-                <h3 style="margin: 0;">Datos de calamidad doméstica</h3>
+                <hr class="wizard-rule">
+                <h3 class="wizard-section__title">Datos de calamidad doméstica</h3>
                 <div>
                     <label>Tipo de calamidad *</label>
                     <select name="tipo_calamidad">
@@ -383,9 +381,9 @@
             </div>
 
             <div class="wizard-field wizard-field--falta" hidden>
-                <hr style="border: 0; border-top: 1px solid var(--color-border);">
-                <h3 style="margin: 0;">Reporte de novedad en marcación</h3>
-                <p class="field-hint" style="margin: 0;">Justificante por olvidos o fallas del sistema Face ID.</p>
+                <hr class="wizard-rule">
+                <h3 class="wizard-section__title">Reporte de novedad en marcación</h3>
+                <p class="field-hint">Justificante por olvidos o fallas del sistema Face ID.</p>
                 <div>
                     <label>Jornada *</label>
                     <select name="jornada">
@@ -433,7 +431,7 @@
                             >{{ $motivoFalta->label() }}</option>
                         @endforeach
                     </select>
-                    <p class="field-hint" id="motivo-falta-registro-hint" style="margin: 0.35rem 0 0;"></p>
+                    <p class="field-hint field-hint--follow" id="motivo-falta-registro-hint"></p>
                 </div>
             </div>
 
@@ -448,12 +446,12 @@
                 <textarea name="observaciones" rows="3">{{ old('observaciones') }}</textarea>
             </div>
 
-            <hr style="border: 0; border-top: 1px solid var(--color-border);">
-            <h3 style="margin: 0;">Documento de respaldo</h3>
-            <p class="field-hint" style="margin: 0;">
+            <hr class="wizard-rule">
+            <h3 class="wizard-section__title">Documento de respaldo</h3>
+            <p class="field-hint">
                 Al enviar la solicitud se podrá consultar el oficio institucional desde el detalle del trámite.
             </p>
-            <p class="field-hint" style="margin: 0 0 0.5rem;">
+            <p class="field-hint wizard-section__lead">
                 Al continuar elegirás <strong>cómo firmar el oficio</strong> (certificado .p12 o subida manual) y luego lo enviarás {{ ($user->rol ?? null) === \App\Enums\AppRole::Secretaria ? 'al Decano' : 'a Secretaría' }}.
             </p>
             @include('solicitudes._adjuntos-field', [
@@ -462,7 +460,7 @@
                 'requiredWhenEnfermedad' => false,
             ])
 
-            <div class="row" style="justify-content: space-between;">
+            <div class="row row--between">
                 <button class="btn btn--secondary" type="button" data-wizard-back>Atrás</button>
                 <button type="submit" class="btn btn--primary">Continuar a firma</button>
             </div>
