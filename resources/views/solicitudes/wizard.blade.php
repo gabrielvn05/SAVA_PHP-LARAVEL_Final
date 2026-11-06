@@ -4,6 +4,15 @@
 
 @php
     $perfilCompleto = trim($user->cedula) !== '' && trim($user->carrera) !== '';
+    $minFechaLegible = \Illuminate\Support\Carbon::parse($minFecha)->locale('es')->translatedFormat('j M Y');
+    $iconoTipo = [
+        'permiso' => 'clock',
+        'justificacion' => 'alarm',
+        'viaje' => 'pin',
+        'enfermedad' => 'cross',
+        'calamidad_domestica' => 'home',
+        'falta_marcado' => 'scan',
+    ];
 @endphp
 
 @section('content')
@@ -18,26 +27,37 @@
         </div>
     </header>
 
-    <div class="wizard-progress" aria-hidden="true">
-        <div class="wizard-progress__step is-done" id="wizard-progress-step-0"></div>
-        <div class="wizard-progress__step" id="wizard-progress-step-1"></div>
-    </div>
+    <ol class="wizard-steps" aria-label="Pasos de la solicitud">
+        <li class="wizard-steps__item is-current" id="wizard-progress-step-0" aria-current="step">
+            <span class="wizard-steps__index">1</span>
+            <span class="wizard-steps__label">Tipo</span>
+        </li>
+        <li class="wizard-steps__item" id="wizard-progress-step-1">
+            <span class="wizard-steps__index">2</span>
+            <span class="wizard-steps__label">Datos</span>
+        </li>
+    </ol>
 
     <form method="POST" action="{{ route('solicitudes.store') }}" enctype="multipart/form-data" class="stack" id="wizard-form" data-loading-label="Enviando solicitud…">
         @csrf
         <input type="hidden" name="tipo" id="tipo-input" value="{{ old('tipo') }}" required>
 
         <article class="card stack wizard-panel" id="panel-tipo">
-            <h2 style="margin: 0;">Paso 1: Tipo de solicitud</h2>
-            <p class="field-hint" style="margin-top: 0;">
-                Selecciona la opción que mejor describa tu caso. Esto define los campos del formulario de la solicitud.
+            <h2 class="wizard-panel__title">Tipo de solicitud</h2>
+            <p class="field-hint wizard-panel__lead">
+                Selecciona la opción que mejor describa tu caso. Esto define los campos del formulario.
             </p>
 
             <div class="wizard-tipo-grid">
                 @foreach($tipos as $tipo)
-                    <button type="button" class="wizard-tipo-card" data-tipo="{{ $tipo->value }}">
-                        <strong class="wizard-tipo-card__title">{{ $tipo->label() }}</strong>
-                        <span class="field-hint wizard-tipo-card__desc">{{ $tipo->description() }}</span>
+                    <button type="button" class="wizard-tipo-card wizard-tipo-card--{{ $tipo->value }}" data-tipo="{{ $tipo->value }}">
+                        <span class="wizard-tipo-card__icon" aria-hidden="true">
+                            @include('partials.nav-icon', ['name' => $iconoTipo[$tipo->value] ?? 'file-plus', 'class' => 'wizard-tipo-card__glyph'])
+                        </span>
+                        <span class="wizard-tipo-card__body">
+                            <strong class="wizard-tipo-card__title">{{ $tipo->label() }}</strong>
+                            <span class="field-hint wizard-tipo-card__desc">{{ $tipo->description() }}</span>
+                        </span>
                     </button>
                 @endforeach
             </div>
@@ -49,32 +69,10 @@
         </article>
 
         <article class="card stack wizard-panel" id="panel-datos" hidden>
-            <h2 style="margin: 0;">Paso 2: Datos del trámite</h2>
-            <p class="field-hint" style="margin-top: 0;" id="wizard-tipo-desc">
-                La fecha de inasistencia no puede ser anterior a {{ $minFecha }} (ventana de 3 meses).
-            </p>
+            <h2 class="wizard-panel__title">Datos del trámite</h2>
+            <p class="wizard-who">A nombre de <strong>{{ $user->nombreCompleto() }}</strong> · {{ $user->rol->label() }}</p>
 
-            <p class="field-hint" style="margin-top: 0; font-weight: 600; color: var(--color-text);">
-                La solicitud se registrará a nombre de: {{ $user->nombreCompleto() }} ({{ $user->rol->label() }})
-            </p>
-
-            @if($perfilCompleto)
-                <article class="card card--flat" style="padding: 0.85rem 1rem; background: var(--color-surface-muted, #f6f8fb);">
-                    <p class="field-hint" style="margin: 0 0 0.5rem; font-weight: 600; color: var(--color-text);">
-                        Datos institucionales (desde su cuenta)
-                    </p>
-                    <div class="form-grid form-grid--2" style="gap: 0.35rem 1rem;">
-                        <div>
-                            <span class="field-hint">Cédula</span>
-                            <div>{{ $user->cedula }}</div>
-                        </div>
-                        <div>
-                            <span class="field-hint">Carrera</span>
-                            <div>{{ \App\Support\Carreras::label($user->carrera) }}</div>
-                        </div>
-                    </div>
-                </article>
-            @else
+            @if(! $perfilCompleto)
                 <div class="alert alert--warning" role="alert">
                     Completa tu cédula y carrera en
                     <a href="{{ route('perfil.edit') }}" style="font-weight: 700;">Perfil y configuración</a>
@@ -85,7 +83,7 @@
             <div class="wizard-field wizard-field--inasistencia" hidden>
                 <label>Fecha de inasistencia *</label>
                 <input type="date" name="fecha_inasistencia" min="{{ $minFecha }}" value="{{ old('fecha_inasistencia') }}">
-                <p class="field-hint">Se valida contra la fecha actual (máximo 3 meses hacia atrás).</p>
+                <p class="field-hint">No puede ser anterior al {{ $minFechaLegible }}.</p>
             </div>
 
             <div class="form-grid form-grid--2 wizard-field wizard-field--fechas" hidden>
@@ -97,6 +95,7 @@
                     <label>Fecha fin *</label>
                     <input type="date" name="fecha_fin" min="{{ $minFecha }}" value="{{ old('fecha_fin') }}">
                 </div>
+                <p class="field-hint wizard-date-note">No puede ser anterior al {{ $minFechaLegible }}.</p>
             </div>
 
             <div class="wizard-field wizard-field--permiso" hidden>
@@ -106,6 +105,7 @@
                 <div>
                     <label>Fecha del permiso *</label>
                     <input type="date" name="fecha_permiso" min="{{ $minFecha }}" value="{{ old('fecha_permiso') }}">
+                    <p class="field-hint">No puede ser anterior al {{ $minFechaLegible }}.</p>
                 </div>
                 <div class="form-grid form-grid--2" style="margin-top: 0.75rem;">
                     <div>
@@ -257,6 +257,7 @@
                         <label>Fecha de retorno *</label>
                         <input type="date" name="fecha_fin_viaje" min="{{ $minFecha }}" value="{{ old('fecha_fin_viaje') }}">
                     </div>
+                    <p class="field-hint wizard-date-note">No puede ser anterior al {{ $minFechaLegible }}.</p>
                 </div>
                 <div style="margin-top: 0.75rem;">
                     <p class="field-hint" style="margin: 0 0 0.5rem; font-weight: 600; color: var(--color-text);">

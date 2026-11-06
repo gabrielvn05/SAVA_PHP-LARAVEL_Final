@@ -234,15 +234,11 @@ function initWizard() {
     const tipoInput = document.getElementById('tipo-input');
     const panelTipo = document.getElementById('panel-tipo');
     const panelDatos = document.getElementById('panel-datos');
-    const progress = document.getElementById('wizard-progress-step-1');
     const continueBtn = document.querySelector('[data-wizard-continue]');
     const backBtn = document.querySelector('[data-wizard-back]');
     const anexoLabel = document.getElementById('anexo-label');
-    const wizardTipoDesc = document.getElementById('wizard-tipo-desc');
     const instTipo = document.getElementById('institucion-medica-tipo');
     if (!cards.length || !tipoInput) return;
-
-    const wizardDescDefault = wizardTipoDesc?.textContent?.trim() || '';
 
     function showFields(tipo) {
         document.querySelectorAll('.wizard-field').forEach((el) => {
@@ -259,11 +255,6 @@ function initWizard() {
         (map[tipo] || ['fechas', 'motivo', 'observaciones']).forEach((key) => {
             document.querySelectorAll(`.wizard-field--${key}`).forEach((el) => { el.hidden = false; });
         });
-        if (wizardTipoDesc) {
-            wizardTipoDesc.textContent = tipo === 'justificacion'
-                ? 'La justificación por atraso aplica únicamente a la fecha de hoy.'
-                : wizardDescDefault;
-        }
         syncJustificacionMotivoUi();
         syncFaltaMarcadoUi();
         if (anexoLabel) {
@@ -401,7 +392,15 @@ function initWizard() {
     function setStep(step) {
         if (panelTipo) panelTipo.hidden = step !== 0;
         if (panelDatos) panelDatos.hidden = step !== 1;
-        if (progress) progress.classList.toggle('is-done', step >= 1);
+        document.querySelectorAll('.wizard-steps__item').forEach((item, index) => {
+            item.classList.toggle('is-done', index < step);
+            item.classList.toggle('is-current', index === step);
+            if (index === step) {
+                item.setAttribute('aria-current', 'step');
+            } else {
+                item.removeAttribute('aria-current');
+            }
+        });
         if (step === 1) {
             syncInstitucionNombre();
         }

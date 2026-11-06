@@ -11,6 +11,11 @@
         'bell' => '<path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16l-2-2Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
         'chart' => '<path d="M4 19.5V5M4 19.5h16" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M8 16.5v-4.5M12 16.5V8M16 16.5v-2.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
         'info' => '<circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.75"/><path d="M12 11v5.2M12 8h.01" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
+        'clock' => '<circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.75"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>',
+        'alarm' => '<circle cx="12" cy="13" r="7" stroke="currentColor" stroke-width="1.75"/><path d="M12 10v3.5l2 1.5M6 5.5 4 3.5M18 5.5 20 3.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>',
+        'pin' => '<path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><circle cx="12" cy="11" r="2" stroke="currentColor" stroke-width="1.75"/>',
+        'cross' => '<path d="M12 21s-7-4.4-7-10a7 7 0 0 1 14 0c0 5.6-7 10-7 10Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M12 8.5v5M9.5 11h5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>',
+        'scan' => '<path d="M7 4H5.5A1.5 1.5 0 0 0 4 5.5V7M17 4h1.5A1.5 1.5 0 0 1 20 5.5V7M7 20H5.5A1.5 1.5 0 0 1 4 18.5V17M17 20h1.5a1.5 1.5 0 0 0 1.5-1.5V17" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.75"/>',
     ];
 @endphp
-<svg class="sidebar-nav__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">{!! $paths[$name] ?? '' !!}</svg>
+<svg class="{{ $class ?? 'sidebar-nav__icon' }}" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">{!! $paths[$name] ?? '' !!}</svg>

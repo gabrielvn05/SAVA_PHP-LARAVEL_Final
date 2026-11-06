@@ -114,7 +114,11 @@ class PermisoSolicitudTest extends TestCase
             ->get(route('solicitudes.wizard'))
             ->assertOk()
             ->assertSee('Cita médica', false)
-            ->assertSee(PermisoMotivo::CitaMedica->avisoAdjunto(), false);
+            ->assertSee(PermisoMotivo::CitaMedica->avisoAdjunto(), false)
+            ->assertSee('wizard-steps', false)
+            ->assertSee('A nombre de', false)
+            ->assertSee('No puede ser anterior al', false)
+            ->assertDontSee('Datos institucionales', false);
     }
 
     public function test_cita_medica_exige_el_archivo_que_verifica_la_cita(): void

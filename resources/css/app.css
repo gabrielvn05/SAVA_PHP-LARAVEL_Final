@@ -2680,9 +2680,10 @@ label {
   transform: translateY(-1px);
 }
 
-.wizard-tipo-card--active {
-  border: 2px solid var(--color-accent);
-  box-shadow: 0 8px 24px rgba(201, 162, 39, 0.2);
+.wizard-tipo-card--active,
+.wizard-tipo-card.is-selected {
+  border-color: var(--wizard-tipo, var(--color-accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wizard-tipo, #c9a227) 24%, transparent);
 }
 
 .wizard-tipo-card__title {
@@ -2691,6 +2692,117 @@ label {
 
 .wizard-tipo-card__desc {
   line-height: 1.35;
+}
+
+.wizard-tipo-card--permiso { --wizard-tipo: #0c3d7a; }
+.wizard-tipo-card--justificacion { --wizard-tipo: #1d6fb8; }
+.wizard-tipo-card--viaje { --wizard-tipo: #6366f1; }
+.wizard-tipo-card--enfermedad { --wizard-tipo: #b45309; }
+.wizard-tipo-card--calamidad_domestica { --wizard-tipo: #9333ea; }
+.wizard-tipo-card--falta_marcado { --wizard-tipo: #0d9488; }
+
+.wizard-tipo-card--permiso,
+.wizard-tipo-card--justificacion,
+.wizard-tipo-card--viaje,
+.wizard-tipo-card--enfermedad,
+.wizard-tipo-card--calamidad_domestica,
+.wizard-tipo-card--falta_marcado {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.75rem;
+  border-left: 4px solid var(--wizard-tipo);
+}
+
+.wizard-tipo-card__icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--wizard-tipo);
+  background: color-mix(in srgb, var(--wizard-tipo) 14%, #fff);
+}
+
+.wizard-tipo-card__body {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.wizard-tipo-card__glyph {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.wizard-panel__title {
+  margin: 0;
+}
+
+.wizard-panel__lead,
+.wizard-who {
+  margin-top: 0;
+}
+
+.wizard-who {
+  margin-bottom: 0;
+  font-weight: 600;
+}
+
+.wizard-date-note {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.wizard-steps {
+  display: flex;
+  gap: 0.85rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  max-width: 28rem;
+}
+
+.wizard-steps__item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 3px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.wizard-steps__index {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  background: #e8ecf2;
+  color: inherit;
+}
+
+.wizard-steps__item.is-current {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.wizard-steps__item.is-current .wizard-steps__index {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.wizard-steps__item.is-done {
+  border-bottom-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.wizard-steps__item.is-done .wizard-steps__index {
+  background: var(--color-success);
+  color: #fff;
 }
 
 .alert {
@@ -4334,8 +4446,8 @@ button:focus-visible {
 
 .wizard-tipo-card.is-selected,
 .wizard-tipo-card--active {
-  border: 2px solid var(--color-accent);
-  box-shadow: 0 8px 24px rgba(201, 162, 39, 0.2);
+  border-color: var(--wizard-tipo, var(--color-accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wizard-tipo, #c9a227) 24%, transparent);
 }
 
 .wizard-panel {
