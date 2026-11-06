@@ -42,6 +42,7 @@ class SolicitudFirmaDocenteController extends Controller
         $this->authorize('firmarOficio', $solicitud);
         $this->abortSiNoPuedeFirmar($solicitud);
         $solicitud->refresh();
+        OficioCodigo::asegurar($solicitud);
 
         if (! $this->oficioDocx->puedeGenerarDocx($solicitud)) {
             abort(404, 'Este trámite no admite firma de oficio en línea.');

@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\SolicitudEstado;
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Support\OficioCodigo;
+use App\Support\OficioNombreArchivo;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
@@ -13,9 +15,9 @@ class OficioPdfService
 {
     public function __construct(private readonly OficioDocxService $docx) {}
 
-    public function convertir(string $docxBinary): ?string
+    public function convertir(string $docxBinary, string $nombreBase = 'oficio'): ?string
     {
-        return $this->convertirDocx($docxBinary);
+        return $this->convertirDocx($docxBinary, $nombreBase);
     }
 
     public function puedeConvertir(): bool
@@ -90,6 +92,8 @@ class OficioPdfService
             return null;
         }
 
+        OficioCodigo::asegurar($solicitud);
+
         $cachePath = $this->cachePath($solicitud);
         if ($this->cacheValido($cachePath, $solicitud)) {
             return file_get_contents($cachePath) ?: null;
@@ -102,7 +106,7 @@ class OficioPdfService
 
             return null;
         }
-        $pdf = $this->convertirDocx($docx);
+        $pdf = $this->convertirDocx($docx, OficioNombreArchivo::base($solicitud));
         if ($pdf === null) {
             return null;
         }
@@ -172,16 +176,17 @@ class OficioPdfService
         return filemtime($plantilla) > filemtime($pdfPath);
     }
 
-    private function convertirDocx(string $docxBinary): ?string
+    private function convertirDocx(string $docxBinary, string $nombreBase = 'oficio'): ?string
     {
         if (! $this->puedeConvertir()) {
             return null;
         }
 
+        $nombreBase = preg_replace('/[^A-Za-z0-9._-]+/', '-', $nombreBase) ?: 'oficio';
         $workDir = storage_path('app/temp/oficio-'.Str::uuid());
         File::ensureDirectoryExists($workDir);
 
-        $inputPath = $workDir.DIRECTORY_SEPARATOR.'oficio.docx';
+        $inputPath = $workDir.DIRECTORY_SEPARATOR.$nombreBase.'.docx';
         file_put_contents($inputPath, $docxBinary);
 
         $soffice = (string) config('oficio.libreoffice_path');
@@ -200,7 +205,7 @@ class OficioPdfService
         $process->setTimeout($timeout);
         $process->run();
 
-        $pdfPath = $workDir.DIRECTORY_SEPARATOR.'oficio.pdf';
+        $pdfPath = $workDir.DIRECTORY_SEPARATOR.$nombreBase.'.pdf';
         $pdf = is_file($pdfPath) ? (file_get_contents($pdfPath) ?: null) : null;
 
         File::deleteDirectory($workDir);
@@ -229,7 +234,9 @@ class OficioPdfService
         $html = app(OficioPreviewService::class)->renderHtmlRespaldo($solicitud);
         $html = $this->prepararHtmlParaTcpdf($html);
 
+        $codigo = OficioCodigo::asegurar($solicitud);
         $pdf = new \TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetTitle($codigo);
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
         $pdf->SetMargins(14, 16, 14);

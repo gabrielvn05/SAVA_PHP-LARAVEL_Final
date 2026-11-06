@@ -100,7 +100,7 @@ class SolicitudOficioFirmadoTest extends TestCase
             'detalle' => ['codigo_tramite' => 'FACIVITEC-TEST-MANUAL'],
         ]);
 
-        $pdf = UploadedFile::fake()->create('oficio-firmado.pdf', 200, 'application/pdf');
+        $pdf = UploadedFile::fake()->create('oficio.pdf', 200, 'application/pdf');
 
         $this->actingAs($user)
             ->post(route('solicitudes.subir-oficio-firmado', $solicitud), [
@@ -109,7 +109,9 @@ class SolicitudOficioFirmadoTest extends TestCase
             ->assertRedirect(route('solicitudes.firmar', $solicitud).'#vista-firmado');
 
         $solicitud->refresh();
-        $this->assertNotNull(SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud));
+        $firmado = SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud);
+        $this->assertNotNull($firmado);
+        $this->assertSame('FACIVITEC-TEST-MANUAL-firmado.pdf', $firmado['nombre'] ?? null);
 
         $this->actingAs($user)
             ->post(route('solicitudes.enviar-secretaria', $solicitud))
@@ -170,7 +172,7 @@ class SolicitudOficioFirmadoTest extends TestCase
             ->get(route('solicitudes.show', $solicitud))
             ->assertOk()
             ->assertSee('Oficio firmado', false)
-            ->assertSee('oficio-firmado.pdf', false)
+            ->assertSee('FACIVITEC-TEST-PRINCIPAL-firmado.pdf', false)
             ->assertSee('Descargar oficio firmado', false)
             ->assertSee('Documentos adjuntos', false)
             ->assertSee('certificado-medico.pdf', false)
@@ -180,13 +182,13 @@ class SolicitudOficioFirmadoTest extends TestCase
         $html = $this->actingAs($secretaria)
             ->get(route('solicitudes.show', $solicitud))
             ->getContent();
-        $this->assertSame(2, substr_count((string) $html, 'oficio-firmado.pdf'));
+        $this->assertSame(2, substr_count((string) $html, 'FACIVITEC-TEST-PRINCIPAL-firmado.pdf'));
 
         $this->actingAs($user)
             ->get(route('solicitudes.edit', $solicitud))
             ->assertOk()
             ->assertSee('certificado-medico.pdf', false)
-            ->assertDontSee('oficio-firmado.pdf', false);
+            ->assertDontSee('FACIVITEC-TEST-PRINCIPAL-firmado.pdf', false);
     }
 
     public function test_firmar_navegador_y_enviar_secretaria(): void

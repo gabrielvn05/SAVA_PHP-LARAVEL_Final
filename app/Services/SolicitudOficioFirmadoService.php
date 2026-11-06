@@ -40,7 +40,11 @@ class SolicitudOficioFirmadoService
         $this->validarArchivoFirmado($file);
 
         $path = SolicitudAdjuntos::guardar($file);
-        $nombre = $file->getClientOriginalName() ?: OficioNombreArchivo::base($solicitud).'-firmado-docente.pdf';
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'pdf');
+        if (! in_array($extension, ['pdf', 'png', 'jpg', 'jpeg'], true)) {
+            $extension = 'pdf';
+        }
+        $nombre = OficioNombreArchivo::base($solicitud).'-firmado.'.$extension;
 
         return $this->insertarOficioFirmado($anexos, $path, $nombre, [
             'tipo' => 'manual',

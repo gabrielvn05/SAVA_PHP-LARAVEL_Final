@@ -32,6 +32,27 @@ class OficioCodigo
     }
 
     /**
+     * Deja un código en el trámite para que el archivo no se llame «oficio».
+     * Un borrador no consume el correlativo: al enviarlo se confirma o se reemplaza.
+     */
+    public static function asegurar(Solicitud $solicitud): string
+    {
+        $solicitud->loadMissing('creador');
+        $actual = trim((string) (($solicitud->detalle ?? [])['codigo_tramite'] ?? ''));
+        if ($actual !== '') {
+            return $actual;
+        }
+
+        $codigo = self::generar($solicitud->creador, $solicitud->tipo);
+        $detalle = $solicitud->detalle ?? [];
+        $detalle['codigo_tramite'] = $codigo;
+        $solicitud->detalle = $detalle;
+        $solicitud->save();
+
+        return $codigo;
+    }
+
+    /**
      * El correlativo queda fijo al salir de borrador. Si el trámite ya tiene
      * un código que nadie envió, se conserva; si no, se toma el siguiente.
      */

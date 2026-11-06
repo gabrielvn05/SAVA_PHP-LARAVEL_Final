@@ -11,9 +11,9 @@
     </div>
 
     <div class="row" style="gap: 0.5rem; flex-wrap: wrap;">
-        <a href="{{ $oficioDescargarUrl }}" class="btn btn--secondary" download>Descargar PDF</a>
+        <a href="{{ $oficioDescargarUrl }}" class="btn btn--secondary" download="{{ \App\Support\OficioNombreArchivo::firmado($solicitud, 'pdf') }}">Descargar PDF</a>
         @if($oficioUsaDocx ?? false)
-            <a href="{{ $oficioDocxUrl }}" class="btn btn--secondary" download>Descargar Word (.docx)</a>
+            <a href="{{ $oficioDocxUrl }}" class="btn btn--secondary" download="{{ \App\Support\OficioNombreArchivo::firmado($solicitud, 'docx') }}">Descargar Word (.docx)</a>
         @endif
         <a href="{{ $oficioPreviewUrl }}" class="btn btn--ghost btn--sm" target="_blank" rel="noopener">Ver vista previa</a>
     </div>

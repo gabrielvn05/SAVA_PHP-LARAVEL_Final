@@ -44,8 +44,8 @@ class OficioDatosService
         $creador = $solicitud->creador;
         $decano ??= User::query()->where('rol', 'decano')->where('activo', true)->first();
 
+        $codigo = OficioCodigo::asegurar($solicitud);
         $detalle = $solicitud->detalle ?? [];
-        $codigo = $detalle['codigo_tramite'] ?? OficioCodigo::generar($creador, $solicitud->tipo);
 
         $fechaInicio = $solicitud->fecha_inicio->format('d/m/Y');
         $fechaFin = $solicitud->fecha_fin->format('d/m/Y');
