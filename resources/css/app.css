@@ -3977,6 +3977,67 @@ button:focus-visible {
   background: #fff;
 }
 
+.adjuntos-actuales {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.adjuntos-actuales__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.adjuntos-actuales__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.adjuntos-actuales__check input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  min-width: 1.05rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  flex: 0 0 auto;
+  accent-color: var(--color-primary);
+}
+
+.adjuntos-actuales__nombre {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.adjuntos-actuales__ver {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.adjuntos-actuales__falta {
+  flex: 0 1 12rem;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-danger);
+}
+
 .field__input--mayusculas {
   text-transform: uppercase;
 }

@@ -20,15 +20,15 @@
             <p class="field-hint" style="margin: 0 0 0.5rem;">
                 Marca solo los que quieres <strong>quitar</strong> al guardar. Luego agrega los nuevos abajo (no reemplazan solos).
             </p>
-            <ul class="stack" style="list-style: none; padding: 0; margin: 0; gap: 0.65rem;">
+            <ul class="adjuntos-actuales">
                 @foreach($anexos as $anexo)
                     @php
                         $path = (string) ($anexo['path'] ?? '');
                         $nombre = (string) ($anexo['nombre'] ?? 'Documento');
                         $accesible = $path !== '' && SolicitudAdjuntos::diskConArchivo($path) !== null;
                     @endphp
-                    <li class="row" style="align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
-                        <label class="row" style="align-items: center; gap: 0.5rem; margin: 0;">
+                    <li class="adjuntos-actuales__item">
+                        <label class="adjuntos-actuales__check">
                             <input
                                 type="checkbox"
                                 name="eliminar_anexos[]"
@@ -36,14 +36,14 @@
                                 data-solicitud-adjuntos-remove-existing
                                 @checked(in_array($path, old('eliminar_anexos', []), true))
                             >
-                            <span>{{ $nombre }}</span>
+                            <span class="adjuntos-actuales__nombre">{{ $nombre }}</span>
                         </label>
                         @if($accesible)
-                            <a href="{{ SolicitudAdjuntos::urlVista($solicitud, $path) }}" class="btn btn--secondary btn--sm" target="_blank" rel="noopener">
+                            <a href="{{ SolicitudAdjuntos::urlVista($solicitud, $path) }}" class="btn btn--secondary btn--sm adjuntos-actuales__ver" target="_blank" rel="noopener">
                                 Ver archivo
                             </a>
                         @else
-                            <span class="field-hint" style="margin: 0; color: var(--color-danger);">Archivo no disponible (se limpiará al guardar)</span>
+                            <span class="adjuntos-actuales__falta">Archivo no disponible (se limpiará al guardar)</span>
                         @endif
                     </li>
                 @endforeach
