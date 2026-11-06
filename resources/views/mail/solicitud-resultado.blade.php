@@ -25,7 +25,7 @@
         @if($observaciones)
             <p style="margin:12px 0;padding:12px;background:#f6f8fb;border-radius:8px">
                 <strong>Observaciones:</strong><br>
-                {{ $observaciones }}
+                {!! nl2br(e($observaciones)) !!}
             </p>
         @endif
         <p style="margin:16px 0 0">

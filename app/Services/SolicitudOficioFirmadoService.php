@@ -14,6 +14,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use setasign\Fpdi\PdfParser\StreamReader;
+use setasign\Fpdi\PdfParser\Type\PdfArray;
+use setasign\Fpdi\PdfParser\Type\PdfDictionary;
+use setasign\Fpdi\PdfParser\Type\PdfName;
+use setasign\Fpdi\PdfParser\Type\PdfNumeric;
+use setasign\Fpdi\PdfParser\Type\PdfStream;
+use setasign\Fpdi\PdfParser\Type\PdfType;
+use setasign\Fpdi\PdfReader\PdfReader;
 use setasign\Fpdi\Tcpdf\Fpdi;
 
 class SolicitudOficioFirmadoService
@@ -145,7 +152,7 @@ class SolicitudOficioFirmadoService
         }
 
         try {
-            $sellado = $this->superponerSelloAutorizado($bytes);
+            $sellado = $this->aplicarSelloDeAprobacion($solicitud, $bytes);
         } catch (\Throwable $e) {
             report($e);
 
@@ -638,6 +645,20 @@ class SolicitudOficioFirmadoService
     }
 
     /**
+     * Estampa el sello al aprobar. La firma .p12 no se reescribe.
+     * En la firma hecha a mano el sello se dibuja en un PDF nuevo y la firma se vuelve a trazar.
+     */
+    public function aplicarSelloDeAprobacion(Solicitud $solicitud, string $pdfBytes): string
+    {
+        $tipo = (string) (($solicitud->detalle['firma_docente']['tipo'] ?? ''));
+        if ($tipo === 'manual') {
+            return $this->estamparSelloOficioManual($pdfBytes);
+        }
+
+        return $this->superponerSelloAutorizado($pdfBytes);
+    }
+
+    /**
      * Estampa el sello al aprobar. Si el PDF ya está firmado, lo anexa al final y no reescribe la firma.
      */
     public function superponerSelloAutorizado(string $pdfBytes): string
@@ -663,9 +684,34 @@ class SolicitudOficioFirmadoService
             }
         }
 
-        $pdf = $this->nuevoPdfFpdi();
+        return $this->estamparSelloReescribiendo($pdfBytes);
+    }
+
+    private function estamparSelloOficioManual(string $pdfBytes): string
+    {
+        try {
+            return $this->estamparSelloReescribiendo($pdfBytes);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $pdfBytes;
+        }
+    }
+
+    private function estamparSelloReescribiendo(string $pdfBytes): string
+    {
+        $this->assertManipulacionPdfDisponible();
+        $imagen = OficioSelloAutorizado::assetPath();
+        if (! is_readable($imagen)) {
+            return $pdfBytes;
+        }
+
+        $pdf = new PdfConLector;
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->SetAutoPageBreak(false);
         $reader = StreamReader::createByString($pdfBytes);
-        $pageCount = $pdf->setSourceFile($reader);
+        $readerId = $pdf->setSourceFile($reader);
 
         $recorte = $this->recorteSelloSinMargen($imagen);
         $ancho = 46.0;
@@ -674,12 +720,14 @@ class SolicitudOficioFirmadoService
         $y = 34.0;
 
         try {
+            $pageCount = $pdf->setSourceFile($reader);
             for ($page = 1; $page <= $pageCount; $page++) {
                 $this->importarPaginaPdf($pdf, $page);
                 if ($page !== 1) {
                     continue;
                 }
 
+                $this->copiarFirmasVisuales($pdf, $readerId, $page);
                 $pageW = $pdf->GetPageWidth();
                 $pageH = $pdf->GetPageHeight();
                 $xPagina = max(4.0, min($x, $pageW - $ancho - 4));
@@ -693,6 +741,258 @@ class SolicitudOficioFirmadoService
         }
 
         return $pdf->Output('', 'S');
+    }
+
+    private function copiarFirmasVisuales(PdfConLector $pdf, string $readerId, int $numeroPagina): void
+    {
+        try {
+            $pagina = $pdf->lector($readerId)->getPage($numeroPagina);
+            $parser = (new \ReflectionProperty($pagina, 'parser'))->getValue($pagina);
+            $anotaciones = PdfType::resolve(PdfDictionary::get($pagina->getPageDictionary(), 'Annots'), $parser);
+        } catch (\Throwable) {
+            return;
+        }
+
+        if (! $anotaciones instanceof PdfArray) {
+            return;
+        }
+
+        $altoPagina = $pdf->GetPageHeight();
+        $punto = 25.4 / 72;
+
+        foreach ($anotaciones->value as $entrada) {
+            try {
+                $anotacion = PdfType::resolve($entrada, $parser);
+                if (! $anotacion instanceof PdfDictionary) {
+                    continue;
+                }
+                $subtipo = PdfType::resolve(PdfDictionary::get($anotacion, 'Subtype'), $parser);
+                if (! $subtipo instanceof PdfName) {
+                    continue;
+                }
+                if ($subtipo->value === 'Ink') {
+                    $this->dibujarTinta($pdf, $anotacion, $parser, $altoPagina, $punto);
+                } elseif (in_array($subtipo->value, ['Stamp', 'FreeText', 'Widget'], true)) {
+                    $this->dibujarImagenDeApariencia($pdf, $anotacion, $parser, $altoPagina, $punto);
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+    }
+
+    private function dibujarTinta(Fpdi $pdf, PdfDictionary $anotacion, mixed $parser, float $altoPagina, float $punto): void
+    {
+        $lista = PdfType::resolve(PdfDictionary::get($anotacion, 'InkList'), $parser);
+        if (! $lista instanceof PdfArray) {
+            return;
+        }
+
+        [$rojo, $verde, $azul] = $this->colorDeAnotacion($anotacion, $parser);
+        $pdf->SetDrawColor($rojo, $verde, $azul);
+        $pdf->SetLineWidth($this->grosorDeAnotacion($anotacion, $parser, $punto));
+        $pdf->SetLineCap(1);
+
+        foreach ($lista->value as $trazo) {
+            $trazo = PdfType::resolve($trazo, $parser);
+            if (! $trazo instanceof PdfArray) {
+                continue;
+            }
+            $puntos = [];
+            foreach ($trazo->value as $numero) {
+                $numero = PdfType::resolve($numero, $parser);
+                if ($numero instanceof PdfNumeric) {
+                    $puntos[] = (float) $numero->value;
+                }
+            }
+            for ($i = 2; $i + 1 < count($puntos); $i += 2) {
+                $pdf->Line(
+                    $puntos[$i - 2] * $punto,
+                    $altoPagina - ($puntos[$i - 1] * $punto),
+                    $puntos[$i] * $punto,
+                    $altoPagina - ($puntos[$i + 1] * $punto),
+                );
+            }
+        }
+    }
+
+    private function dibujarImagenDeApariencia(Fpdi $pdf, PdfDictionary $anotacion, mixed $parser, float $altoPagina, float $punto): void
+    {
+        $imagen = $this->bytesDeImagen($anotacion, $parser);
+        $rect = $this->rectangulo($anotacion, $parser);
+        if ($imagen === null || $rect === null) {
+            return;
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'firma-manual-');
+        if ($tmp === false) {
+            return;
+        }
+        $ruta = $tmp.'.'.$imagen['ext'];
+        @unlink($tmp);
+        file_put_contents($ruta, $imagen['bytes']);
+        try {
+            $x = $rect[0] * $punto;
+            $y = $altoPagina - ($rect[3] * $punto);
+            $ancho = max(1.0, ($rect[2] - $rect[0]) * $punto);
+            $alto = max(1.0, ($rect[3] - $rect[1]) * $punto);
+            $pdf->Image($ruta, $x, $y, $ancho, $alto, strtoupper($imagen['ext']));
+        } finally {
+            @unlink($ruta);
+        }
+    }
+
+    /**
+     * @return array{bytes: string, ext: string}|null
+     */
+    private function bytesDeImagen(PdfDictionary $anotacion, mixed $parser, int $profundidad = 0): ?array
+    {
+        if ($profundidad > 5) {
+            return null;
+        }
+
+        try {
+            $apariencia = PdfType::resolve(PdfDictionary::get($anotacion, 'AP'), $parser);
+            if (! $apariencia instanceof PdfDictionary) {
+                return null;
+            }
+            $normal = PdfType::resolve(PdfDictionary::get($apariencia, 'N'), $parser);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $this->buscarImagen($normal, $parser, $profundidad);
+    }
+
+    /**
+     * @return array{bytes: string, ext: string}|null
+     */
+    private function buscarImagen(mixed $objeto, mixed $parser, int $profundidad): ?array
+    {
+        if ($profundidad > 5) {
+            return null;
+        }
+
+        try {
+            $objeto = PdfType::resolve($objeto, $parser);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($objeto instanceof PdfStream) {
+            $diccionario = $objeto->value;
+            if (! $diccionario instanceof PdfDictionary) {
+                return null;
+            }
+            try {
+                $subtipo = PdfType::resolve(PdfDictionary::get($diccionario, 'Subtype'), $parser);
+            } catch (\Throwable) {
+                $subtipo = null;
+            }
+            if ($subtipo instanceof PdfName && $subtipo->value === 'Image') {
+                try {
+                    $bytes = $objeto->getUnfilteredStream();
+                } catch (\Throwable) {
+                    return null;
+                }
+                $filtro = '';
+                try {
+                    $filtroTipo = PdfType::resolve(PdfDictionary::get($diccionario, 'Filter'), $parser);
+                    $filtro = $filtroTipo instanceof PdfName ? $filtroTipo->value : '';
+                } catch (\Throwable) {
+                    $filtro = '';
+                }
+                $ext = $filtro === 'DCTDecode' ? 'jpg' : 'png';
+                if ($filtro !== 'DCTDecode' && ! str_starts_with($bytes, "\x89PNG")) {
+                    return null;
+                }
+
+                return ['bytes' => $bytes, 'ext' => $ext];
+            }
+
+            try {
+                $recursos = PdfType::resolve(PdfDictionary::get($diccionario, 'Resources'), $parser);
+                if ($recursos instanceof PdfDictionary) {
+                    $xobjects = PdfType::resolve(PdfDictionary::get($recursos, 'XObject'), $parser);
+                    if ($xobjects instanceof PdfDictionary) {
+                        foreach ($xobjects->value as $candidato) {
+                            $hallada = $this->buscarImagen($candidato, $parser, $profundidad + 1);
+                            if ($hallada !== null) {
+                                return $hallada;
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{0: float, 1: float, 2: float, 3: float}|null
+     */
+    private function rectangulo(PdfDictionary $anotacion, mixed $parser): ?array
+    {
+        try {
+            $rect = PdfType::resolve(PdfDictionary::get($anotacion, 'Rect'), $parser);
+        } catch (\Throwable) {
+            return null;
+        }
+        if (! $rect instanceof PdfArray || count($rect->value) !== 4) {
+            return null;
+        }
+
+        $valores = [];
+        foreach ($rect->value as $numero) {
+            $numero = PdfType::resolve($numero, $parser);
+            if (! $numero instanceof PdfNumeric) {
+                return null;
+            }
+            $valores[] = (float) $numero->value;
+        }
+
+        return [$valores[0], $valores[1], $valores[2], $valores[3]];
+    }
+
+    /** @return array{0: int, 1: int, 2: int} */
+    private function colorDeAnotacion(PdfDictionary $anotacion, mixed $parser): array
+    {
+        try {
+            $color = PdfType::resolve(PdfDictionary::get($anotacion, 'C'), $parser);
+            if ($color instanceof PdfArray && count($color->value) >= 3) {
+                $canales = [];
+                foreach (array_slice($color->value, 0, 3) as $canal) {
+                    $canal = PdfType::resolve($canal, $parser);
+                    $canales[] = $canal instanceof PdfNumeric ? (int) round(((float) $canal->value) * 255) : 0;
+                }
+
+                return [$canales[0], $canales[1], $canales[2]];
+            }
+        } catch (\Throwable) {
+            // La tinta sin color se dibuja en negro.
+        }
+
+        return [0, 0, 0];
+    }
+
+    private function grosorDeAnotacion(PdfDictionary $anotacion, mixed $parser, float $punto): float
+    {
+        try {
+            $borde = PdfType::resolve(PdfDictionary::get($anotacion, 'BS'), $parser);
+            if ($borde instanceof PdfDictionary) {
+                $ancho = PdfType::resolve(PdfDictionary::get($borde, 'W'), $parser);
+                if ($ancho instanceof PdfNumeric) {
+                    return max(0.3, (float) $ancho->value * $punto);
+                }
+            }
+        } catch (\Throwable) {
+            // Grosor por defecto.
+        }
+
+        return 0.6;
     }
 
     private function prepararRecorteSello(): ?string

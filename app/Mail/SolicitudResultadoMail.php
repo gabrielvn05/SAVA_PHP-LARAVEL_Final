@@ -37,8 +37,8 @@ class SolicitudResultadoMail extends Mailable
         $aprobada = $solicitud->estado === SolicitudEstado::Aprobada;
         $detalle = $solicitud->detalle ?? [];
         $observaciones = $aprobada
-            ? ($solicitud->observaciones_decano ?: $solicitud->observaciones_secretaria)
-            : ($solicitud->observaciones_decano ?: $solicitud->observaciones_secretaria);
+            ? $this->observacionesDeAprobacion($solicitud)
+            : trim((string) ($solicitud->observaciones_decano ?: $solicitud->observaciones_secretaria));
 
         $adjunto = $this->adjuntoResuelto();
 
@@ -61,6 +61,36 @@ class SolicitudResultadoMail extends Mailable
     public function attachments(): array
     {
         return $this->adjuntoResuelto()->attachments;
+    }
+
+    private function observacionesDeAprobacion(Solicitud $solicitud): string
+    {
+        $ambos = $solicitud->revisado_por
+            && $solicitud->firmado_por
+            && $solicitud->revisado_por !== $solicitud->firmado_por;
+
+        $linea = $ambos
+            ? 'Aprobado por Secretaría y por el Decano.'
+            : 'Aprobado por el Decano.';
+
+        $genericas = [
+            'Aprobado en revisión de Secretaría.',
+            'Aprobado y firmado por Decano.',
+        ];
+        $notas = [];
+        foreach ([$solicitud->observaciones_secretaria, $solicitud->observaciones_decano] as $nota) {
+            $nota = trim((string) $nota);
+            if ($nota === '' || in_array($nota, $genericas, true) || in_array($nota, $notas, true)) {
+                continue;
+            }
+            $notas[] = $nota;
+        }
+
+        if ($notas === []) {
+            return $linea;
+        }
+
+        return $linea."\n".implode("\n", $notas);
     }
 
     private function adjuntoResuelto(): OficioCorreoAdjuntoResultado

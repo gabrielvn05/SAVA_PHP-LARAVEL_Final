@@ -497,7 +497,7 @@ class SolicitudController extends Controller
             $bytes = $disk->get($path);
             if (is_string($bytes) && $bytes !== '') {
                 try {
-                    $sellado = app(SolicitudOficioFirmadoService::class)->superponerSelloAutorizado($bytes);
+                    $sellado = app(SolicitudOficioFirmadoService::class)->aplicarSelloDeAprobacion($solicitud, $bytes);
                 } catch (\Throwable $e) {
                     report($e);
                     $sellado = $bytes;

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\OficioPdfService;
 use App\Services\SolicitudOficioFirmadoService;
 use App\Support\PdfFirmaDigital;
+use App\Support\SolicitudAdjuntos;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -298,6 +299,84 @@ class SolicitudOficioFirmadoTest extends TestCase
         $this->assertStringStartsWith($guardado, $aprobado);
         $this->assertStringContainsString('/SelloSAVA', $aprobado);
         $this->assertTrue($this->firmaCubreElPdf($aprobado, $contenido[1]));
+    }
+
+    public function test_oficio_manual_aprobado_recibe_el_sello(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000199',
+            'carrera' => 'software',
+        ]);
+
+        $base = new Fpdi;
+        $base->setPrintHeader(false);
+        $base->setPrintFooter(false);
+        $base->AddPage();
+        $base->SetFont('helvetica', '', 12);
+        $base->Cell(0, 10, 'Oficio firmado a mano');
+        $pdfBytes = $base->Output('', 'S');
+        $path = SolicitudAdjuntos::guardarContenido($pdfBytes, 'pdf');
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::Aprobada,
+            'detalle' => [
+                'codigo_tramite' => 'FACIVITEC-TEST-MANUAL-SELLO',
+                'anexos' => [[
+                    'path' => $path,
+                    'nombre' => 'FACIVITEC-TEST-MANUAL-SELLO-firmado.pdf',
+                    'rol' => SolicitudOficioFirmadoService::ROL_ANEXO,
+                ]],
+                'firma_docente' => ['tipo' => 'manual'],
+            ],
+        ]);
+
+        $sellado = app(SolicitudOficioFirmadoService::class)->pdfAprobadoConFirmaSolicitante($solicitud);
+        $this->assertIsString($sellado);
+        $this->assertStringStartsWith($pdfBytes, $sellado);
+        $this->assertStringContainsString('/SelloSAVA', $sellado);
+        $this->assertStringContainsString("\xFF\xD8\xFF", $sellado);
+    }
+
+    public function test_oficio_manual_no_borra_la_firma_si_no_puede_anexar_el_sello(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000197',
+            'carrera' => 'software',
+        ]);
+
+        $pdfBytes = "%PDF-1.4\n1 0 obj<< /Subtype /Ink /InkList [[10 10 20 20]] >>endobj\ntrailer<<>>\nstartxref\n9\n%%EOF";
+        $path = SolicitudAdjuntos::guardarContenido($pdfBytes, 'pdf');
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::Aprobada,
+            'detalle' => [
+                'codigo_tramite' => 'FACIVITEC-TEST-MANUAL-INK',
+                'anexos' => [[
+                    'path' => $path,
+                    'nombre' => 'firmado.pdf',
+                    'rol' => SolicitudOficioFirmadoService::ROL_ANEXO,
+                ]],
+                'firma_docente' => ['tipo' => 'manual'],
+            ],
+        ]);
+
+        $sellado = app(SolicitudOficioFirmadoService::class)->pdfAprobadoConFirmaSolicitante($solicitud);
+        $this->assertSame($pdfBytes, $sellado);
     }
 
     public function test_al_aprobar_el_sello_se_anexa_sin_reescribir_la_firma(): void

@@ -114,7 +114,9 @@ class PdfSelloIncremental
         while ($inicio !== null && ! isset($vistos[$inicio])) {
             $vistos[$inicio] = true;
             if (substr($pdf, $inicio, 4) !== 'xref') {
-                throw new \RuntimeException('El PDF firmado no tiene una tabla de referencias clásica.');
+                // La revisión anterior puede ser un xref comprimido (LibreOffice).
+                // La firma hecha a mano queda en la revisión clásica más reciente.
+                break;
             }
 
             $cursor = $inicio + 4;

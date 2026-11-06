@@ -111,6 +111,42 @@ class SolicitudResultadoNotificationTest extends TestCase
         $this->assertStringContainsString("\xFF\xD8\xFF", $contenido);
     }
 
+    public function test_correo_de_aprobacion_dice_quien_aprobo(): void
+    {
+        $this->mock(OficioPdfService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('generar')->andReturn('%PDF-1.4 contenido-prueba');
+            $mock->shouldReceive('puedeConvertir')->andReturn(false);
+            $mock->shouldReceive('invalidarCache')->zeroOrMoreTimes();
+        });
+
+        $solicitante = $this->solicitante();
+        $secretaria = $this->usuario(AppRole::Secretaria, '1312000091');
+        $decano = $this->usuario(AppRole::Decano, '1312000092');
+
+        $porAmbos = $this->crearSolicitud($solicitante, SolicitudEstado::Aprobada);
+        $porAmbos->update([
+            'revisado_por' => $secretaria->id,
+            'firmado_por' => $decano->id,
+            'observaciones_secretaria' => 'Aprobado en revisión de Secretaría.',
+            'observaciones_decano' => 'Aprobado y firmado por Decano.',
+        ]);
+
+        $htmlAmbos = (new SolicitudResultadoMail($porAmbos->fresh()))->render();
+        $this->assertStringContainsString('Aprobado por Secretaría y por el Decano.', $htmlAmbos);
+        $this->assertStringNotContainsString('Aprobado en revisión de Secretaría.', $htmlAmbos);
+
+        $soloDecano = $this->crearSolicitud($solicitante, SolicitudEstado::Aprobada);
+        $soloDecano->update([
+            'revisado_por' => $decano->id,
+            'firmado_por' => $decano->id,
+            'observaciones_decano' => 'Aprobado y firmado por Decano.',
+        ]);
+
+        $htmlDecano = (new SolicitudResultadoMail($soloDecano->fresh()))->render();
+        $this->assertStringContainsString('Aprobado por el Decano.', $htmlDecano);
+        $this->assertStringNotContainsString('Secretaría y por el Decano', $htmlDecano);
+    }
+
     public function test_decano_approval_emails_the_solicitante(): void
     {
         Mail::fake();
