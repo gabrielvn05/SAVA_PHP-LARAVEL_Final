@@ -153,7 +153,7 @@ function initSolicitudAdjuntosRoot(root) {
 
         if (root.dataset.requiredWhen === '1' && selected.length + remainingExisting(root) < 1) {
             event.preventDefault();
-            showMessage(root, 'Este tipo de trámite requiere adjuntar al menos un documento.');
+            showMessage(root, root.dataset.requiredMessage || 'Este tipo de trámite requiere adjuntar al menos un documento.');
             input.focus();
             return;
         }

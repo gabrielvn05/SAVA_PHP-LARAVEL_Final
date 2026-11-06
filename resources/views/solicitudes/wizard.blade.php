@@ -179,6 +179,17 @@
                         @endforeach
                     </select>
                     <p class="field-hint" id="motivo-permiso-hint" style="margin: 0.35rem 0 0;"></p>
+                    <div
+                        id="permiso-cita-medica-aviso"
+                        class="alert alert--warning"
+                        role="status"
+                        @if(old('motivo_permiso') !== \App\Enums\PermisoMotivo::CitaMedica->value) hidden @endif
+                        style="margin-top: 0.65rem;"
+                    >
+                        <strong>Comprobante de la cita.</strong>
+                        {{ \App\Enums\PermisoMotivo::CitaMedica->avisoAdjunto() }}
+                        Acepta PDF, PNG o JPG.
+                    </div>
                 </div>
                 <div class="wizard-field wizard-field--permiso-motivo-otro" hidden style="margin-top: 0.75rem;">
                     <label>Especifique el motivo *</label>

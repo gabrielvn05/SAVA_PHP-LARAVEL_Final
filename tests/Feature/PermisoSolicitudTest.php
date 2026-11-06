@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enums\AppRole;
+use App\Enums\PermisoMotivo;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PermisoSolicitudTest extends TestCase
@@ -97,5 +100,65 @@ class PermisoSolicitudTest extends TestCase
         $this->assertStringContainsString('10:00', $html);
         $this->assertStringContainsString('12:00', $html);
         $this->assertStringContainsString('Reunión', $html);
+    }
+
+    public function test_wizard_ofrece_cita_medica_y_el_aviso_del_comprobante(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1712345675',
+            'carrera' => 'software',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.wizard'))
+            ->assertOk()
+            ->assertSee('Cita médica', false)
+            ->assertSee(PermisoMotivo::CitaMedica->avisoAdjunto(), false);
+    }
+
+    public function test_cita_medica_exige_el_archivo_que_verifica_la_cita(): void
+    {
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1712345675',
+            'carrera' => 'software',
+            'celular' => '0991234567',
+        ]);
+
+        $this->actingAs($user)
+            ->from(route('solicitudes.wizard'))
+            ->post(route('solicitudes.store'), [
+                'tipo' => SolicitudTipo::Permiso->value,
+                'fecha_permiso' => now()->toDateString(),
+                'hora_inicio_permiso' => '10:00',
+                'hora_fin_permiso' => '11:00',
+                'motivo_permiso' => PermisoMotivo::CitaMedica->value,
+            ])
+            ->assertRedirect(route('solicitudes.wizard'))
+            ->assertSessionHas('error', PermisoMotivo::CitaMedica->avisoAdjunto());
+
+        $this->assertSame(0, Solicitud::query()->count());
+
+        Storage::fake('local');
+
+        $this->actingAs($user)
+            ->post(route('solicitudes.store'), [
+                'tipo' => SolicitudTipo::Permiso->value,
+                'fecha_permiso' => now()->toDateString(),
+                'hora_inicio_permiso' => '10:00',
+                'hora_fin_permiso' => '11:00',
+                'motivo_permiso' => PermisoMotivo::CitaMedica->value,
+                'anexos' => [
+                    UploadedFile::fake()->create('cita.pdf', 80, 'application/pdf'),
+                ],
+            ])
+            ->assertRedirect();
+
+        $solicitud = Solicitud::query()->first();
+        $this->assertNotNull($solicitud);
+        $this->assertSame('Cita médica', $solicitud->motivo);
+        $this->assertSame(PermisoMotivo::CitaMedica->value, $solicitud->detalle['motivo_permiso'] ?? null);
+        $this->assertCount(1, $solicitud->detalle['anexos'] ?? []);
     }
 }

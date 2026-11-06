@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AppRole;
 use App\Enums\CapabilityType;
+use App\Enums\PermisoMotivo;
 use App\Enums\SolicitudEstado;
 use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
@@ -255,6 +256,14 @@ class SolicitudController extends Controller
         if (SolicitudValidator::anexoObligatorioParaTipo($validated['tipo'])
             && ! \App\Support\SolicitudAdjuntoLimits::hasNewUploads($request)) {
             return back()->withInput()->with('error', 'Este tipo de trámite requiere adjuntar un justificativo.');
+        }
+
+        if (($detalleExtraPorTipo['motivo_permiso'] ?? '') === PermisoMotivo::CitaMedica->value
+            && ! \App\Support\SolicitudAdjuntoLimits::hasNewUploads($request)) {
+            return back()->withInput()->with(
+                'error',
+                PermisoMotivo::CitaMedica->avisoAdjunto(),
+            );
         }
 
         $anexos = [];

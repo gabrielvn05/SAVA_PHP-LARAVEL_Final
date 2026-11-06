@@ -233,7 +233,6 @@ function initWizard() {
                 ? 'La justificación por atraso aplica únicamente a la fecha de hoy.'
                 : wizardDescDefault;
         }
-        syncPermisoMotivoUi();
         syncJustificacionMotivoUi();
         syncFaltaMarcadoUi();
         if (anexoLabel) {
@@ -244,11 +243,15 @@ function initWizard() {
         const adjuntosRoot = document.querySelector('[data-solicitud-adjuntos]');
         if (adjuntosRoot) {
             adjuntosRoot.dataset.requiredWhen = tipo === 'enfermedad' ? '1' : '0';
+            if (tipo !== 'permiso') {
+                adjuntosRoot.dataset.requiredMessage = '';
+            }
             const adjInput = adjuntosRoot.querySelector('[data-solicitud-adjuntos-input]');
             if (adjInput) {
                 adjInput.required = false;
             }
         }
+        syncPermisoMotivoUi();
         syncInstitucionNombre();
     }
 
@@ -304,6 +307,7 @@ function initWizard() {
         const select = document.getElementById('motivo-permiso-select');
         const hint = document.getElementById('motivo-permiso-hint');
         const otroWrap = document.querySelector('.wizard-field--permiso-motivo-otro');
+        const aviso = document.getElementById('permiso-cita-medica-aviso');
         if (!select || !hint) {
             return;
         }
@@ -311,6 +315,27 @@ function initWizard() {
         hint.textContent = option?.dataset?.hint || '';
         if (otroWrap) {
             otroWrap.hidden = select.value !== 'otro';
+        }
+
+        const esCitaMedica = tipoInput?.value === 'permiso' && select.value === 'cita_medica';
+        if (aviso) {
+            aviso.hidden = !esCitaMedica;
+        }
+        if (tipoInput?.value !== 'permiso') {
+            return;
+        }
+
+        if (anexoLabel) {
+            anexoLabel.textContent = esCitaMedica
+                ? 'Adjuntar comprobante de la cita médica *'
+                : 'Adjuntar documento de respaldo (opcional)';
+        }
+        const adjuntosRoot = document.querySelector('[data-solicitud-adjuntos]');
+        if (adjuntosRoot) {
+            adjuntosRoot.dataset.requiredWhen = esCitaMedica ? '1' : '0';
+            adjuntosRoot.dataset.requiredMessage = esCitaMedica
+                ? 'Debes subir un archivo que verifique que a esa hora tienes la cita médica.'
+                : '';
         }
     }
 
