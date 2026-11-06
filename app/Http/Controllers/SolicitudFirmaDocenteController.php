@@ -6,6 +6,7 @@ use App\Enums\SolicitudEstado;
 use App\Models\Solicitud;
 use App\Services\AppNotificationService;
 use App\Services\AuditService;
+use App\Services\NotificacionFaltaService;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
 use App\Models\FirmaEcEnvio;
@@ -33,6 +34,7 @@ class SolicitudFirmaDocenteController extends Controller
         private readonly SolicitudWorkflowService $workflow,
         private readonly AuditService $audit,
         private readonly AppNotificationService $appNotifications,
+        private readonly NotificacionFaltaService $notificacionesFalta,
     ) {}
 
     public function show(Request $request, Solicitud $solicitud): View
@@ -334,6 +336,7 @@ class SolicitudFirmaDocenteController extends Controller
             'detalle' => $detalle,
         ]);
         $this->audit->log('UPDATE', $solicitud, $old);
+        $this->notificacionesFalta->sincronizarPorSolicitud($solicitud->fresh());
         $this->appNotifications->onSolicitudCreada($solicitud->fresh(['creador']));
 
         return redirect()

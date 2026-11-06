@@ -9,6 +9,7 @@ use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Services\AppNotificationService;
 use App\Services\AuditService;
+use App\Services\NotificacionFaltaService;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
 use App\Services\SolicitudOficioFirmadoService;
@@ -35,6 +36,7 @@ class SolicitudController extends Controller
         private readonly OficioDocxService $oficioDocx,
         private readonly OficioPdfService $oficioPdf,
         private readonly AppNotificationService $appNotifications,
+        private readonly NotificacionFaltaService $notificacionesFalta,
     ) {}
 
     public function index(Request $request): View
@@ -340,6 +342,7 @@ class SolicitudController extends Controller
 
         $this->audit->log('INSERT', $solicitud);
         $this->appNotifications->onSolicitudCreada($solicitud);
+        $this->notificacionesFalta->sincronizarPorSolicitud($solicitud);
 
         if ($estado === SolicitudEstado::EnBorrador && $this->mostrarFlujoFirmaDocente($solicitud)) {
             return redirect()->route('solicitudes.firmar', $solicitud)
@@ -591,6 +594,7 @@ class SolicitudController extends Controller
         }
         $solicitud->delete();
         $this->audit->log('DELETE', $solicitud, $old);
+        $this->notificacionesFalta->sincronizarPorSolicitud($solicitud);
 
         return redirect()->route('solicitudes.index')
             ->with('success', 'Solicitud eliminada.');

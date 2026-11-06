@@ -10,6 +10,7 @@ use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Services\AppNotificationService;
 use App\Services\AuditService;
+use App\Services\NotificacionFaltaService;
 use App\Services\SolicitudNotificacionService;
 use App\Services\SolicitudWorkflowService;
 use App\Support\Carreras;
@@ -26,6 +27,7 @@ class SolicitudProcesoController extends Controller
         private readonly SolicitudNotificacionService $notificaciones,
         private readonly AppNotificationService $appNotifications,
         private readonly OficioPdfService $oficioPdf,
+        private readonly NotificacionFaltaService $notificacionesFalta,
     ) {
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
@@ -146,6 +148,7 @@ class SolicitudProcesoController extends Controller
         }
 
         $this->audit->log('UPDATE', $solicitud, $old);
+        $this->notificacionesFalta->sincronizarPorSolicitud($solicitud->fresh());
         $this->appNotifications->onSolicitudRevisadaSecretaria(
             $solicitud->fresh(['creador']),
             $nuevoEstado,
@@ -207,6 +210,7 @@ class SolicitudProcesoController extends Controller
         }
 
         $this->audit->log('UPDATE', $solicitud, $old);
+        $this->notificacionesFalta->sincronizarPorSolicitud($solicitud->fresh());
         $this->appNotifications->onSolicitudResueltaDecano($solicitud->fresh(['creador']), $aprobado);
 
         return back()->with('success', $this->mensajeResultado($aprobado, $solicitud));

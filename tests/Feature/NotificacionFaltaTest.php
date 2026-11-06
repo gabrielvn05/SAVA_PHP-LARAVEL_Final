@@ -4,9 +4,13 @@ namespace Tests\Feature;
 
 use App\Enums\AppRole;
 use App\Enums\CapabilityType;
+use App\Enums\SolicitudEstado;
+use App\Enums\SolicitudTipo;
 use App\Models\NotificacionFalta;
+use App\Models\Solicitud;
 use App\Models\User;
 use App\Models\UserCapability;
+use App\Services\NotificacionFaltaService;
 use App\Mail\NotificacionFaltaColaboradorMail;
 use App\Services\NotificacionFaltaDocxService;
 use App\Services\OficioDatosService;
@@ -196,5 +200,83 @@ class NotificacionFaltaTest extends TestCase
         $this->assertStringNotContainsString('[Nombre del decano]', $xml);
         $this->assertStringNotContainsString('15 de septiembre del 2026', $xml);
         $this->assertStringNotContainsString('[Nombre completo del colaborador]', $xml);
+    }
+
+    public function test_notificacion_th_solo_cambia_con_justificacion_por_marcado_enviada(): void
+    {
+        $decano = User::factory()->create(['rol' => AppRole::Decano, 'activo' => true]);
+        $colaborador = User::factory()->create(['rol' => AppRole::Docente, 'cedula' => '1313559130']);
+        $otro = User::factory()->create(['rol' => AppRole::Administrativo]);
+        $fecha = '2026-10-19';
+        $service = app(NotificacionFaltaService::class);
+
+        Solicitud::query()->create([
+            'creado_por' => $colaborador->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => $fecha,
+            'fecha_fin' => $fecha,
+            'motivo' => 'Permiso personal',
+            'estado' => SolicitudEstado::Aprobada,
+        ]);
+
+        Solicitud::query()->create([
+            'creado_por' => $colaborador->id,
+            'tipo' => SolicitudTipo::FaltaMarcado,
+            'fecha_inicio' => $fecha,
+            'fecha_fin' => $fecha,
+            'motivo' => 'Olvido del docente',
+            'estado' => SolicitudEstado::EnBorrador,
+            'detalle' => ['fecha_incidente' => $fecha],
+        ]);
+
+        Solicitud::query()->create([
+            'creado_por' => $otro->id,
+            'tipo' => SolicitudTipo::FaltaMarcado,
+            'fecha_inicio' => $fecha,
+            'fecha_fin' => $fecha,
+            'motivo' => 'Falla técnica del sistema Face ID',
+            'estado' => SolicitudEstado::Aprobada,
+            'detalle' => ['fecha_incidente' => $fecha],
+        ]);
+
+        $notificacion = $service->crear($decano, [
+            'destinatario_id' => $colaborador->id,
+            'fecha_falta' => $fecha,
+            'tipo_marcacion' => 'entrada',
+        ]);
+
+        $this->assertFalse($notificacion->tiene_justificacion_aprobada);
+
+        $notificacion->update(['tiene_justificacion_aprobada' => true]);
+
+        $this->actingAs($decano)
+            ->get(route('notificaciones-faltas.index'))
+            ->assertOk()
+            ->assertSee('Pendiente', false)
+            ->assertDontSee('Justificado', false);
+
+        $this->assertFalse($notificacion->fresh()->tiene_justificacion_aprobada);
+
+        $enviada = Solicitud::query()->create([
+            'creado_por' => $colaborador->id,
+            'tipo' => SolicitudTipo::FaltaMarcado,
+            'fecha_inicio' => $fecha,
+            'fecha_fin' => $fecha,
+            'motivo' => 'Falla técnica del sistema Face ID',
+            'estado' => SolicitudEstado::EnRevisionSecretaria,
+            'detalle' => [
+                'fecha_incidente' => $fecha,
+                'tipo_marcacion_omitida' => 'entrada',
+            ],
+        ]);
+
+        $service->sincronizarPorSolicitud($enviada);
+
+        $this->assertTrue($notificacion->fresh()->tiene_justificacion_aprobada);
+
+        $enviada->update(['estado' => SolicitudEstado::Rechazada]);
+        $service->sincronizarPorSolicitud($enviada->fresh());
+
+        $this->assertFalse($notificacion->fresh()->tiene_justificacion_aprobada);
     }
 }

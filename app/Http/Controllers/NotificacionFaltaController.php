@@ -34,6 +34,8 @@ class NotificacionFaltaController extends Controller
     {
         $this->authorize('viewAny', NotificacionFalta::class);
 
+        $this->service->recalcularEstados();
+
         $query = NotificacionFalta::query()
             ->with(['destinatario', 'decano', 'emitidoPor'])
             ->orderByDesc('created_at');
@@ -139,6 +141,7 @@ class NotificacionFaltaController extends Controller
     public function show(NotificacionFalta $notificacionFalta): View
     {
         $this->authorize('view', $notificacionFalta);
+        $this->service->refrescarEstado($notificacionFalta);
         $notificacionFalta->load(['destinatario', 'decano', 'emitidoPor']);
 
         return view('notificaciones-faltas.show', [
