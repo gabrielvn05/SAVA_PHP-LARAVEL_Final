@@ -9,7 +9,7 @@
     <div>
         <h2 class="solicitud-section-title" style="margin: 0;">Oficio: descargar, firmar y subir</h2>
         <p class="field-hint" style="margin: 0.35rem 0 0;">
-            Usa la pantalla de firma para certificado .p12 o subida manual, y luego envía a Secretaría.
+            Usa la pantalla de firma para certificado .p12 o subida manual, y luego envía {{ auth()->user()?->rol === \App\Enums\AppRole::Secretaria ? 'al Decano' : 'a Secretaría' }}.
         </p>
     </div>
 

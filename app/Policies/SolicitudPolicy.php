@@ -59,7 +59,10 @@ class SolicitudPolicy
             SolicitudEstado::EnBorrador,
             SolicitudEstado::EnRevisionSecretaria,
             SolicitudEstado::Aprobada,
-        ], true);
+        ], true) || (
+            $user->rol === AppRole::Secretaria
+            && $solicitud->estado === SolicitudEstado::PendienteAprobacionDecano
+        );
     }
 
     public function delete(User $user, Solicitud $solicitud): bool

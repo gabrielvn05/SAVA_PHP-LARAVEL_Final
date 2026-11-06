@@ -453,7 +453,7 @@
                 Al enviar la solicitud se podrá consultar el oficio institucional desde el detalle del trámite.
             </p>
             <p class="field-hint" style="margin: 0 0 0.5rem;">
-                Al continuar elegirás <strong>cómo firmar el oficio</strong> (certificado .p12 o subida manual) y luego lo enviarás a Secretaría.
+                Al continuar elegirás <strong>cómo firmar el oficio</strong> (certificado .p12 o subida manual) y luego lo enviarás {{ ($user->rol ?? null) === \App\Enums\AppRole::Secretaria ? 'al Decano' : 'a Secretaría' }}.
             </p>
             @include('solicitudes._adjuntos-field', [
                 'label' => 'Adjuntar documento de respaldo (opcional)',

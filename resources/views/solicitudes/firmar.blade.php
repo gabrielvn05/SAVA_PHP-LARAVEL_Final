@@ -54,7 +54,7 @@
         </div>
     @elseif($mostrarSelector)
         <p class="field-hint" style="margin: 0;">
-            Paso 2 de 2: elige cómo firmar el oficio. Luego podrás enviarlo a Secretaría.
+            Paso 2 de 2: elige cómo firmar el oficio. Luego podrás enviarlo {{ auth()->user()?->rol === \App\Enums\AppRole::Secretaria ? 'al Decano' : 'a Secretaría' }}.
         </p>
 
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">

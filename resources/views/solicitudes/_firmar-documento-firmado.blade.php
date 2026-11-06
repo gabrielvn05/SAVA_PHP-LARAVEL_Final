@@ -8,6 +8,7 @@
     $kindVisor = in_array($extension, ['png', 'jpg', 'jpeg'], true) ? 'image' : 'pdf';
     $puedeEnviar = $solicitud->estado === \App\Enums\SolicitudEstado::EnBorrador
         && auth()->id() === $solicitud->creado_por;
+    $enviaAlDecano = auth()->user()?->rol === \App\Enums\AppRole::Secretaria;
 @endphp
 
 <article class="card stack solicitud-preview" style="gap: 1rem;">
@@ -32,8 +33,12 @@
     @if($puedeEnviar)
         <form method="POST" action="{{ route('solicitudes.enviar-secretaria', $solicitud) }}" class="stack" style="gap: 0.5rem;">
             @csrf
-            <button type="submit" class="btn btn--primary">Enviar a Secretaría</button>
-            <p class="field-hint" style="margin: 0;">Al enviar, la solicitud pasará a revisión de Secretaría.</p>
+            <button type="submit" class="btn btn--primary">{{ $enviaAlDecano ? 'Enviar al Decano' : 'Enviar a Secretaría' }}</button>
+            <p class="field-hint" style="margin: 0;">
+                {{ $enviaAlDecano
+                    ? 'Al enviar, la solicitud pasará a revisión del Decano.'
+                    : 'Al enviar, la solicitud pasará a revisión de Secretaría.' }}
+            </p>
         </form>
     @endif
 

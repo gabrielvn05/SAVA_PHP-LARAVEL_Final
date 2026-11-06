@@ -46,6 +46,26 @@ class AppNotificationService
             return;
         }
 
+        if ($solicitud->estado === SolicitudEstado::PendienteAprobacionDecano) {
+            $codigo = $solicitud->detalle['codigo_tramite'] ?? $solicitud->id;
+            $url = route('solicitudes.show', $solicitud);
+            $this->notifyDecanos(
+                AppNotificationKind::SolicitudPendienteDecano,
+                'Solicitud pendiente de firma',
+                "La solicitud {$codigo} fue firmada por Secretaría y requiere su firma.",
+                $url,
+            );
+            $this->notifyCapacidadDelegada(
+                CapabilityType::AprobarSolicitudes,
+                AppNotificationKind::SolicitudPendienteDecano,
+                'Solicitud pendiente de visto bueno',
+                "La solicitud {$codigo} espera firma. Si la registra, quedará a nombre del Decano.",
+                $url,
+            );
+
+            return;
+        }
+
         $solicitud->loadMissing('creador');
         $creador = $solicitud->creador;
         $nombre = $creador?->nombreCompleto() ?? 'Un usuario';

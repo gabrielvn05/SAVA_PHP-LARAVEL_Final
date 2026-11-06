@@ -340,9 +340,13 @@ class SolicitudFirmaDocenteController extends Controller
         $this->notificacionesFalta->sincronizarPorSolicitud($solicitud->fresh());
         $this->appNotifications->onSolicitudCreada($solicitud->fresh(['creador']));
 
+        $mensaje = $nuevoEstado === SolicitudEstado::PendienteAprobacionDecano
+            ? 'Solicitud firmada y enviada al Decano.'
+            : 'Solicitud enviada a Secretaría.';
+
         return redirect()
             ->route('solicitudes.show', $solicitud)
-            ->with('success', 'Solicitud enviada a Secretaría.');
+            ->with('success', $mensaje);
     }
 
     private function abortSiNoPuedeFirmar(Solicitud $solicitud): void
@@ -355,7 +359,10 @@ class SolicitudFirmaDocenteController extends Controller
             SolicitudEstado::EnBorrador,
             SolicitudEstado::EnRevisionSecretaria,
             SolicitudEstado::Aprobada,
-        ], true)) {
+        ], true) && ! (
+            auth()->user()?->rol === \App\Enums\AppRole::Secretaria
+            && $solicitud->estado === SolicitudEstado::PendienteAprobacionDecano
+        )) {
             abort(403, 'Este trámite ya no admite firma del solicitante.');
         }
     }

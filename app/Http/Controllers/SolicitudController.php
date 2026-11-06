@@ -279,11 +279,9 @@ class SolicitudController extends Controller
             $anexos[] = ['path' => SolicitudAdjuntos::guardar($file), 'nombre' => $file->getClientOriginalName()];
         }
 
-        $estado = match (true) {
-            $this->workflow->solicitudCreadaPorDecano($user->rol) => SolicitudEstado::Aprobada,
-            $user->rol === AppRole::Secretaria => SolicitudEstado::PendienteAprobacionDecano,
-            default => SolicitudEstado::EnBorrador,
-        };
+        $estado = $this->workflow->solicitudCreadaPorDecano($user->rol)
+            ? SolicitudEstado::Aprobada
+            : SolicitudEstado::EnBorrador;
 
         $codigo = $estado === SolicitudEstado::EnBorrador
             ? null
@@ -354,8 +352,10 @@ class SolicitudController extends Controller
         $this->notificacionesFalta->sincronizarPorSolicitud($solicitud);
 
         if ($estado === SolicitudEstado::EnBorrador && $this->mostrarFlujoFirmaDocente($solicitud)) {
+            $destino = $user->rol === AppRole::Secretaria ? 'al Decano' : 'a Secretaría';
+
             return redirect()->route('solicitudes.firmar', $solicitud)
-                ->with('success', 'Datos registrados. Firma el oficio y envíalo a Secretaría.');
+                ->with('success', "Datos registrados. Firma el oficio y envíalo {$destino}.");
         }
 
         if ($estado === SolicitudEstado::EnBorrador) {
@@ -464,7 +464,15 @@ class SolicitudController extends Controller
             return false;
         }
 
-        return in_array($solicitud->estado, [SolicitudEstado::EnBorrador, SolicitudEstado::EnRevisionSecretaria], true)
+        $estados = [
+            SolicitudEstado::EnBorrador,
+            SolicitudEstado::EnRevisionSecretaria,
+        ];
+        if (auth()->user()?->rol === AppRole::Secretaria) {
+            $estados[] = SolicitudEstado::PendienteAprobacionDecano;
+        }
+
+        return in_array($solicitud->estado, $estados, true)
             && $this->oficioDocx->puedeGenerarDocx($solicitud);
     }
 

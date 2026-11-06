@@ -53,6 +53,59 @@ class SolicitudOficioFirmadoTest extends TestCase
             ->assertSee('Subir documento firmado manualmente', false);
     }
 
+    public function test_secretaria_firma_antes_de_enviar_al_decano(): void
+    {
+        Storage::fake('local');
+
+        $secretaria = User::factory()->create([
+            'rol' => AppRole::Secretaria,
+            'cedula' => '1312000191',
+            'carrera' => 'software',
+        ]);
+        $decano = User::factory()->create([
+            'rol' => AppRole::Decano,
+            'cedula' => '1312000192',
+            'carrera' => 'software',
+        ]);
+
+        $this->actingAs($secretaria)
+            ->post(route('solicitudes.store'), [
+                'tipo' => SolicitudTipo::Permiso->value,
+                'fecha_permiso' => now()->toDateString(),
+                'hora_inicio_permiso' => '08:00',
+                'hora_fin_permiso' => '10:00',
+                'motivo_permiso' => 'reunion',
+            ])
+            ->assertRedirect();
+
+        $solicitud = Solicitud::query()->first();
+        $this->assertNotNull($solicitud);
+        $this->assertSame(SolicitudEstado::EnBorrador, $solicitud->estado);
+
+        $this->actingAs($secretaria)
+            ->get(route('solicitudes.firmar', $solicitud))
+            ->assertOk()
+            ->assertSee('enviarlo al Decano', false)
+            ->assertSee('Firmar con certificado .p12', false);
+
+        $this->actingAs($secretaria)
+            ->post(route('solicitudes.subir-oficio-firmado', $solicitud), [
+                'oficio_firmado_docente' => UploadedFile::fake()->create('oficio.pdf', 200, 'application/pdf'),
+            ])
+            ->assertRedirect(route('solicitudes.firmar', $solicitud).'#vista-firmado');
+
+        $this->actingAs($secretaria)
+            ->post(route('solicitudes.enviar-secretaria', $solicitud))
+            ->assertRedirect(route('solicitudes.show', $solicitud))
+            ->assertSessionHas('success', 'Solicitud firmada y enviada al Decano.');
+
+        $this->assertSame(SolicitudEstado::PendienteAprobacionDecano, $solicitud->fresh()->estado);
+        $this->assertDatabaseHas('app_notifications', [
+            'user_id' => $decano->id,
+            'kind' => \App\Enums\AppNotificationKind::SolicitudPendienteDecano->value,
+        ]);
+    }
+
     public function test_enviar_secretaria_sin_firma_vuelve_a_firmar(): void
     {
         Storage::fake('local');
