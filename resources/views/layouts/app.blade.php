@@ -195,6 +195,10 @@
                             @include('partials.nav-icon', ['name' => 'user-plus'])
                             <span>Solicitudes de cuenta</span>
                         </a>
+                        <a href="{{ route('admin.auditoria.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.auditoria.*') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'audit'])
+                            <span>Auditoría</span>
+                        </a>
                     @else
                         <div class="sidebar-nav__group" data-nav-group>
                             <button type="button" class="sidebar-nav__group-btn" aria-expanded="{{ $solicitudesOpen ? 'true' : 'false' }}" data-nav-group-btn>

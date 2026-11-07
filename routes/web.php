@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountRequestController;
+use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\MicrosoftAuthController;
@@ -135,6 +136,9 @@ Route::middleware(['auth', 'active'])->group(function (): void {
     Route::post('/admin/usuarios/importar-csv', [UsuarioController::class, 'importCsv'])->name('admin.usuarios.import-csv');
     Route::post('/admin/usuarios/{usuario}/delegar', [UsuarioController::class, 'delegate'])
         ->name('admin.usuarios.delegate');
+
+    Route::get('/admin/auditoria', [AuditoriaController::class, 'index'])->name('admin.auditoria.index');
+    Route::get('/admin/auditoria/{auditLog}', [AuditoriaController::class, 'show'])->name('admin.auditoria.show');
 
     Route::get('/admin/solicitudes-cuenta', [AccountRequestController::class, 'index'])
         ->name('admin.solicitudes-cuenta.index');
