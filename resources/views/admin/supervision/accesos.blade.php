@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', 'Accesos y sesiones')
 
@@ -15,20 +15,25 @@
 
     <article class="card stack">
         <h2 style="margin: 0; font-size: 1rem;">Cerrar la sesión de una cuenta</h2>
-        <form method="POST" action="{{ route('admin.accesos.cerrar') }}" class="filter-bar">
+        <form method="POST" action="{{ route('admin.accesos.cerrar') }}" class="sesion-cerrar" id="sesion-cerrar-form">
             @csrf
-            <label class="field">
-                <span class="field__label">Cuenta</span>
-                <select name="usuario_id" class="field__input" required>
-                    <option value="">Seleccione</option>
-                    @foreach($cuentas as $cuenta)
-                        <option value="{{ $cuenta->id }}">{{ $cuenta->nombreCompleto() }} — {{ $cuenta->rol->label() }}</option>
-                    @endforeach
-                </select>
-            </label>
-            <button type="submit" class="btn btn--danger btn--sm">Cerrar sesión</button>
+            <div class="field sesion-cerrar__buscar">
+                <label class="field__label" for="sesion-cuenta-buscar">Cuenta</label>
+                @include('partials.user-search', [
+                    'id' => 'sesion-cuenta-buscar',
+                    'name' => 'usuario_id',
+                    'people' => $cuentas,
+                    'selected' => old('usuario_id'),
+                    'required' => true,
+                    'placeholder' => 'Buscar por nombre, correo o cédula…',
+                    'hint' => '#sesion-cuenta-ayuda',
+                    'hintEmpty' => 'Escriba para filtrar y elija la cuenta. La persona deberá volver a identificarse.',
+                    'hintSelected' => 'Se cerrará la sesión de {nombre} · {email} · {estado}.',
+                ])
+            </div>
+            <button type="submit" class="btn btn--danger">Cerrar sesión</button>
         </form>
-        <p class="field-hint" style="margin: 0;">La persona deberá volver a identificarse. Su propia sesión se cierra con el menú superior.</p>
+        <p class="field-hint" id="sesion-cuenta-ayuda" style="margin: 0;">Escriba para filtrar y elija la cuenta. La persona deberá volver a identificarse.</p>
     </article>
 
     <article class="card stack">
@@ -97,7 +102,7 @@
                 <span class="field__label">Hasta</span>
                 <input type="date" name="hasta" class="field__input" value="{{ $filtros['hasta'] ?? '' }}">
             </label>
-            <label class="field">
+            <label class="field filter-bar__wide">
                 <span class="field__label">Buscar</span>
                 <input type="search" name="q" class="field__input" value="{{ $filtros['q'] ?? '' }}" placeholder="Nombre, correo, cédula o IP">
             </label>

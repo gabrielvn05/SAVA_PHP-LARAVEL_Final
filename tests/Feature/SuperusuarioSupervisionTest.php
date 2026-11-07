@@ -46,7 +46,8 @@ class SuperusuarioSupervisionTest extends TestCase
             ->get(route('admin.accesos.index'))
             ->assertOk()
             ->assertSee('luis.perez@uleam.edu.ec')
-            ->assertSee('Clave incorrecta');
+            ->assertSee('Clave incorrecta')
+            ->assertSee('Buscar por nombre, correo o cédula', false);
     }
 
     public function test_el_superusuario_cierra_la_sesion_de_otra_cuenta(): void
@@ -126,6 +127,33 @@ class SuperusuarioSupervisionTest extends TestCase
             ->assertSee('Marta Velez')
             ->assertSee('Firmar o dar visto bueno')
             ->assertSee('Carlos Mora');
+    }
+
+    public function test_muestra_una_funcion_extra_aunque_no_tenga_quien_la_otorgo(): void
+    {
+        $super = $this->usuario(AppRole::Superusuario, 'Ana', 'Ruiz');
+        $docente = $this->usuario(AppRole::Docente, 'Luis', 'Perez');
+        $decano = $this->usuario(AppRole::Decano, 'Carlos', 'Mora');
+
+        UserCapability::query()->create([
+            'user_id' => $docente->id,
+            'capability' => CapabilityType::AprobarSolicitudes,
+            'otorgado_por' => null,
+            'created_at' => now(),
+        ]);
+        UserCapability::query()->create([
+            'user_id' => $decano->id,
+            'capability' => CapabilityType::EmitirNotificacionesFaltas,
+            'otorgado_por' => $super->id,
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($super)
+            ->get(route('admin.delegaciones.index'))
+            ->assertOk()
+            ->assertSee('Luis Perez')
+            ->assertSee('Carlos Mora')
+            ->assertSee('Emitir notificaciones de faltas (TH)');
     }
 
     public function test_el_panel_y_el_menu_incluyen_los_apartados_nuevos(): void

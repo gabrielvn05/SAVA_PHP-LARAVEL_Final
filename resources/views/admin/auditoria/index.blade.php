@@ -19,18 +19,20 @@
     </header>
 
     <article class="card stack">
-        <form method="GET" action="{{ route('admin.auditoria.index') }}" class="filter-bar">
-            <label class="field">
-                <span class="field__label">Usuario</span>
-                <select name="usuario" class="field__input">
-                    <option value="">Todos</option>
-                    @foreach($usuarios as $usuario)
-                        <option value="{{ $usuario->id }}" @selected(($filtros['usuario'] ?? '') === $usuario->id)>
-                            {{ $usuario->nombreCompleto() }} — {{ $usuario->rol->label() }}
-                        </option>
-                    @endforeach
-                </select>
-            </label>
+        <form method="GET" action="{{ route('admin.auditoria.index') }}" class="stack">
+            <div class="field">
+                <label class="field__label" for="auditoria-usuario">Usuario</label>
+                @include('partials.user-search', [
+                    'id' => 'auditoria-usuario',
+                    'name' => 'usuario',
+                    'people' => $usuarios,
+                    'selected' => $filtros['usuario'] ?? '',
+                    'allowAll' => true,
+                    'allLabel' => 'Todos los usuarios',
+                    'placeholder' => 'Todos, o busque por nombre, correo o cédula…',
+                ])
+            </div>
+            <div class="filter-bar">
             <label class="field">
                 <span class="field__label">Acción</span>
                 <select name="accion" class="field__input">
@@ -61,14 +63,15 @@
                 <span class="field__label">Hasta</span>
                 <input type="date" name="hasta" class="field__input" value="{{ $filtros['hasta'] ?? '' }}">
             </label>
-            <label class="field">
-                <span class="field__label">Buscar</span>
-                <input type="search" name="q" class="field__input" value="{{ $filtros['q'] ?? '' }}" placeholder="Nombre, cédula, correo o IP">
+            <label class="field filter-bar__wide">
+                <span class="field__label">Buscar en el registro</span>
+                <input type="search" name="q" class="field__input" value="{{ $filtros['q'] ?? '' }}" placeholder="IP o identificador del registro">
             </label>
             <button type="submit" class="btn btn--secondary btn--sm">Filtrar</button>
             @if(collect($filtros)->filter(fn ($valor) => filled($valor))->isNotEmpty())
                 <a href="{{ route('admin.auditoria.index') }}" class="btn btn--ghost btn--sm">Limpiar</a>
             @endif
+            </div>
         </form>
 
         @if($logs->isEmpty())

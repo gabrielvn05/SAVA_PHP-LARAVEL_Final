@@ -67,7 +67,8 @@ class AuditoriaTest extends TestCase
             ->get(route('admin.auditoria.index', ['usuario' => $docente->id]))
             ->assertOk()
             ->assertSee($docente->email)
-            ->assertDontSee($secretaria->email);
+            ->assertSee('Registro creado: motivo Viaje docente')
+            ->assertDontSee('Oficio viejo');
     }
 
     public function test_otros_roles_no_acceden(): void

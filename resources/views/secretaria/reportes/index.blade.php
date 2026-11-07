@@ -38,7 +38,7 @@
                 <span class="field__label">Hasta</span>
                 <input type="date" name="hasta" class="field__input" value="{{ $filtros['hasta'] ?? '' }}">
             </label>
-            <label class="field">
+            <label class="field filter-bar__wide">
                 <span class="field__label">Buscar</span>
                 <input type="search" name="q" class="field__input" value="{{ $filtros['q'] ?? '' }}" placeholder="Nombre, correo, motivo…">
             </label>

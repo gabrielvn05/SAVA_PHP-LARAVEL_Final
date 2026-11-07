@@ -6,7 +6,6 @@ use App\Enums\AccountRequestStatus;
 use App\Models\AccountRequest;
 use App\Models\User;
 use App\Models\UserCapability;
-use App\Support\DelegacionDecano;
 use App\Support\SingleSessionEnforcer;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -63,7 +62,6 @@ class SuperusuarioPanelService
     public function delegaciones(): Collection
     {
         return UserCapability::query()
-            ->whereNotNull('otorgado_por')
             ->with(['user', 'otorgadoPor'])
             ->orderByDesc('created_at')
             ->get()
@@ -71,9 +69,11 @@ class SuperusuarioPanelService
                 $usuario = $capacidad->user;
                 $capability = $capacidad->capability;
 
-                return $usuario !== null
-                    && $capability !== null
-                    && DelegacionDecano::esDelegada($usuario, $capability);
+                if ($usuario === null || $capability === null || $usuario->rol === \App\Enums\AppRole::Superusuario) {
+                    return false;
+                }
+
+                return ! in_array($capability, $usuario->rol->defaultCapabilities(), true);
             })
             ->values();
     }

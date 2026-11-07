@@ -279,12 +279,19 @@ class UsuarioController extends Controller
                 continue;
             }
 
-            $yaExiste = UserCapability::query()
+            $fila = UserCapability::query()
                 ->where('user_id', $usuario->id)
                 ->where('capability', $capability->value)
-                ->exists();
+                ->first();
 
-            if ($yaExiste) {
+            if ($fila) {
+                if ($fila->otorgado_por === null) {
+                    $fila->forceFill([
+                        'otorgado_por' => $actor->id,
+                        'created_at' => now(),
+                    ])->save();
+                }
+
                 continue;
             }
 
