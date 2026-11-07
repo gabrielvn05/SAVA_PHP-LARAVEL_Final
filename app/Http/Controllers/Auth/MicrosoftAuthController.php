@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\AccesoResultado;
 use App\Http\Controllers\Controller;
+use App\Services\AccesoEventoService;
 use App\Services\MicrosoftAccountService;
 use App\Support\AuthSession;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +15,10 @@ use Throwable;
 
 class MicrosoftAuthController extends Controller
 {
-    public function __construct(private readonly MicrosoftAccountService $accounts) {}
+    public function __construct(
+        private readonly MicrosoftAccountService $accounts,
+        private readonly AccesoEventoService $accesos,
+    ) {}
 
     public function redirect(): RedirectResponse
     {
@@ -29,6 +34,7 @@ class MicrosoftAuthController extends Controller
             $azureUser = Socialite::driver('azure')->user();
         } catch (Throwable $e) {
             Log::warning('Fallo OAuth Microsoft 365', ['error' => $e->getMessage()]);
+            $this->accesos->registrar(AccesoResultado::MicrosoftFallido, canal: 'microsoft');
 
             return redirect()->route('login')
                 ->with('error', 'No se pudo completar el inicio de sesión con Microsoft 365. Intenta de nuevo.');
@@ -37,16 +43,27 @@ class MicrosoftAuthController extends Controller
         $result = $this->accounts->findOrCreateFromAzure($azureUser);
 
         if (! $result['ok']) {
+            $resultado = str_contains($result['error'], 'inactiva')
+                ? AccesoResultado::CuentaInactiva
+                : AccesoResultado::MicrosoftFallido;
+            $this->accesos->registrar($resultado, canal: 'microsoft');
+
             return redirect()->route('login')->with('error', $result['error']);
         }
 
         AuthSession::login($result['user'], remember: true);
+        $this->accesos->registrar(AccesoResultado::Exito, $result['user'], canal: 'microsoft');
 
         return AuthSession::redirectHome($result['user']);
     }
 
     public function logout(): RedirectResponse
     {
+        $user = Auth::user();
+        if ($user) {
+            $user->forceFill(['session_token' => null])->save();
+        }
+
         Auth::logout();
         request()->session()->invalidate();
         request()->session()->regenerateToken();

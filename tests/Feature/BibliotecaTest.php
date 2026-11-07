@@ -87,23 +87,48 @@ class BibliotecaTest extends TestCase
         Storage::disk('local')->assertMissing($nuevo->ruta);
     }
 
-    public function test_decano_y_superusuario_no_editan_la_biblioteca(): void
+    public function test_decano_no_edita_la_biblioteca(): void
     {
         $decano = $this->usuario(AppRole::Decano, '1313000001');
-        $super = $this->usuario(AppRole::Superusuario, '1313000002');
         $documento = BibliotecaDocumento::query()->first();
         $this->assertNotNull($documento);
 
-        foreach ([$decano, $super] as $usuario) {
-            $this->actingAs($usuario)
-                ->get(route('biblioteca.index'))
-                ->assertOk()
-                ->assertDontSee('Subir a la biblioteca', false);
+        $this->actingAs($decano)
+            ->get(route('biblioteca.index'))
+            ->assertOk()
+            ->assertDontSee('Subir a la biblioteca', false);
 
-            $this->actingAs($usuario)
-                ->delete(route('biblioteca.destroy', $documento))
-                ->assertForbidden();
-        }
+        $this->actingAs($decano)
+            ->delete(route('biblioteca.destroy', $documento))
+            ->assertForbidden();
+    }
+
+    public function test_superusuario_puede_publicar_y_quitar_en_contingencia(): void
+    {
+        Storage::fake('local');
+        $super = $this->usuario(AppRole::Superusuario, '1313000002');
+
+        $this->actingAs($super)
+            ->get(route('biblioteca.index'))
+            ->assertOk()
+            ->assertSee('si Secretaría no está disponible', false)
+            ->assertSee('Subir a la biblioteca', false);
+
+        $this->actingAs($super)
+            ->post(route('biblioteca.store'), [
+                'titulo' => 'Oficio de contingencia',
+                'archivo' => UploadedFile::fake()->create('contingencia.pdf', 20, 'application/pdf'),
+            ])
+            ->assertRedirect(route('biblioteca.index'));
+
+        $nuevo = BibliotecaDocumento::query()->where('titulo', 'Oficio de contingencia')->first();
+        $this->assertNotNull($nuevo);
+
+        $this->actingAs($super)
+            ->delete(route('biblioteca.destroy', $nuevo))
+            ->assertRedirect(route('biblioteca.index'));
+
+        $this->assertNull($nuevo->fresh());
     }
 
     private function usuario(AppRole $rol, string $cedula): User

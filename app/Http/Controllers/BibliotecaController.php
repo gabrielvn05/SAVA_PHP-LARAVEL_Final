@@ -25,6 +25,7 @@ class BibliotecaController extends Controller
                 ->orderBy('titulo')
                 ->get(),
             'puedeEditar' => $this->puedeEditar(auth()->user()),
+            'avisoEdicion' => $this->avisoEdicion(auth()->user()),
         ]);
     }
 
@@ -97,7 +98,16 @@ class BibliotecaController extends Controller
 
     private function puedeEditar(?User $usuario): bool
     {
-        return $usuario?->rol === AppRole::Secretaria;
+        return in_array($usuario?->rol, [AppRole::Secretaria, AppRole::Superusuario], true);
+    }
+
+    private function avisoEdicion(?User $usuario): string
+    {
+        return match ($usuario?->rol) {
+            AppRole::Superusuario => 'Como superusuario puedes publicar o quitar un oficio si Secretaría no está disponible.',
+            AppRole::Secretaria => 'Como Secretaría del Decano puedes subir y quitar los archivos que hagan falta.',
+            default => 'Esta cuenta solo puede leer y descargar los documentos.',
+        };
     }
 
     private function responder(BibliotecaDocumento $documento, string $disposition): BinaryFileResponse

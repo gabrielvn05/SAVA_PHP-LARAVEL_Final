@@ -195,9 +195,33 @@
                             @include('partials.nav-icon', ['name' => 'user-plus'])
                             <span>Solicitudes de cuenta</span>
                         </a>
+                        <a href="{{ route('admin.cuentas.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.cuentas.*') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'alarm'])
+                            <span>Cuentas por atender</span>
+                        </a>
+                        <a href="{{ route('admin.delegaciones.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.delegaciones.*') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'key'])
+                            <span>Delegaciones</span>
+                        </a>
+                        <a href="{{ route('admin.accesos.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.accesos.*') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'shield'])
+                            <span>Accesos y sesiones</span>
+                        </a>
                         <a href="{{ route('admin.auditoria.index') }}" class="sidebar-nav__link {{ request()->routeIs('admin.auditoria.*') ? 'is-active' : '' }}">
                             @include('partials.nav-icon', ['name' => 'audit'])
                             <span>Auditoría</span>
+                        </a>
+                        <a href="{{ route('solicitudes.proceso') }}" class="sidebar-nav__link {{ request()->routeIs('solicitudes.proceso') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'clipboard'])
+                            <span>Proceso de aprobación</span>
+                        </a>
+                        <a href="{{ route('notificaciones-faltas.index') }}" class="sidebar-nav__link {{ request()->routeIs('notificaciones-faltas.*') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'bell'])
+                            <span>Notificaciones TH</span>
+                        </a>
+                        <a href="{{ route('reportes.index') }}" class="sidebar-nav__link {{ request()->routeIs('reportes.*') ? 'is-active' : '' }}">
+                            @include('partials.nav-icon', ['name' => 'chart'])
+                            <span>Reportes</span>
                         </a>
                     @else
                         <div class="sidebar-nav__group" data-nav-group>

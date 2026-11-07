@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccountRequestController;
 use App\Http\Controllers\Admin\AuditoriaController;
+use App\Http\Controllers\Admin\SupervisionController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\MicrosoftAuthController;
@@ -139,6 +140,10 @@ Route::middleware(['auth', 'active'])->group(function (): void {
 
     Route::get('/admin/auditoria', [AuditoriaController::class, 'index'])->name('admin.auditoria.index');
     Route::get('/admin/auditoria/{auditLog}', [AuditoriaController::class, 'show'])->name('admin.auditoria.show');
+    Route::get('/admin/accesos', [SupervisionController::class, 'accesos'])->name('admin.accesos.index');
+    Route::post('/admin/accesos/cerrar', [SupervisionController::class, 'cerrarSesion'])->name('admin.accesos.cerrar');
+    Route::get('/admin/cuentas-atencion', [SupervisionController::class, 'cuentas'])->name('admin.cuentas.index');
+    Route::get('/admin/delegaciones', [SupervisionController::class, 'delegaciones'])->name('admin.delegaciones.index');
 
     Route::get('/admin/solicitudes-cuenta', [AccountRequestController::class, 'index'])
         ->name('admin.solicitudes-cuenta.index');

@@ -9,11 +9,7 @@
             <h1 class="page-header__title">Biblioteca</h1>
             <p class="field-hint" style="margin: 0.35rem 0 0;">
                 Oficios institucionales para consulta.
-                @if($puedeEditar)
-                    Como Secretaría del Decano puedes subir y quitar los archivos que hagan falta.
-                @else
-                    Esta cuenta solo puede leer y descargar los documentos.
-                @endif
+                {{ $avisoEdicion }}
             </p>
         </div>
     </header>

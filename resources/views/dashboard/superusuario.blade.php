@@ -8,7 +8,7 @@
         <div class="page-header__text">
             <h1 class="page-header__title">Superusuario</h1>
             <p class="field-hint" style="margin: 0.35rem 0 0;">
-                Acceso de contingencia: gestión de cuentas, roles y solicitudes de alta.
+                Acceso de contingencia: cuentas, sesiones, delegaciones y supervisión del trámite.
             </p>
         </div>
     </header>
@@ -22,6 +22,18 @@
             <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Solicitudes de cuenta</h2>
             <p class="field-hint" style="margin: 0;">Aprobar o rechazar registros pendientes.</p>
         </a>
+        <a href="{{ route('admin.cuentas.index') }}" class="card" style="text-decoration: none; color: inherit;">
+            <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Cuentas por atender</h2>
+            <p class="field-hint" style="margin: 0;">{{ $resumen['inactivas'] }} inactivas, {{ $resumen['claves'] }} claves temporales, {{ $resumen['altas'] }} altas pendientes.</p>
+        </a>
+        <a href="{{ route('admin.delegaciones.index') }}" class="card" style="text-decoration: none; color: inherit;">
+            <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Delegaciones</h2>
+            <p class="field-hint" style="margin: 0;">{{ $resumen['delegaciones'] }} funciones del Decano otorgadas a otras cuentas.</p>
+        </a>
+        <a href="{{ route('admin.accesos.index') }}" class="card" style="text-decoration: none; color: inherit;">
+            <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Accesos y sesiones</h2>
+            <p class="field-hint" style="margin: 0;">Ingresos, intentos fallidos y cierre de sesión. Abiertas ahora: {{ $resumen['sesiones'] }}.</p>
+        </a>
         <a href="{{ route('admin.auditoria.index') }}" class="card" style="text-decoration: none; color: inherit;">
             <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Auditoría</h2>
             <p class="field-hint" style="margin: 0;">Logs de todas las cuentas: acciones, IP y cambios.</p>
@@ -29,6 +41,10 @@
         <a href="{{ route('solicitudes.proceso') }}" class="card" style="text-decoration: none; color: inherit;">
             <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Bandeja de trámites</h2>
             <p class="field-hint" style="margin: 0;">Supervisión del flujo de solicitudes institucionales.</p>
+        </a>
+        <a href="{{ route('notificaciones-faltas.index') }}" class="card" style="text-decoration: none; color: inherit;">
+            <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Notificaciones TH</h2>
+            <p class="field-hint" style="margin: 0;">Oficios de faltas emitidos y reenvíos.</p>
         </a>
         <a href="{{ route('reportes.index') }}" class="card" style="text-decoration: none; color: inherit;">
             <h2 style="margin: 0 0 0.35rem; font-size: 1.05rem;">Reportes</h2>
