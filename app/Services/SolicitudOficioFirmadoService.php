@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\SolicitudEstado;
+use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Support\OficioNombreArchivo;
 use App\Support\OficioSelloAutorizado;
@@ -652,16 +653,16 @@ class SolicitudOficioFirmadoService
     {
         $tipo = (string) (($solicitud->detalle['firma_docente']['tipo'] ?? ''));
         if ($tipo === 'manual') {
-            return $this->estamparSelloOficioManual($pdfBytes);
+            return $this->estamparSelloOficioManual($pdfBytes, $solicitud);
         }
 
-        return $this->superponerSelloAutorizado($pdfBytes);
+        return $this->superponerSelloAutorizado($pdfBytes, $solicitud);
     }
 
     /**
      * Estampa el sello al aprobar. Si el PDF ya está firmado, lo anexa al final y no reescribe la firma.
      */
-    public function superponerSelloAutorizado(string $pdfBytes): string
+    public function superponerSelloAutorizado(string $pdfBytes, ?Solicitud $solicitud = null): string
     {
         $this->assertManipulacionPdfDisponible();
         $imagen = OficioSelloAutorizado::assetPath();
@@ -669,10 +670,12 @@ class SolicitudOficioFirmadoService
             return $pdfBytes;
         }
 
+        $caja = $this->cajaSello($solicitud);
+
         if (PdfFirmaDigital::contieneFirmaDigital($pdfBytes)) {
             $recorte = $this->recorteSelloSinMargen($imagen);
             try {
-                return PdfSelloIncremental::aplicar($pdfBytes, $recorte, 142.5, 34.0, 46.0, 46.0);
+                return PdfSelloIncremental::aplicar($pdfBytes, $recorte, $caja['x'], $caja['y'], $caja['ancho'], $caja['alto']);
             } catch (\Throwable $e) {
                 report($e);
 
@@ -684,19 +687,20 @@ class SolicitudOficioFirmadoService
             }
         }
 
-        return $this->estamparSelloReescribiendo($pdfBytes);
+        return $this->estamparSelloReescribiendo($pdfBytes, $solicitud);
     }
 
-    private function estamparSelloOficioManual(string $pdfBytes): string
+    private function estamparSelloOficioManual(string $pdfBytes, ?Solicitud $solicitud = null): string
     {
         $imagen = OficioSelloAutorizado::assetPath();
         if (! is_readable($imagen)) {
             return $pdfBytes;
         }
 
+        $caja = $this->cajaSello($solicitud);
         $recorte = $this->recorteSelloSinMargen($imagen);
         try {
-            return PdfSelloIncremental::aplicar($pdfBytes, $recorte, 142.5, 34.0, 46.0, 46.0);
+            return PdfSelloIncremental::aplicar($pdfBytes, $recorte, $caja['x'], $caja['y'], $caja['ancho'], $caja['alto']);
         } catch (\Throwable $e) {
             report($e);
         } finally {
@@ -706,7 +710,7 @@ class SolicitudOficioFirmadoService
         }
 
         try {
-            return $this->estamparSelloReescribiendo($pdfBytes);
+            return $this->estamparSelloReescribiendo($pdfBytes, $solicitud);
         } catch (\Throwable $e) {
             report($e);
 
@@ -714,7 +718,20 @@ class SolicitudOficioFirmadoService
         }
     }
 
-    private function estamparSelloReescribiendo(string $pdfBytes): string
+    /**
+     * @return array{x: float, y: float, ancho: float, alto: float}
+     */
+    private function cajaSello(?Solicitud $solicitud): array
+    {
+        $tipo = $solicitud?->tipo;
+        if (! $tipo instanceof SolicitudTipo) {
+            $tipo = is_string($tipo) ? SolicitudTipo::tryFrom($tipo) : null;
+        }
+
+        return OficioSelloAutorizado::cajaPdf($tipo);
+    }
+
+    private function estamparSelloReescribiendo(string $pdfBytes, ?Solicitud $solicitud = null): string
     {
         $this->assertManipulacionPdfDisponible();
         $imagen = OficioSelloAutorizado::assetPath();
@@ -730,10 +747,11 @@ class SolicitudOficioFirmadoService
         $pageCount = $pdf->setSourceFile($reader);
 
         $recorte = $this->recorteSelloSinMargen($imagen);
-        $ancho = 46.0;
-        $alto = 46.0;
-        $x = 142.5;
-        $y = 34.0;
+        $caja = $this->cajaSello($solicitud);
+        $ancho = $caja['ancho'];
+        $alto = $caja['alto'];
+        $x = $caja['x'];
+        $y = $caja['y'];
 
         try {
             for ($page = 1; $page <= $pageCount; $page++) {

@@ -2,11 +2,35 @@
 
 namespace App\Support;
 
+use App\Enums\SolicitudTipo;
+
 class OficioSelloAutorizado
 {
     public const PLACEHOLDER = 'Sello de APROBADO O RECHAZADO CON FIRMA DEL DECANO';
 
     public const MEDIA_PATH = 'word/media/sello-autorizado.jpg';
+
+    /** El de marcación va junto al destinatario: menor que 46 mm para no tapar el texto. */
+    public const FALTA_MARCADO_MM = 32.0;
+
+    /**
+     * @return array{x: float, y: float, ancho: float, alto: float}
+     */
+    public static function cajaPdf(?SolicitudTipo $tipo = null): array
+    {
+        if ($tipo === SolicitudTipo::FaltaMarcado) {
+            $bordeDerecho = 188.5;
+
+            return [
+                'x' => $bordeDerecho - self::FALTA_MARCADO_MM,
+                'y' => 34.0,
+                'ancho' => self::FALTA_MARCADO_MM,
+                'alto' => self::FALTA_MARCADO_MM,
+            ];
+        }
+
+        return ['x' => 142.5, 'y' => 34.0, 'ancho' => 46.0, 'alto' => 46.0];
+    }
 
     public static ?string $assetPathForTests = null;
 
@@ -33,7 +57,7 @@ class OficioSelloAutorizado
         return is_readable(self::assetPath());
     }
 
-    public static function aplicarDocumento(string $documentXml, string $relId): string
+    public static function aplicarDocumento(string $documentXml, string $relId, ?int $cx = null, ?int $cy = null): string
     {
         if (! str_contains($documentXml, self::PLACEHOLDER)) {
             return $documentXml;
@@ -45,7 +69,7 @@ class OficioSelloAutorizado
 
         $result = preg_replace_callback(
             $patternAlternate,
-            static fn (array $matches): string => self::drawingConImagen($matches[0], $relId),
+            static fn (array $matches): string => self::drawingConImagen($matches[0], $relId, $cx, $cy),
             $documentXml,
             1,
         );
@@ -61,7 +85,7 @@ class OficioSelloAutorizado
 
             $fallback = preg_replace_callback(
                 $patternDrawing,
-                static fn (array $matches): string => self::drawingConImagen($matches[0], $relId),
+                static fn (array $matches): string => self::drawingConImagen($matches[0], $relId, $cx, $cy),
                 $result,
                 1,
             );
@@ -107,15 +131,15 @@ class OficioSelloAutorizado
         return 'rId'.($max + 1);
     }
 
-    private static function drawingConImagen(string $original, string $relId): string
+    private static function drawingConImagen(string $original, string $relId, ?int $cx = null, ?int $cy = null): string
     {
         preg_match('/<wp:anchor\b([^>]*)>/', $original, $anchorAttrs);
         preg_match('/<wp:positionH\b[^>]*>.*?<\/wp:positionH>/s', $original, $posH);
         preg_match('/<wp:positionV\b[^>]*>.*?<\/wp:positionV>/s', $original, $posV);
         preg_match('/<wp:extent cx="(\d+)" cy="(\d+)"/', $original, $extent);
 
-        $cx = $extent[1] ?? '1454150';
-        $cy = $extent[2] ?? '984250';
+        $cx = $cx !== null ? (string) $cx : ($extent[1] ?? '1454150');
+        $cy = $cy !== null ? (string) $cy : ($extent[2] ?? '984250');
         $positionH = $posH[0] ?? '<wp:positionH relativeFrom="margin"><wp:align>right</wp:align></wp:positionH>';
         $positionV = $posV[0] ?? '<wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>';
         $anchorExtra = $anchorAttrs[1] ?? ' distT="0" distB="0" distL="114300" distR="114300" simplePos="0" relativeHeight="251659264" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"';

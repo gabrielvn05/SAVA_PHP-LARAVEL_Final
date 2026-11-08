@@ -127,7 +127,7 @@ class OficioPdfService
     }
 
 
-    public const PLANTILLA_VERSION = '2026-10-19b';
+    public const PLANTILLA_VERSION = '2026-11-07-sello-marcado';
 
     private function cachePath(Solicitud $solicitud): string
     {

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\SolicitudTipo;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Support\OficioSelloAutorizado;
@@ -96,7 +97,12 @@ class OficioDocxService
 
         if ($aplicarSello && is_string($documentXml) && is_string($documentRels) && is_string($contentTypes)) {
             $selloRelId = OficioSelloAutorizado::siguienteRelId($documentRels);
-            $documentXml = OficioSelloAutorizado::aplicarDocumento($documentXml, $selloRelId);
+            $selloCx = null;
+            $selloCy = null;
+            if ($solicitud->tipo === SolicitudTipo::FaltaMarcado) {
+                $selloCx = $selloCy = (int) round(OficioSelloAutorizado::FALTA_MARCADO_MM * 36000);
+            }
+            $documentXml = OficioSelloAutorizado::aplicarDocumento($documentXml, $selloRelId, $selloCx, $selloCy);
             $documentRels = OficioSelloAutorizado::agregarRelacionImagen($documentRels, $selloRelId);
             $contentTypes = OficioSelloAutorizado::agregarContentTypeJpeg($contentTypes);
 

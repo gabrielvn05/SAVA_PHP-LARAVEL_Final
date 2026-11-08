@@ -3,6 +3,7 @@ import { initSolicitudAdjuntos } from './solicitud-adjuntos.js';
 import { initOficioFirmaNavegador } from './oficio-firma-navegador.js';
 import { initPasswordStrength } from './password-strength.js';
 import { initUserSearch } from './user-search.js';
+import { initCustomSelects, initDateInputs } from './form-controls.js';
 
 function registerPwa() {
     if (!('serviceWorker' in navigator)) return;
@@ -640,6 +641,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initLoadingForms();
     initAlerts();
     initWizard();
+    initDateInputs();
+    initCustomSelects();
     initSolicitudAdjuntos();
     initOficioFirmaNavegador();
     initDocViewers();
