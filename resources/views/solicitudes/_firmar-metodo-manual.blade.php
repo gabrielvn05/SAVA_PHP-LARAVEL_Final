@@ -6,7 +6,7 @@
     <div>
         <h2 class="solicitud-section-title" style="margin: 0;">Subir oficio firmado manualmente</h2>
         <p class="field-hint" style="margin: 0.35rem 0 0;">
-            1) Descarga el oficio. 2) Fírmalo (impreso, escaneado o en Word/PDF). 3) Sube el archivo firmado.
+            1) Descarga el oficio. 2) Fírmalo (impreso, escaneado o en Word/PDF). 3) Sube el archivo firmado. El sello de autorizado se estampa cuando el decano aprueba.
         </p>
     </div>
 
@@ -21,9 +21,9 @@
     <form method="POST" action="{{ route('solicitudes.subir-oficio-firmado', $solicitud) }}" enctype="multipart/form-data" class="stack" style="gap: 0.75rem;" data-loading-label="Guardando oficio firmado…">
         @csrf
         <label class="field">
-            <span class="field__label">Oficio firmado (PDF recomendado) *</span>
-            <input type="file" name="oficio_firmado_docente" class="field__input" accept=".pdf,.png,.jpg,.jpeg" required>
-            <span class="field-hint">Usa el mismo documento que descargaste, ya con tu firma.</span>
+            <span class="field__label">Oficio firmado (PDF, Word o imagen) *</span>
+            <input type="file" name="oficio_firmado_docente" class="field__input" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" required>
+            <span class="field-hint">PDF, Word, JPG o PNG. Al aprobar el decano, el sello queda sobre ese archivo.</span>
         </label>
         <button type="submit" class="btn btn--primary">Guardar oficio firmado</button>
     </form>

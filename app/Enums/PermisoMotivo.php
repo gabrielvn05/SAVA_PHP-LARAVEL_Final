@@ -38,7 +38,7 @@ enum PermisoMotivo: string
     public function avisoAdjunto(): ?string
     {
         return match ($this) {
-            self::CitaMedica => 'Debes subir al sistema un archivo que verifique que a esa hora tienes la cita médica.',
+            self::CitaMedica => 'Es obligatorio subir la orden o citación médica que verifique la cita en ese horario.',
             default => null,
         };
     }

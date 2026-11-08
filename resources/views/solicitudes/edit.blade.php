@@ -38,10 +38,16 @@
             </dl>
 
             @include('solicitudes._adjuntos-field', [
-                'label' => 'Otros documentos de respaldo',
+                'label' => ($solicitud->detalle['motivo_permiso'] ?? null) === \App\Enums\PermisoMotivo::CitaMedica->value
+                    ? 'Orden o citación médica *'
+                    : 'Otros documentos de respaldo',
                 'solicitud' => $solicitud,
                 'anexos' => $anexos,
-                'requiredWhenEnfermedad' => $solicitud->tipo === \App\Enums\SolicitudTipo::Enfermedad,
+                'requiredWhenEnfermedad' => $solicitud->tipo === \App\Enums\SolicitudTipo::Enfermedad
+                    || ($solicitud->detalle['motivo_permiso'] ?? null) === \App\Enums\PermisoMotivo::CitaMedica->value,
+                'requiredMessage' => ($solicitud->detalle['motivo_permiso'] ?? null) === \App\Enums\PermisoMotivo::CitaMedica->value
+                    ? \App\Enums\PermisoMotivo::CitaMedica->avisoAdjunto()
+                    : '',
             ])
 
             <div class="row" style="gap: 0.65rem; flex-wrap: wrap;">

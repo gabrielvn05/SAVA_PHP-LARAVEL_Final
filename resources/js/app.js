@@ -224,9 +224,14 @@ function initPasswordToggles() {
 
 function initLoadingForms() {
     document.querySelectorAll('form:not([data-no-loading])').forEach((form) => {
-        form.addEventListener('submit', () => {
+        form.addEventListener('submit', (event) => {
             const label = form.getAttribute('data-loading-label') || 'Procesando…';
-            showLoading(label);
+            window.setTimeout(() => {
+                if (event.defaultPrevented) {
+                    return;
+                }
+                showLoading(label);
+            }, 0);
         });
     });
     document.querySelectorAll('[data-loading-link]').forEach((link) => {
@@ -287,18 +292,45 @@ function initWizard() {
                 : 'Adjuntar documento de respaldo (opcional)';
         }
         const adjuntosRoot = document.querySelector('[data-solicitud-adjuntos]');
-        if (adjuntosRoot) {
+        if (adjuntosRoot && tipo !== 'permiso') {
             adjuntosRoot.dataset.requiredWhen = tipo === 'enfermedad' ? '1' : '0';
-            if (tipo !== 'permiso') {
-                adjuntosRoot.dataset.requiredMessage = '';
-            }
-            const adjInput = adjuntosRoot.querySelector('[data-solicitud-adjuntos-input]');
-            if (adjInput) {
-                adjInput.required = false;
-            }
+            adjuntosRoot.dataset.requiredMessage = tipo === 'enfermedad'
+                ? 'Debes adjuntar el certificado o soporte médico.'
+                : '';
         }
         syncPermisoMotivoUi();
         syncInstitucionNombre();
+        liberarCamposOcultos();
+        refrescarAdjuntosObligatorios();
+    }
+
+    function refrescarAdjuntosObligatorios() {
+        document.querySelector('[data-solicitud-adjuntos]')
+            ?.dispatchEvent(new Event('solicitud-adjuntos:sync'));
+    }
+
+    function campoOculto(field) {
+        let nodo = field;
+        while (nodo) {
+            if (nodo.hidden) {
+                return true;
+            }
+            nodo = nodo.parentElement?.closest('.wizard-field') || null;
+        }
+
+        return false;
+    }
+
+    function liberarCamposOcultos() {
+        document.querySelectorAll('#wizard-form .wizard-field').forEach((field) => {
+            const oculto = campoOculto(field);
+            field.querySelectorAll('input, select, textarea').forEach((control) => {
+                if (control.closest('.wizard-field') !== field || !oculto) {
+                    return;
+                }
+                control.required = false;
+            });
+        });
     }
 
     function syncFaltaMarcadoUi() {
@@ -330,6 +362,7 @@ function initWizard() {
                 salidaInput.value = '';
             }
         }
+        liberarCamposOcultos();
 
         const motivoSelect = document.getElementById('motivo-falta-registro-select');
         const motivoHint = document.getElementById('motivo-falta-registro-hint');
@@ -373,16 +406,17 @@ function initWizard() {
 
         if (anexoLabel) {
             anexoLabel.textContent = esCitaMedica
-                ? 'Adjuntar comprobante de la cita médica *'
+                ? 'Adjuntar orden o citación médica *'
                 : 'Adjuntar documento de respaldo (opcional)';
         }
         const adjuntosRoot = document.querySelector('[data-solicitud-adjuntos]');
         if (adjuntosRoot) {
             adjuntosRoot.dataset.requiredWhen = esCitaMedica ? '1' : '0';
             adjuntosRoot.dataset.requiredMessage = esCitaMedica
-                ? 'Debes subir un archivo que verifique que a esa hora tienes la cita médica.'
+                ? (aviso?.dataset.requiredMessage || 'Es obligatorio subir la orden o citación médica que verifique la cita en ese horario.')
                 : '';
         }
+        refrescarAdjuntosObligatorios();
     }
 
     function syncInstitucionNombre() {

@@ -12,6 +12,7 @@
     data-max-total-bytes="{{ \App\Support\SolicitudAdjuntoLimits::MAX_TOTAL_KB * 1024 }}"
     data-existing-count="{{ $existingCount }}"
     data-required-when="{{ $requiredWhenEnfermedad ? '1' : '0' }}"
+    data-required-message="{{ $requiredMessage ?? '' }}"
 >
     @if($anexos !== [] && isset($solicitud))
         <fieldset class="stack fieldset-reset">

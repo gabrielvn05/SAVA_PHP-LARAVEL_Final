@@ -183,11 +183,12 @@
                         id="permiso-cita-medica-aviso"
                         class="alert alert--warning alert--inset"
                         role="status"
+                        data-required-message="{{ \App\Enums\PermisoMotivo::CitaMedica->avisoAdjunto() }}"
                         @if(old('motivo_permiso') !== \App\Enums\PermisoMotivo::CitaMedica->value) hidden @endif
                     >
-                        <strong>Comprobante de la cita.</strong>
+                        <strong>Orden de citación médica.</strong>
                         {{ \App\Enums\PermisoMotivo::CitaMedica->avisoAdjunto() }}
-                        Acepta PDF, PNG o JPG.
+                        Acepta PDF, PNG o JPG. Sin ese archivo no puedes continuar a la firma.
                     </div>
                 </div>
                 <div class="wizard-field wizard-field--permiso-motivo-otro wizard-follow" hidden>

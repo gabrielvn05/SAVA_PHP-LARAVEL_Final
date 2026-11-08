@@ -7,6 +7,7 @@ use App\Models\Solicitud;
 use App\Models\User;
 use App\Support\OficioCodigo;
 use App\Support\OficioNombreArchivo;
+use App\Support\OficioSelloFaltanteException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
@@ -18,6 +19,16 @@ class OficioPdfService
     public function convertir(string $docxBinary, string $nombreBase = 'oficio'): ?string
     {
         return $this->convertirDocx($docxBinary, $nombreBase);
+    }
+
+    public function convertirBinario(string $binary, string $extension, string $nombreBase = 'oficio'): ?string
+    {
+        $extension = strtolower($extension);
+        if (! in_array($extension, ['doc', 'docx', 'pdf'], true)) {
+            return null;
+        }
+
+        return $this->convertirConLibreOffice($binary, $extension, $nombreBase);
     }
 
     public function puedeConvertir(): bool
@@ -101,7 +112,7 @@ class OficioPdfService
 
         try {
             $docx = $this->docx->generar($solicitud, $this->decanoParaOficio($solicitud));
-        } catch (\App\Support\OficioSelloFaltanteException $e) {
+        } catch (OficioSelloFaltanteException $e) {
             report($e);
 
             return null;
@@ -125,7 +136,6 @@ class OficioPdfService
             }
         }
     }
-
 
     public const PLANTILLA_VERSION = '2026-11-07-sello-marcado';
 
@@ -178,6 +188,11 @@ class OficioPdfService
 
     private function convertirDocx(string $docxBinary, string $nombreBase = 'oficio'): ?string
     {
+        return $this->convertirConLibreOffice($docxBinary, 'docx', $nombreBase);
+    }
+
+    private function convertirConLibreOffice(string $binary, string $extension, string $nombreBase = 'oficio'): ?string
+    {
         if (! $this->puedeConvertir()) {
             return null;
         }
@@ -186,8 +201,8 @@ class OficioPdfService
         $workDir = storage_path('app/temp/oficio-'.Str::uuid());
         File::ensureDirectoryExists($workDir);
 
-        $inputPath = $workDir.DIRECTORY_SEPARATOR.$nombreBase.'.docx';
-        file_put_contents($inputPath, $docxBinary);
+        $inputPath = $workDir.DIRECTORY_SEPARATOR.$nombreBase.'.'.$extension;
+        file_put_contents($inputPath, $binary);
 
         $soffice = (string) config('oficio.libreoffice_path');
         $process = new Process([

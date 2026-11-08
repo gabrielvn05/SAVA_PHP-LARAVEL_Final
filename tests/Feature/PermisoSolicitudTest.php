@@ -115,6 +115,8 @@ class PermisoSolicitudTest extends TestCase
             ->assertOk()
             ->assertSee('Cita médica', false)
             ->assertSee(PermisoMotivo::CitaMedica->avisoAdjunto(), false)
+            ->assertSee('Sin ese archivo no puedes continuar a la firma', false)
+            ->assertSee('Orden de citación médica', false)
             ->assertSee('wizard-steps', false)
             ->assertSee('A nombre de', false)
             ->assertSee('No puede ser anterior al', false)

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AppNotificationKind;
 use App\Enums\AppRole;
 use App\Enums\SolicitudEstado;
 use App\Enums\SolicitudTipo;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Tcpdf\Fpdi;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
+use ZipArchive;
 
 class SolicitudOficioFirmadoTest extends TestCase
 {
@@ -102,7 +104,7 @@ class SolicitudOficioFirmadoTest extends TestCase
         $this->assertSame(SolicitudEstado::PendienteAprobacionDecano, $solicitud->fresh()->estado);
         $this->assertDatabaseHas('app_notifications', [
             'user_id' => $decano->id,
-            'kind' => \App\Enums\AppNotificationKind::SolicitudPendienteDecano->value,
+            'kind' => AppNotificationKind::SolicitudPendienteDecano->value,
         ]);
     }
 
@@ -434,6 +436,167 @@ class SolicitudOficioFirmadoTest extends TestCase
         $this->assertStringContainsString('/SelloSAVA', $sellado);
         $this->assertStringContainsString('/Subtype /Ink', $sellado);
         $this->assertStringContainsString('120 150 200 150', $sellado);
+        $this->assertSelloLigadoALaPagina(substr($sellado, strlen($pdfBytes)));
+    }
+
+    public function test_oficio_manual_con_pdf_de_word_recibe_el_sello(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000195',
+            'carrera' => 'software',
+        ]);
+
+        $pdfBytes = $this->pdfConXrefYObjetosComprimidos();
+        $path = SolicitudAdjuntos::guardarContenido($pdfBytes, 'pdf');
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::Aprobada,
+            'detalle' => [
+                'codigo_tramite' => 'FACIVITEC-TEST-MANUAL-WORD',
+                'anexos' => [[
+                    'path' => $path,
+                    'nombre' => 'firmado.pdf',
+                    'rol' => SolicitudOficioFirmadoService::ROL_ANEXO,
+                ]],
+                'firma_docente' => ['tipo' => 'manual'],
+            ],
+        ]);
+
+        $sellado = app(SolicitudOficioFirmadoService::class)->pdfAprobadoConFirmaSolicitante($solicitud);
+        $this->assertIsString($sellado);
+        $this->assertStringStartsWith($pdfBytes, $sellado);
+        $this->assertStringContainsString('(Oficio)', $sellado);
+        $this->assertSelloLigadoALaPagina(substr($sellado, strlen($pdfBytes)));
+    }
+
+    public function test_imagen_manual_aprobada_se_convierte_y_recibe_el_sello(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000194',
+            'carrera' => 'software',
+        ]);
+
+        $bytes = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=', true);
+        $this->assertIsString($bytes);
+        $this->assertNotFalse(@getimagesizefromstring($bytes));
+
+        $path = SolicitudAdjuntos::guardarContenido($bytes, 'jpg');
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::Aprobada,
+            'detalle' => [
+                'codigo_tramite' => 'FACIVITEC-TEST-MANUAL-FOTO',
+                'anexos' => [[
+                    'path' => $path,
+                    'nombre' => 'FACIVITEC-TEST-MANUAL-FOTO-firmado.jpg',
+                    'rol' => SolicitudOficioFirmadoService::ROL_ANEXO,
+                ]],
+                'firma_docente' => ['tipo' => 'manual'],
+            ],
+        ]);
+
+        $respuesta = $this->actingAs($user)
+            ->get(route('solicitudes.adjunto', ['solicitud' => $solicitud, 'f' => $path]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $sellado = $respuesta->getContent();
+        $this->assertStringStartsWith('%PDF', $sellado);
+        $this->assertStringContainsString('/SelloSAVA', $sellado);
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.show', $solicitud))
+            ->assertOk()
+            ->assertSee('FACIVITEC-TEST-MANUAL-FOTO-firmado.pdf', false);
+    }
+
+    public function test_word_manual_aprobado_recibe_el_sello(): void
+    {
+        if (! app(OficioPdfService::class)->puedeConvertir()) {
+            $this->markTestSkipped('LibreOffice no está disponible.');
+        }
+
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000190',
+            'carrera' => 'software',
+        ]);
+
+        $path = SolicitudAdjuntos::guardarContenido($this->docxMinimo('Oficio firmado a mano'), 'docx');
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::Aprobada,
+            'detalle' => [
+                'codigo_tramite' => 'FACIVITEC-TEST-MANUAL-WORD-SELLO',
+                'anexos' => [[
+                    'path' => $path,
+                    'nombre' => 'FACIVITEC-TEST-MANUAL-WORD-SELLO-firmado.docx',
+                    'rol' => SolicitudOficioFirmadoService::ROL_ANEXO,
+                ]],
+                'firma_docente' => ['tipo' => 'manual'],
+            ],
+        ]);
+
+        $sellado = app(SolicitudOficioFirmadoService::class)->pdfAprobadoConFirmaSolicitante($solicitud);
+        $this->assertIsString($sellado);
+        $this->assertStringStartsWith('%PDF', $sellado);
+        $this->assertStringContainsString('/SelloSAVA', $sellado);
+    }
+
+    public function test_subir_manual_acepta_word(): void
+    {
+        Storage::fake('local');
+
+        $user = User::factory()->create([
+            'rol' => AppRole::Docente,
+            'cedula' => '1312000193',
+            'carrera' => 'software',
+        ]);
+
+        $solicitud = Solicitud::query()->create([
+            'creado_por' => $user->id,
+            'tipo' => SolicitudTipo::Permiso,
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->toDateString(),
+            'motivo' => 'Permiso',
+            'estado' => SolicitudEstado::EnBorrador,
+            'detalle' => ['codigo_tramite' => 'FACIVITEC-TEST-MANUAL-DOCX'],
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('solicitudes.subir-oficio-firmado', $solicitud), [
+                'oficio_firmado_docente' => UploadedFile::fake()->create(
+                    'oficio.docx',
+                    20,
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                ),
+            ])
+            ->assertRedirect(route('solicitudes.firmar', $solicitud).'#vista-firmado');
+
+        $firmado = SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud->fresh());
+        $this->assertNotNull($firmado);
+        $this->assertSame('FACIVITEC-TEST-MANUAL-DOCX-firmado.docx', $firmado['nombre'] ?? null);
+        $this->assertSame('manual', $solicitud->fresh()->detalle['firma_docente']['tipo'] ?? null);
     }
 
     public function test_oficio_manual_no_borra_la_firma_si_no_puede_anexar_el_sello(): void
@@ -528,6 +691,117 @@ class SolicitudOficioFirmadoTest extends TestCase
         $this->assertTrue($this->firmaCubreElPdf($aprobado, $contenido[1]));
     }
 
+    private function docxMinimo(string $texto): string
+    {
+        $ruta = tempnam(sys_get_temp_dir(), 'oficio-docx-');
+        $this->assertNotFalse($ruta);
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($ruta, ZipArchive::CREATE) === true);
+        $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            .'<Default Extension="xml" ContentType="application/xml"/>'
+            .'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+            .'</Types>');
+        $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+            .'</Relationships>');
+        $zip->addFromString('word/document.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>'
+            .htmlspecialchars($texto, ENT_XML1).'</w:t></w:r></w:p></w:body></w:document>');
+        $zip->close();
+        $bytes = file_get_contents($ruta);
+        @unlink($ruta);
+        $this->assertIsString($bytes);
+
+        return $bytes;
+    }
+
+    private function assertSelloLigadoALaPagina(string $revision): void
+    {
+        $this->assertSame(1, preg_match('/\/Type\s*\/Page\b.*?\/Resources\s+(\d+)\s+0\s+R/s', $revision, $pagina));
+        $posicion = strpos($revision, $pagina[1].' 0 obj');
+        $this->assertNotFalse($posicion);
+        $this->assertStringContainsString('/SelloSAVA', substr($revision, $posicion, 800));
+        $this->assertStringContainsString('/SelloSAVA Do', $revision);
+    }
+
+    private function pdfConXrefYObjetosComprimidos(): string
+    {
+        $texto = "BT /F1 24 Tf 72 700 Td (Oficio) Tj ET\n";
+        $pagina = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>';
+        $objetos = [
+            1 => '<< /Type /Catalog /Pages 2 0 R >>',
+            2 => '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            4 => '<< /Length '.strlen($texto)." >>\nstream\n".$texto.'endstream',
+            5 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+            6 => $this->objetoStream($pagina),
+        ];
+
+        $pdf = "%PDF-1.5\n";
+        $offsets = [];
+        foreach ([1, 2, 4, 5, 6] as $numero) {
+            $offsets[$numero] = strlen($pdf);
+            $pdf .= $numero." 0 obj\n".$objetos[$numero]."\nendobj\n";
+        }
+
+        $inicioXref = strlen($pdf);
+        $entradas = [
+            0 => [0, 0, 255],
+            1 => [1, $offsets[1], 0],
+            2 => [1, $offsets[2], 0],
+            3 => [2, 6, 0],
+            4 => [1, $offsets[4], 0],
+            5 => [1, $offsets[5], 0],
+            6 => [1, $offsets[6], 0],
+            7 => [1, $inicioXref, 0],
+        ];
+        $filas = '';
+        foreach ($entradas as [$tipo, $campo, $indice]) {
+            $filas .= chr($tipo).pack('n', $campo).chr($indice);
+        }
+        $comprimido = gzcompress($this->filasConPredictor($filas, 4));
+        $dict = '<< /Type /XRef /Size 8 /W [1 2 1] /Index [0 8] /Root 1 0 R'
+            .' /Filter /FlateDecode /DecodeParms << /Predictor 12 /Columns 4 >> /Length '.strlen($comprimido).' >>';
+        $pdf .= "7 0 obj\n".$dict."\nstream\n".$comprimido."\nendstream\nendobj\n";
+        $pdf .= "startxref\n{$inicioXref}\n%%EOF";
+
+        return $pdf;
+    }
+
+    private function objetoStream(string $pagina): string
+    {
+        $cabecera = '3 0 ';
+        $plano = $cabecera.$pagina;
+        $comprimido = gzcompress($this->filasConPredictor($plano, 1));
+
+        return '<< /Type /ObjStm /N 1 /First '.strlen($cabecera)
+            .' /Filter /FlateDecode /DecodeParms << /Predictor 12 /Columns 1 >> /Length '.strlen($comprimido)." >>\n"
+            ."stream\n".$comprimido."\nendstream";
+    }
+
+    private function filasConPredictor(string $filas, int $columnas): string
+    {
+        $salida = '';
+        $anterior = str_repeat("\0", $columnas);
+        $largo = strlen($filas);
+        for ($inicio = 0; $inicio < $largo; $inicio += $columnas) {
+            $fila = substr($filas, $inicio, $columnas);
+            if (strlen($fila) < $columnas) {
+                $fila = str_pad($fila, $columnas, "\0");
+            }
+            $delta = '';
+            for ($columna = 0; $columna < $columnas; $columna++) {
+                $delta .= chr((ord($fila[$columna]) - ord($anterior[$columna])) & 255);
+            }
+            $salida .= chr(2).$delta;
+            $anterior = $fila;
+        }
+
+        return $salida;
+    }
+
     private function pdfConFirmaDeTinta(): string
     {
         $objetos = [
@@ -538,7 +812,7 @@ class SolicitudOficioFirmadoTest extends TestCase
             6 => '<< /Type /Annot /Subtype /Ink /Rect [100 100 220 180] /InkList [[120 150 200 150]] /C [1 0 0] /BS << /W 3 >> >>',
         ];
         $flujo = "BT /F1 24 Tf 72 700 Td (Oficio) Tj ET\n";
-        $objetos[4] = "<< /Length ".strlen($flujo)." >>\nstream\n".$flujo.'endstream';
+        $objetos[4] = '<< /Length '.strlen($flujo)." >>\nstream\n".$flujo.'endstream';
         ksort($objetos);
 
         $pdf = "%PDF-1.4\n";

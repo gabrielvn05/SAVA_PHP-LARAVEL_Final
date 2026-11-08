@@ -17,17 +17,24 @@ use App\Services\SolicitudOficioFirmadoService;
 use App\Services\SolicitudWorkflowService;
 use App\Support\AdjuntoPreview;
 use App\Support\DelegacionDecano;
+use App\Support\OficioCodigo;
+use App\Support\SolicitudAdjuntoLimits;
 use App\Support\SolicitudAdjuntos;
+use App\Support\SolicitudFaltaMarcadoRules;
+use App\Support\SolicitudJustificacionAtrasoRules;
+use App\Support\SolicitudPermisoRules;
 use App\Support\SolicitudTimeline;
 use App\Support\SolicitudValidator;
+use App\Support\SolicitudViajeRules;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class SolicitudController extends Controller
 {
@@ -101,12 +108,12 @@ class SolicitudController extends Controller
             return back()->withInput()->with('error', $error);
         }
 
-        if (\App\Support\SolicitudAdjuntoLimits::exceedsTotalLimit($request)) {
-            return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::totalLimitMessage());
+        if (SolicitudAdjuntoLimits::exceedsTotalLimit($request)) {
+            return back()->withInput()->with('error', SolicitudAdjuntoLimits::totalLimitMessage());
         }
 
-        if (\App\Support\SolicitudAdjuntoLimits::exceedsFileCount(0, $request)) {
-            return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::fileCountMessage());
+        if (SolicitudAdjuntoLimits::exceedsFileCount(0, $request)) {
+            return back()->withInput()->with('error', SolicitudAdjuntoLimits::fileCountMessage());
         }
 
         $validated = $request->validate([
@@ -114,8 +121,8 @@ class SolicitudController extends Controller
             'fecha_inicio' => 'nullable|date',
             'fecha_fin' => 'nullable|date',
             'motivo' => 'nullable|string|max:5000',
-            'justificativo' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
-            'anexos.*' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
+            'justificativo' => SolicitudAdjuntoLimits::uploadedFileRules(),
+            'anexos.*' => SolicitudAdjuntoLimits::uploadedFileRules(),
             'destino' => 'nullable|string|max:500',
             'jornada' => 'nullable|string|max:60',
             'hora_inicio' => 'nullable|string|max:10',
@@ -160,13 +167,13 @@ class SolicitudController extends Controller
             'hora_real_ingreso' => 'nullable|string|max:10',
             'hora_real_salida' => 'nullable|string|max:10',
             'motivo_falta_registro' => 'nullable|string|max:80',
-        ], \App\Support\SolicitudAdjuntoLimits::mimeValidationMessages());
+        ], SolicitudAdjuntoLimits::mimeValidationMessages());
 
         $tipo = $validated['tipo'];
         $detalleExtraPorTipo = [];
 
         if ($tipo === SolicitudTipo::Permiso->value) {
-            $permiso = \App\Support\SolicitudPermisoRules::resolve($validated);
+            $permiso = SolicitudPermisoRules::resolve($validated);
             if (isset($permiso['error'])) {
                 return back()->withInput()->with('error', $permiso['error']);
             }
@@ -175,7 +182,7 @@ class SolicitudController extends Controller
             $motivo = $permiso['motivo'];
             $detalleExtraPorTipo = $permiso['detalle_extra'];
         } elseif ($tipo === SolicitudTipo::Justificacion->value) {
-            $justificacion = \App\Support\SolicitudJustificacionAtrasoRules::resolve($validated);
+            $justificacion = SolicitudJustificacionAtrasoRules::resolve($validated);
             if (isset($justificacion['error'])) {
                 return back()->withInput()->with('error', $justificacion['error']);
             }
@@ -184,7 +191,7 @@ class SolicitudController extends Controller
             $motivo = $justificacion['motivo'];
             $detalleExtraPorTipo = $justificacion['detalle_extra'];
         } elseif ($tipo === SolicitudTipo::FaltaMarcado->value) {
-            $faltaMarcado = \App\Support\SolicitudFaltaMarcadoRules::resolve($validated);
+            $faltaMarcado = SolicitudFaltaMarcadoRules::resolve($validated);
             if (isset($faltaMarcado['error'])) {
                 return back()->withInput()->with('error', $faltaMarcado['error']);
             }
@@ -193,7 +200,7 @@ class SolicitudController extends Controller
             $motivo = $faltaMarcado['motivo'];
             $detalleExtraPorTipo = $faltaMarcado['detalle_extra'];
         } elseif ($tipo === SolicitudTipo::Viaje->value) {
-            $viaje = \App\Support\SolicitudViajeRules::resolve($validated);
+            $viaje = SolicitudViajeRules::resolve($validated);
             if (isset($viaje['error'])) {
                 return back()->withInput()->with('error', $viaje['error']);
             }
@@ -254,12 +261,12 @@ class SolicitudController extends Controller
         }
 
         if (SolicitudValidator::anexoObligatorioParaTipo($validated['tipo'])
-            && ! \App\Support\SolicitudAdjuntoLimits::hasNewUploads($request)) {
+            && ! SolicitudAdjuntoLimits::hasNewUploads($request)) {
             return back()->withInput()->with('error', 'Este tipo de trámite requiere adjuntar un justificativo.');
         }
 
         if (($detalleExtraPorTipo['motivo_permiso'] ?? '') === PermisoMotivo::CitaMedica->value
-            && ! \App\Support\SolicitudAdjuntoLimits::hasNewUploads($request)) {
+            && ! SolicitudAdjuntoLimits::hasNewUploads($request)) {
             return back()->withInput()->with(
                 'error',
                 PermisoMotivo::CitaMedica->avisoAdjunto(),
@@ -268,7 +275,7 @@ class SolicitudController extends Controller
 
         $anexos = [];
         foreach ($request->file('anexos', []) as $file) {
-            if (! $file instanceof \Illuminate\Http\UploadedFile) {
+            if (! $file instanceof UploadedFile) {
                 continue;
             }
             $anexos[] = ['path' => SolicitudAdjuntos::guardar($file), 'nombre' => $file->getClientOriginalName()];
@@ -285,7 +292,7 @@ class SolicitudController extends Controller
 
         $codigo = $estado === SolicitudEstado::EnBorrador
             ? null
-            : \App\Support\OficioCodigo::generar($user, SolicitudTipo::from($tipo));
+            : OficioCodigo::generar($user, SolicitudTipo::from($tipo));
 
         $institucionTipo = $validated['institucion_medica_tipo'] ?? null;
         $institucionMedica = $institucionTipo === 'IESS'
@@ -449,12 +456,25 @@ class SolicitudController extends Controller
         }
 
         $nombre = (string) ($firmado['nombre'] ?? 'oficio-firmado.pdf');
+        $extension = strtolower(pathinfo($nombre, PATHINFO_EXTENSION));
         $kind = AdjuntoPreview::kind($nombre);
+        $quedaSellado = $solicitud->estado === SolicitudEstado::Aprobada
+            && (
+                in_array($extension, ['pdf', 'png', 'jpg', 'jpeg'], true)
+                || (in_array($extension, ['doc', 'docx'], true) && $this->oficioPdf->puedeConvertir())
+            );
+        if ($quedaSellado) {
+            $kind = 'pdf';
+            $base = pathinfo($nombre, PATHINFO_FILENAME);
+            $nombre = ($base !== '' ? $base : 'oficio-firmado').'.pdf';
+        } elseif (! in_array($kind, ['pdf', 'image'], true)) {
+            $kind = 'other';
+        }
 
         return [
             'nombre' => $nombre,
             'url' => SolicitudAdjuntos::urlVista($solicitud, $path),
-            'kind' => $kind === 'image' ? 'image' : 'pdf',
+            'kind' => $kind,
         ];
     }
 
@@ -501,19 +521,15 @@ class SolicitudController extends Controller
 
         $firmado = SolicitudOficioFirmadoService::oficioFirmadoEnAnexos($solicitud);
         $esOficioFirmado = is_array($firmado) && ($firmado['path'] ?? null) === $path;
-        if ($solicitud->estado === SolicitudEstado::Aprobada && $esOficioFirmado && str_ends_with(strtolower($nombre), '.pdf')) {
-            $bytes = $disk->get($path);
-            if (is_string($bytes) && $bytes !== '') {
-                try {
-                    $sellado = app(SolicitudOficioFirmadoService::class)->aplicarSelloDeAprobacion($solicitud, $bytes);
-                } catch (\Throwable $e) {
-                    report($e);
-                    $sellado = $bytes;
-                }
+        if ($solicitud->estado === SolicitudEstado::Aprobada && $esOficioFirmado) {
+            $sellado = app(SolicitudOficioFirmadoService::class)->pdfAprobadoConFirmaSolicitante($solicitud);
+            if (is_string($sellado) && str_starts_with($sellado, '%PDF')) {
+                $base = pathinfo($nombre, PATHINFO_FILENAME);
+                $nombrePdf = ($base !== '' ? $base : 'oficio-firmado').'.pdf';
 
                 return response($sellado, 200, [
                     'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'inline; filename="'.$nombre.'"',
+                    'Content-Disposition' => 'inline; filename="'.$nombrePdf.'"',
                     'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
                 ]);
             }
@@ -539,18 +555,18 @@ class SolicitudController extends Controller
     {
         $this->authorize('update', $solicitud);
 
-        if (\App\Support\SolicitudAdjuntoLimits::exceedsTotalLimit($request)) {
-            return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::totalLimitMessage());
+        if (SolicitudAdjuntoLimits::exceedsTotalLimit($request)) {
+            return back()->withInput()->with('error', SolicitudAdjuntoLimits::totalLimitMessage());
         }
 
         $anexosActuales = SolicitudAdjuntos::anexosActuales($solicitud);
         $restantesTrasEliminar = SolicitudAdjuntos::restantesTrasEliminar($solicitud, $request);
-        if (\App\Support\SolicitudAdjuntoLimits::exceedsFileCount($restantesTrasEliminar, $request)) {
-            return back()->withInput()->with('error', \App\Support\SolicitudAdjuntoLimits::fileCountMessage());
+        if (SolicitudAdjuntoLimits::exceedsFileCount($restantesTrasEliminar, $request)) {
+            return back()->withInput()->with('error', SolicitudAdjuntoLimits::fileCountMessage());
         }
 
         $mantenerBorrador = $solicitud->estado === SolicitudEstado::EnBorrador && $request->boolean('borrador');
-        $anexosPrevistos = $restantesTrasEliminar + \App\Support\SolicitudAdjuntoLimits::countNewUploads($request);
+        $anexosPrevistos = $restantesTrasEliminar + SolicitudAdjuntoLimits::countNewUploads($request);
         if (
             ! $mantenerBorrador
             && SolicitudValidator::anexoObligatorioParaTipo($solicitud->tipo->value)
@@ -559,11 +575,27 @@ class SolicitudController extends Controller
             return back()->withInput()->with('error', 'Este tipo de trámite requiere adjuntar un justificativo.');
         }
 
+        if (($solicitud->detalle['motivo_permiso'] ?? null) === PermisoMotivo::CitaMedica->value) {
+            $eliminar = array_map(
+                static fn ($path): string => str_replace('\\', '/', trim((string) $path)),
+                $request->input('eliminar_anexos', []),
+            );
+            $respaldo = 0;
+            foreach (SolicitudAdjuntos::anexosDeRespaldo($solicitud) as $anexo) {
+                if (! in_array((string) ($anexo['path'] ?? ''), $eliminar, true)) {
+                    $respaldo++;
+                }
+            }
+            if ($respaldo + SolicitudAdjuntoLimits::countNewUploads($request) < 1) {
+                return back()->withInput()->with('error', PermisoMotivo::CitaMedica->avisoAdjunto());
+            }
+        }
+
         $request->validate([
-            'justificativo' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
-            'anexos.*' => \App\Support\SolicitudAdjuntoLimits::uploadedFileRules(),
+            'justificativo' => SolicitudAdjuntoLimits::uploadedFileRules(),
+            'anexos.*' => SolicitudAdjuntoLimits::uploadedFileRules(),
             'eliminar_anexos.*' => 'nullable|string',
-        ], \App\Support\SolicitudAdjuntoLimits::mimeValidationMessages());
+        ], SolicitudAdjuntoLimits::mimeValidationMessages());
 
         $old = $solicitud->toArray();
         $detalle = $solicitud->detalle ?? [];

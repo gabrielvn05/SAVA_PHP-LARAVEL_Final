@@ -154,6 +154,7 @@ function initSolicitudAdjuntosRoot(root) {
         if (root.dataset.requiredWhen === '1' && selected.length + remainingExisting(root) < 1) {
             event.preventDefault();
             showMessage(root, root.dataset.requiredMessage || 'Este tipo de trámite requiere adjuntar al menos un documento.');
+            root.scrollIntoView({ behavior: 'smooth', block: 'center' });
             input.focus();
             return;
         }
@@ -163,6 +164,8 @@ function initSolicitudAdjuntosRoot(root) {
             showMessage(root, 'El peso total de los archivos adjuntos no puede superar 10 MB.');
         }
     });
+
+    root.addEventListener('solicitud-adjuntos:sync', updateRequired);
 
     syncUi();
 }

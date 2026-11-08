@@ -49,7 +49,7 @@ class SolicitudOficioFirmadoService
 
         $path = SolicitudAdjuntos::guardar($file);
         $extension = strtolower($file->getClientOriginalExtension() ?: 'pdf');
-        if (! in_array($extension, ['pdf', 'png', 'jpg', 'jpeg'], true)) {
+        if (! in_array($extension, ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'], true)) {
             $extension = 'pdf';
         }
         $nombre = OficioNombreArchivo::base($solicitud).'-firmado.'.$extension;
@@ -136,9 +136,9 @@ class SolicitudOficioFirmadoService
             return null;
         }
 
-        $nombre = strtolower((string) ($anexo['nombre'] ?? ''));
+        $nombre = (string) ($anexo['nombre'] ?? '');
         $path = (string) ($anexo['path'] ?? '');
-        if ($path === '' || ! str_ends_with($nombre, '.pdf')) {
+        if ($path === '') {
             return null;
         }
 
@@ -148,19 +148,100 @@ class SolicitudOficioFirmadoService
         }
 
         $bytes = Storage::disk($disk)->get($path);
-        if (! is_string($bytes) || ! str_starts_with($bytes, '%PDF')) {
+        if (! is_string($bytes) || $bytes === '') {
+            return null;
+        }
+
+        $pdf = $this->bytesPdfParaSello($bytes, $nombre);
+        if ($pdf === null) {
             return null;
         }
 
         try {
-            $sellado = $this->aplicarSelloDeAprobacion($solicitud, $bytes);
+            $sellado = $this->aplicarSelloDeAprobacion($solicitud, $pdf);
         } catch (\Throwable $e) {
             report($e);
 
+            return $pdf;
+        }
+
+        return $sellado !== '' ? $sellado : $pdf;
+    }
+
+    private function bytesPdfParaSello(string $bytes, string $nombre): ?string
+    {
+        if ($this->parecePdf($bytes)) {
             return $bytes;
         }
 
-        return $sellado !== '' ? $sellado : $bytes;
+        $extension = strtolower(pathinfo($nombre, PATHINFO_EXTENSION));
+        if (in_array($extension, ['png', 'jpg', 'jpeg'], true) || $this->pareceImagen($bytes)) {
+            return $this->pdfDesdeImagen($bytes);
+        }
+        if (in_array($extension, ['doc', 'docx'], true)) {
+            return $this->pdfService->convertirBinario($bytes, $extension, 'oficio-firmado');
+        }
+
+        return null;
+    }
+
+    private function parecePdf(string $bytes): bool
+    {
+        return str_starts_with(ltrim($bytes, "\xEF\xBB\xBF \t\r\n"), '%PDF');
+    }
+
+    private function pareceImagen(string $bytes): bool
+    {
+        return str_starts_with($bytes, "\xFF\xD8\xFF") || str_starts_with($bytes, "\x89PNG");
+    }
+
+    private function pdfDesdeImagen(string $bytes): ?string
+    {
+        $this->assertManipulacionPdfDisponible();
+        $extension = str_starts_with($bytes, "\x89PNG") ? 'png' : 'jpg';
+        $tmp = tempnam(sys_get_temp_dir(), 'oficio-img-');
+        if ($tmp === false) {
+            return null;
+        }
+        $ruta = $tmp.'.'.$extension;
+        @unlink($tmp);
+        file_put_contents($ruta, $bytes);
+
+        try {
+            $info = @getimagesize($ruta);
+            if (! is_array($info) || (int) $info[0] < 1 || (int) $info[1] < 1) {
+                return null;
+            }
+
+            $pdf = $this->nuevoPdfFpdi();
+            $pdf->AddPage();
+            $margen = 12.0;
+            $maximoAncho = $pdf->GetPageWidth() - ($margen * 2);
+            $maximoAlto = $pdf->GetPageHeight() - ($margen * 2);
+            $relacion = (float) $info[0] / (float) $info[1];
+            $ancho = $maximoAncho;
+            $alto = $ancho / $relacion;
+            if ($alto > $maximoAlto) {
+                $alto = $maximoAlto;
+                $ancho = $alto * $relacion;
+            }
+            $pdf->Image(
+                $ruta,
+                ($pdf->GetPageWidth() - $ancho) / 2,
+                ($pdf->GetPageHeight() - $alto) / 2,
+                $ancho,
+                $alto,
+                $extension === 'png' ? 'PNG' : 'JPEG',
+            );
+
+            return $pdf->Output('', 'S');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        } finally {
+            @unlink($ruta);
+        }
     }
 
     /**
@@ -482,9 +563,9 @@ class SolicitudOficioFirmadoService
     private function validarArchivoFirmado(UploadedFile $file): void
     {
         $extension = strtolower($file->getClientOriginalExtension());
-        if (! in_array($extension, ['pdf', 'png', 'jpg', 'jpeg'], true)) {
+        if (! in_array($extension, ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'], true)) {
             throw ValidationException::withMessages([
-                'oficio_firmado_docente' => 'El oficio firmado debe ser PDF, PNG o JPG.',
+                'oficio_firmado_docente' => 'El oficio firmado debe ser PDF, Word, PNG o JPG.',
             ]);
         }
     }

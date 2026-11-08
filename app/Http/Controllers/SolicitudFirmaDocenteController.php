@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AppRole;
 use App\Enums\SolicitudEstado;
+use App\Models\FirmaEcEnvio;
 use App\Models\Solicitud;
+use App\Models\User;
 use App\Services\AppNotificationService;
 use App\Services\AuditService;
+use App\Services\FirmaEcService;
 use App\Services\NotificacionFaltaService;
 use App\Services\OficioDocxService;
 use App\Services\OficioPdfService;
-use App\Models\FirmaEcEnvio;
-use App\Models\User;
-use App\Services\FirmaEcService;
 use App\Services\SolicitudOficioFirmadoService;
 use App\Services\SolicitudWorkflowService;
 use App\Support\OficioCodigo;
@@ -250,7 +251,7 @@ class SolicitudFirmaDocenteController extends Controller
         $this->abortSiNoPuedeFirmar($solicitud);
 
         $request->validate([
-            'oficio_firmado_docente' => ['required', 'file', 'max:10240', 'mimes:pdf,png,jpg,jpeg'],
+            'oficio_firmado_docente' => ['required', 'file', 'max:10240', 'mimes:pdf,png,jpg,jpeg,doc,docx'],
         ]);
 
         $file = $request->file('oficio_firmado_docente');
@@ -360,7 +361,7 @@ class SolicitudFirmaDocenteController extends Controller
             SolicitudEstado::EnRevisionSecretaria,
             SolicitudEstado::Aprobada,
         ], true) && ! (
-            auth()->user()?->rol === \App\Enums\AppRole::Secretaria
+            auth()->user()?->rol === AppRole::Secretaria
             && $solicitud->estado === SolicitudEstado::PendienteAprobacionDecano
         )) {
             abort(403, 'Este trámite ya no admite firma del solicitante.');
