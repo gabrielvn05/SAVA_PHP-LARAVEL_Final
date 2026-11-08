@@ -38,7 +38,7 @@
         </li>
     </ol>
 
-    <form method="POST" action="{{ route('solicitudes.store') }}" enctype="multipart/form-data" class="stack" id="wizard-form" data-loading-label="Enviando solicitud…">
+    <form method="POST" action="{{ route('solicitudes.store') }}" enctype="multipart/form-data" class="stack" id="wizard-form" data-loading-label="Alistando para firma…">
         @csrf
         <input type="hidden" name="tipo" id="tipo-input" value="{{ old('tipo') }}" required>
 
