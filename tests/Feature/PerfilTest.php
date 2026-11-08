@@ -121,8 +121,16 @@ class PerfilTest extends TestCase
             ->assertOk()
             ->assertSee('Autores')
             ->assertSee('Gabriel Alexander Velez Nuñez')
+            ->assertSee('Correo:')
+            ->assertSee('Móvil:')
+            ->assertSee('e1315591303@live.uleam.edu.ec')
+            ->assertSee('0967381033')
             ->assertSee('Miguel Ignacio Zamora Piguave')
+            ->assertSee('e1314977255@live.uleam.edu.ec')
+            ->assertSee('0963187068')
             ->assertSee('Tutor')
-            ->assertSee('Ing. Carlos Eduardo Anchundia Betancourt');
+            ->assertSee('Ing. Carlos Eduardo Anchundia Betancourt')
+            ->assertSee('carlos.anchundia@uleam.edu.ec')
+            ->assertSee('0996244480');
     }
 }

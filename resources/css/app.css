@@ -962,48 +962,186 @@ html.sidebar-open {
 .about-modal__panel {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  max-width: 24rem;
-  padding: 1.35rem 1.5rem 1.25rem;
+  max-width: 36rem;
+  max-height: min(92vh, 44rem);
+  overflow: hidden;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: 0 16px 48px rgba(26, 35, 50, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(12, 61, 122, 0.28);
+}
+
+.about-modal__hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.85rem;
+  align-items: start;
+  padding: 1.15rem 1.15rem 1.05rem;
+  background:
+    linear-gradient(135deg, rgba(201, 162, 39, 0.22), transparent 42%),
+    linear-gradient(160deg, #0c3d7a 0%, #08284f 100%);
+  color: #fff;
+}
+
+.about-modal__logo {
+  width: 3.1rem;
+  height: 3.1rem;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.2rem;
+}
+
+.about-modal__kicker {
+  margin: 0 0 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f3d98a;
 }
 
 .about-modal__title {
-  margin: 0 0 0.45rem;
-  font-size: 1.15rem;
+  margin: 0;
+  font-size: 1.35rem;
   font-weight: 800;
-  color: var(--color-text);
+  line-height: 1.15;
+  color: #fff;
 }
 
 .about-modal__text {
-  margin: 0 0 1rem;
-  font-size: 0.92rem;
-  color: var(--color-text-muted);
-  line-height: 1.45;
+  margin: 0.35rem 0 0;
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.4;
+}
+
+.about-modal__close {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.about-modal__close:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.about-modal__body {
+  overflow: auto;
+  padding: 1rem 1.15rem 0.35rem;
 }
 
 .about-modal__label {
-  margin: 0.85rem 0 0.2rem;
+  margin: 0.15rem 0 0.55rem;
   font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-primary);
 }
 
+.about-modal__people {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 0.95rem;
+}
+
+.about-modal__person {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.75rem;
+  background: #f6f8fb;
+  border: 1px solid #e4eaf2;
+  border-radius: 12px;
+}
+
+.about-modal__person--tutor {
+  background: #fffaf0;
+  border-color: #ead7a2;
+}
+
+.about-modal__avatar {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.about-modal__avatar--tutor {
+  background: #9a7b16;
+}
+
 .about-modal__name {
   margin: 0;
-  font-size: 0.92rem;
-  line-height: 1.4;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.about-modal__role {
+  margin: 0.1rem 0 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.about-modal__contact {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.about-modal__contact a {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: baseline;
+  padding: 0.35rem 0.55rem;
+  background: #fff;
+  border: 1px solid #e4eaf2;
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.about-modal__person--tutor .about-modal__contact a {
+  border-color: #ead7a2;
+}
+
+.about-modal__contact a span {
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.about-modal__contact a:hover {
+  border-color: var(--color-primary);
+  text-decoration: none;
 }
 
 .about-modal__actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1.15rem;
+  padding: 0.85rem 1.15rem 1rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .logout-modal {

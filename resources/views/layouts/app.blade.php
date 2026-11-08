@@ -343,13 +343,72 @@
     <div class="about-modal" hidden data-about-modal role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
         <button type="button" class="about-modal__backdrop" aria-label="Cerrar" data-about-close></button>
         <div class="about-modal__panel">
-            <h2 id="about-modal-title" class="about-modal__title">Acerca de SAVA</h2>
-            <p class="about-modal__text">Sistema de Asistencia y Validaciones Académicas. Gestión de permisos y justificaciones.</p>
-            <p class="about-modal__label">Autores</p>
-            <p class="about-modal__name">Gabriel Alexander Velez Nuñez</p>
-            <p class="about-modal__name">Miguel Ignacio Zamora Piguave</p>
-            <p class="about-modal__label">Tutor</p>
-            <p class="about-modal__name">Ing. Carlos Eduardo Anchundia Betancourt</p>
+            <header class="about-modal__hero">
+                <img class="about-modal__logo" src="{{ asset('branding/LOGO-ULEAM.png') }}" alt="Universidad Laica Eloy Alfaro de Manabí">
+                <div class="about-modal__hero-copy">
+                    <p class="about-modal__kicker">Facultad de Ciencias de la Vida y Tecnologías</p>
+                    <h2 id="about-modal-title" class="about-modal__title">Acerca de SAVA</h2>
+                    <p class="about-modal__text">Sistema de Asistencia y Validaciones Académicas. Gestión de permisos y justificaciones.</p>
+                </div>
+                <button type="button" class="about-modal__close" data-about-close aria-label="Cerrar">×</button>
+            </header>
+            <div class="about-modal__body">
+                <p class="about-modal__label">Autores</p>
+                <div class="about-modal__people">
+                    <article class="about-modal__person">
+                        <span class="about-modal__avatar" aria-hidden="true">GV</span>
+                        <div class="about-modal__person-body">
+                            <p class="about-modal__name">Gabriel Alexander Velez Nuñez</p>
+                            <p class="about-modal__role">Autor</p>
+                            <div class="about-modal__contact">
+                                <a href="mailto:e1315591303@live.uleam.edu.ec">
+                                    <span>Correo:</span>
+                                    e1315591303@live.uleam.edu.ec
+                                </a>
+                                <a href="tel:+593967381033">
+                                    <span>Móvil:</span>
+                                    0967381033
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="about-modal__person">
+                        <span class="about-modal__avatar" aria-hidden="true">MZ</span>
+                        <div class="about-modal__person-body">
+                            <p class="about-modal__name">Miguel Ignacio Zamora Piguave</p>
+                            <p class="about-modal__role">Autor</p>
+                            <div class="about-modal__contact">
+                                <a href="mailto:e1314977255@live.uleam.edu.ec">
+                                    <span>Correo:</span>
+                                    e1314977255@live.uleam.edu.ec
+                                </a>
+                                <a href="tel:+593963187068">
+                                    <span>Móvil:</span>
+                                    0963187068
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <p class="about-modal__label">Tutor</p>
+                <article class="about-modal__person about-modal__person--tutor">
+                    <span class="about-modal__avatar about-modal__avatar--tutor" aria-hidden="true">CA</span>
+                    <div class="about-modal__person-body">
+                        <p class="about-modal__name">Ing. Carlos Eduardo Anchundia Betancourt</p>
+                        <p class="about-modal__role">Tutor</p>
+                        <div class="about-modal__contact">
+                            <a href="mailto:carlos.anchundia@uleam.edu.ec">
+                                <span>Correo:</span>
+                                carlos.anchundia@uleam.edu.ec
+                            </a>
+                            <a href="tel:+593996244480">
+                                <span>Móvil:</span>
+                                0996244480
+                            </a>
+                        </div>
+                    </div>
+                </article>
+            </div>
             <div class="about-modal__actions">
                 <button type="button" class="btn btn--primary" data-about-close>Cerrar</button>
             </div>
