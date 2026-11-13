@@ -397,6 +397,7 @@
                 <div>
                     <label>Fecha del incidente *</label>
                     <input type="date" name="fecha_incidente" min="{{ $minFecha }}" value="{{ old('fecha_incidente') }}">
+                    <p class="field-hint">No puede ser anterior al {{ $minFechaLegible }}.</p>
                 </div>
                 <div>
                     <label>Tipo de marcación omitida/fallida *</label>

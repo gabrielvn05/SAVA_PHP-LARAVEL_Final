@@ -41,16 +41,25 @@
         <div class="stack" style="gap: 0.75rem;" data-firma-p12-password-wrap hidden>
             <label class="field">
                 <span class="field__label">Contraseña del certificado *</span>
-                <input
-                    type="password"
-                    name="p12_password"
-                    class="field__input"
-                    placeholder="Contraseña del .p12"
-                    autocomplete="off"
-                    required
-                    value="{{ old('p12_password') }}"
-                    data-firma-p12-password
-                >
+                <div class="password-input-wrap">
+                    <input
+                        id="p12-password"
+                        type="password"
+                        name="p12_password"
+                        class="password-input-wrap__input field__input"
+                        placeholder="Contraseña del .p12"
+                        autocomplete="off"
+                        required
+                        value="{{ old('p12_password') }}"
+                        data-firma-p12-password
+                    >
+                    <button type="button" class="password-input-wrap__toggle" data-password-toggle aria-label="Mostrar contraseña" aria-pressed="false" aria-controls="p12-password">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.75"/>
+                        </svg>
+                    </button>
+                </div>
             </label>
         </div>
 

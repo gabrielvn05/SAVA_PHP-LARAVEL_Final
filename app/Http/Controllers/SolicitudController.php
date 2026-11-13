@@ -83,6 +83,7 @@ class SolicitudController extends Controller
 
         return view('solicitudes.create', [
             'tipos' => SolicitudTipo::cases(),
+            'minFecha' => SolicitudValidator::fechaMinima()->toDateString(),
         ]);
     }
 
@@ -93,7 +94,7 @@ class SolicitudController extends Controller
         return view('solicitudes.wizard', [
             'tipos' => SolicitudTipo::cases(),
             'user' => auth()->user(),
-            'minFecha' => now()->subMonths(3)->toDateString(),
+            'minFecha' => SolicitudValidator::fechaMinima()->toDateString(),
             'fechaHoy' => now()->toDateString(),
         ]);
     }
@@ -255,7 +256,7 @@ class SolicitudController extends Controller
         }
 
         if ($tipo !== SolicitudTipo::Justificacion->value) {
-            if ($error = SolicitudValidator::validateFechaInicioMaxTresMeses($fechaInicio)) {
+            if ($error = SolicitudValidator::validateFechaInicioDentroDelPlazo($fechaInicio)) {
                 return back()->withInput()->with('error', $error);
             }
         }

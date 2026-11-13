@@ -10,7 +10,7 @@ enum FaltaMarcadoMotivo: string
     public function label(): string
     {
         return match ($this) {
-            self::OlvidoDocente => 'Olvido del docente',
+            self::OlvidoDocente => 'Olvido de marcación',
             self::FallaFaceId => 'Falla técnica del sistema Face ID',
         };
     }

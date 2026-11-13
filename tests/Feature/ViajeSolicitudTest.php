@@ -24,17 +24,22 @@ class ViajeSolicitudTest extends TestCase
             'celular' => '0991234567',
         ]);
 
+        $inicio = now()->subDays(3)->startOfDay();
+        $fin = now()->startOfDay();
+        $eventoInicio = now()->subDays(2)->startOfDay();
+        $eventoFin = now()->subDay()->startOfDay();
+
         $this->actingAs($user)
             ->post(route('solicitudes.store'), [
                 'tipo' => SolicitudTipo::Viaje->value,
-                'fecha_inicio_viaje' => '2026-10-14',
-                'fecha_fin_viaje' => '2026-10-23',
-                'evento_inicio_dia' => 15,
-                'evento_inicio_mes' => 10,
-                'evento_inicio_anio' => 2026,
-                'evento_fin_dia' => 22,
-                'evento_fin_mes' => 10,
-                'evento_fin_anio' => 2026,
+                'fecha_inicio_viaje' => $inicio->toDateString(),
+                'fecha_fin_viaje' => $fin->toDateString(),
+                'evento_inicio_dia' => $eventoInicio->day,
+                'evento_inicio_mes' => $eventoInicio->month,
+                'evento_inicio_anio' => $eventoInicio->year,
+                'evento_fin_dia' => $eventoFin->day,
+                'evento_fin_mes' => $eventoFin->month,
+                'evento_fin_anio' => $eventoFin->year,
                 'tipo_viaje_evento' => 'congreso_expositor',
                 'nombre_evento' => 'Congreso SAVA',
                 'lugar_evento' => 'Guayaquil, Ecuador',
@@ -45,12 +50,12 @@ class ViajeSolicitudTest extends TestCase
         $solicitud = Solicitud::query()->first();
         $this->assertNotNull($solicitud);
         $this->assertSame('Visita de campo: Congreso SAVA', $solicitud->motivo);
-        $this->assertSame('2026-10-14', $solicitud->fecha_inicio->toDateString());
-        $this->assertSame('2026-10-23', $solicitud->fecha_fin->toDateString());
-        $this->assertSame('2026-10-15', $solicitud->detalle['fecha_evento_desde'] ?? null);
-        $this->assertSame('2026-10-22', $solicitud->detalle['fecha_evento_hasta'] ?? null);
-        $this->assertSame(15, $solicitud->detalle['evento_inicio_dia'] ?? null);
-        $this->assertSame(10, $solicitud->detalle['evento_inicio_mes'] ?? null);
+        $this->assertSame($inicio->toDateString(), $solicitud->fecha_inicio->toDateString());
+        $this->assertSame($fin->toDateString(), $solicitud->fecha_fin->toDateString());
+        $this->assertSame($eventoInicio->toDateString(), $solicitud->detalle['fecha_evento_desde'] ?? null);
+        $this->assertSame($eventoFin->toDateString(), $solicitud->detalle['fecha_evento_hasta'] ?? null);
+        $this->assertSame($eventoInicio->day, $solicitud->detalle['evento_inicio_dia'] ?? null);
+        $this->assertSame($eventoInicio->month, $solicitud->detalle['evento_inicio_mes'] ?? null);
     }
 
     public function test_viaje_rechaza_evento_fuera_del_periodo_de_visita(): void
@@ -62,18 +67,22 @@ class ViajeSolicitudTest extends TestCase
             'celular' => '0991234568',
         ]);
 
+        $inicio = now()->subDays(2)->startOfDay();
+        $fin = now()->startOfDay();
+        $eventoFuera = now()->subDays(3)->startOfDay();
+
         $this->actingAs($user)
             ->from(route('solicitudes.wizard'))
             ->post(route('solicitudes.store'), [
                 'tipo' => SolicitudTipo::Viaje->value,
-                'fecha_inicio_viaje' => '2026-10-14',
-                'fecha_fin_viaje' => '2026-10-23',
-                'evento_inicio_dia' => 13,
-                'evento_inicio_mes' => 10,
-                'evento_inicio_anio' => 2026,
-                'evento_fin_dia' => 22,
-                'evento_fin_mes' => 10,
-                'evento_fin_anio' => 2026,
+                'fecha_inicio_viaje' => $inicio->toDateString(),
+                'fecha_fin_viaje' => $fin->toDateString(),
+                'evento_inicio_dia' => $eventoFuera->day,
+                'evento_inicio_mes' => $eventoFuera->month,
+                'evento_inicio_anio' => $eventoFuera->year,
+                'evento_fin_dia' => $fin->day,
+                'evento_fin_mes' => $fin->month,
+                'evento_fin_anio' => $fin->year,
                 'tipo_viaje_evento' => 'estudio',
                 'nombre_evento' => 'Curso',
                 'lugar_evento' => 'Quito',

@@ -25,11 +25,12 @@
                 </label>
                 <label class="field">
                     <span class="field__label">Fecha inicio *</span>
-                    <input type="date" name="fecha_inicio" required class="field__input" value="{{ old('fecha_inicio') }}">
+                    <input type="date" name="fecha_inicio" required class="field__input" min="{{ $minFecha }}" value="{{ old('fecha_inicio') }}">
+                    <p class="field-hint">No puede ser anterior al {{ \Illuminate\Support\Carbon::parse($minFecha)->locale('es')->translatedFormat('j M Y') }}.</p>
                 </label>
                 <label class="field">
                     <span class="field__label">Fecha fin *</span>
-                    <input type="date" name="fecha_fin" required class="field__input" value="{{ old('fecha_fin') }}">
+                    <input type="date" name="fecha_fin" required class="field__input" min="{{ $minFecha }}" value="{{ old('fecha_fin') }}">
                 </label>
                 <label class="field field--full">
                     <span class="field__label">Motivo *</span>

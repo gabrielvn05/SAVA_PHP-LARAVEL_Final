@@ -4120,6 +4120,10 @@ nav[aria-label="Pagination Navigation"] {
   min-height: 2.75rem;
 }
 
+.password-input-wrap > .field__input {
+  padding-right: 3rem;
+}
+
 .password-input-wrap__toggle {
   position: absolute;
   right: 0.35rem;

@@ -48,7 +48,7 @@ class OficioEtiquetas
     public static function motivoFaltaRegistro(?string $value): string
     {
         return match ($value) {
-            'olvido_docente' => 'Olvido del docente',
+            'olvido_docente' => 'Olvido de marcación',
             'falla_face_id' => 'Falla técnica del sistema Face ID',
             default => $value ?? '—',
         };

@@ -53,6 +53,13 @@ class SolicitudOficioFirmadoTest extends TestCase
             ->assertOk()
             ->assertSee('Firmar con certificado .p12', false)
             ->assertSee('Subir documento firmado manualmente', false);
+
+        $this->actingAs($user)
+            ->get(route('solicitudes.firmar', ['solicitud' => $solicitud, 'modo' => 'p12']))
+            ->assertOk()
+            ->assertSee('Contraseña del certificado', false)
+            ->assertSee('data-password-toggle', false)
+            ->assertSee('Mostrar contraseña', false);
     }
 
     public function test_secretaria_firma_antes_de_enviar_al_decano(): void

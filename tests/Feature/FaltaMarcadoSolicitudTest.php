@@ -67,7 +67,7 @@ class FaltaMarcadoSolicitudTest extends TestCase
             ->assertRedirect();
 
         $solicitud = Solicitud::query()->first();
-        $this->assertSame('Olvido del docente', $solicitud->motivo);
+        $this->assertSame('Olvido de marcación', $solicitud->motivo);
         $this->assertArrayNotHasKey('hora_real_salida', $solicitud->detalle ?? []);
     }
 

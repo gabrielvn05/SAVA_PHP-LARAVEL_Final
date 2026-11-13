@@ -7,13 +7,18 @@ use Carbon\Carbon;
 
 class SolicitudValidator
 {
-    public static function validateFechaInicioMaxTresMeses(string $fechaInicio): ?string
+    public static function fechaMinima(): Carbon
+    {
+        return now()->subDays(3)->startOfDay();
+    }
+
+    public static function validateFechaInicioDentroDelPlazo(string $fechaInicio): ?string
     {
         $inicio = Carbon::parse($fechaInicio)->startOfDay();
-        $limite = now()->subMonths(3)->startOfDay();
+        $limite = self::fechaMinima();
 
         if ($inicio->lt($limite)) {
-            return 'La fecha inicio no puede ser anterior a '.$limite->toDateString().' (máximo 3 meses hacia atrás).';
+            return 'La fecha inicio no puede ser anterior a '.$limite->toDateString().' (máximo 3 días hacia atrás).';
         }
 
         return null;

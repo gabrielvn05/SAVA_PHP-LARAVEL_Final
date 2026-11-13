@@ -120,6 +120,9 @@ class PermisoSolicitudTest extends TestCase
             ->assertSee('wizard-steps', false)
             ->assertSee('A nombre de', false)
             ->assertSee('No puede ser anterior al', false)
+            ->assertSee('min="'.now()->subDays(3)->toDateString().'"', false)
+            ->assertSee('Olvido de marcación', false)
+            ->assertDontSee('Olvido del docente', false)
             ->assertDontSee('Datos institucionales', false);
     }
 
