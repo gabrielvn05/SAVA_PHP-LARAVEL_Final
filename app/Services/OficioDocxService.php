@@ -133,6 +133,7 @@ class OficioDocxService
     private function rellenarXml(string $xml, array $valores, string $correoDocente, string $correoDecano): string
     {
         $xml = OficioDatosService::aplicarFechaLugar($xml);
+        $xml = $this->aplicarMembreteSinSigla($xml);
         $xml = $this->insertarCorreosInstitucionales($xml, $correoDocente, $correoDecano);
 
         $codigo = $valores['[Código del oficio]'] ?? '';
@@ -164,6 +165,21 @@ class OficioDocxService
         $xml = preg_replace('/<w:shd\b[^>]*\/>/u', '', $xml) ?? $xml;
 
         return $this->mantenerCorreoEnUnaLinea($this->normalizarTablaFirma($xml));
+    }
+
+    /**
+     * El membrete «[facultad] - ULEAM» no lleva la sigla. El cuerpo del oficio sí.
+     */
+    private function aplicarMembreteSinSigla(string $xml): string
+    {
+        $resultado = preg_replace(
+            '/\[facultad\]((?:<[^>]+>)*)(\s*- ULEAM)/u',
+            $this->xmlEscape(OficioDatosService::FACULTAD_MEMBRETE).'$1$2',
+            $xml,
+            1,
+        );
+
+        return is_string($resultado) ? $resultado : $xml;
     }
 
     /**

@@ -151,6 +151,10 @@ class OficioDocxTest extends TestCase
 
             $this->assertStringContainsString(OficioDatosService::fechaLugarGeneracion(), $xml, $tipo->value);
             $this->assertStringNotContainsString('15 de septiembre del 2026', $xml, $tipo->value);
+            $texto = preg_replace('/<[^>]+>/', '', $xml) ?? $xml;
+            $this->assertStringContainsString(OficioDatosService::FACULTAD_MEMBRETE.' - ULEAM', $texto, $tipo->value);
+            $this->assertStringNotContainsString('(FACIVITEC) - ULEAM', $texto, $tipo->value);
+            $this->assertStringContainsString('de la '.OficioDatosService::FACULTAD_NOMBRE, $texto, $tipo->value);
         }
     }
 

@@ -14,6 +14,9 @@ class OficioDatosService
 {
     public const FACULTAD_NOMBRE = 'Facultad Ciencias de la Vida y Tecnologías (FACIVITEC)';
 
+    /** Línea bajo el cargo del firmante, antes de « - ULEAM». Sin la sigla. */
+    public const FACULTAD_MEMBRETE = 'Facultad Ciencias de la Vida y Tecnologías';
+
     public const FACULTAD_ETIQUETA = 'Ciencias de la Vida y Tecnologías';
 
     /** Fecha de lugar del encabezado. Las plantillas traen «Manta, 15 de septiembre del 2026» fijo. */
